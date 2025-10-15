@@ -6,11 +6,15 @@ export default {
     slug: "athlete-performance-app",
     version: "1.0.0",
     orientation: "portrait",
+    // Temporarily remove icon reference
+    // icon: "./assets/icon.png",
     userInterfaceStyle: "light",
-    splash: {
-      resizeMode: "contain",
-      backgroundColor: "#ffffff"
-    },
+    // Temporarily remove splash reference  
+    // splash: {
+    //   image: "./assets/splash.png",
+    //   resizeMode: "contain",
+    //   backgroundColor: "#ffffff"
+    // },
     assetBundlePatterns: [
       "**/*"
     ],
@@ -23,9 +27,11 @@ export default {
       }
     },
     android: {
-      adaptiveIcon: {
-        backgroundColor: "#FFFFFF"
-      },
+      // Temporarily remove adaptive icon
+      // adaptiveIcon: {
+      //   foregroundImage: "./assets/adaptive-icon.png",
+      //   backgroundColor: "#FFFFFF"
+      // },
       package: "com.athleteperformance.app",
       googleServicesFile: "./google-services.json"
     },
@@ -34,25 +40,25 @@ export default {
       bundler: "metro"
     },
     extra: {
-      // Expose environment variables to the app
-      facebookAppId: "788849897282522",
-      facebookClientToken: "59442a35d743a5e85fd94e2e1216eaeb",
-      backendUrl: process.env.BACKEND_URL,
-      appEnv: process.env.APP_ENV,
-      // EAS Build configuration
+      facebookAppId: process.env.FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID_HERE",
+      facebookClientToken: process.env.FACEBOOK_CLIENT_TOKEN || "YOUR_CLIENT_TOKEN_HERE",
+      backendUrl: process.env.BACKEND_URL || "http://localhost:8080",
+      appEnv: process.env.APP_ENV || "development",
       eas: {
         projectId: "9f1dd9fe-d4a6-4b6c-abfb-60b996db6113"
       }
     },
     plugins: [
-      "expo-camera",
-      "expo-av", 
-      "expo-tracking-transparency",
-      "@react-native-firebase/app",
-      "@react-native-firebase/auth",
+      "expo-dev-client",
       [
         "expo-build-properties",
         {
+          android: {
+            compileSdkVersion: 34,
+            targetSdkVersion: 34,
+            buildToolsVersion: "34.0.0",
+            javaVersion: "17"
+          },
           ios: {
             useFrameworks: "static"
           }
@@ -61,10 +67,10 @@ export default {
       [
         "react-native-fbsdk-next",
         {
-          appID: "788849897282522",
-          clientToken: "59442a35d743a5e85fd94e2e1216eaeb",
+          appID: process.env.FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID_HERE",
+          clientToken: process.env.FACEBOOK_CLIENT_TOKEN || "YOUR_CLIENT_TOKEN_HERE",
           displayName: "Athlete Performance",
-          scheme: "fb788849897282522",
+          scheme: `fb${process.env.FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID_HERE"}`,
           advertiserIDCollectionEnabled: false,
           autoLogAppEventsEnabled: false,
           isAutoInitEnabled: true,

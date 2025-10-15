@@ -7,10 +7,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "android": {
-        "image": "latest",
-        "env": {
-          "JAVA_VERSION": "17"
-        }
+        "image": "ubuntu-22.04-android-34",
+        "ndk": "25.1.8937393"
       },
       "ios": {
         "image": "latest"
@@ -19,10 +17,8 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "image": "latest",
-        "env": {
-          "JAVA_VERSION": "17"
-        }
+        "image": "ubuntu-22.04-android-34",
+        "ndk": "25.1.8937393"
       },
       "ios": {
         "image": "latest"
@@ -30,10 +26,8 @@
     },
     "production": {
       "android": {
-        "image": "latest",
-        "env": {
-          "JAVA_VERSION": "17"
-        }
+        "image": "ubuntu-22.04-android-34",
+        "ndk": "25.1.8937393"
       },
       "ios": {
         "image": "latest"
