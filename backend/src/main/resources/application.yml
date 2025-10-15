@@ -1,0 +1,27 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: athlete-performance-api
+  datasource:
+    url: jdbc:postgresql://postgres:5432/athlete_performance_db
+    username: athlete_user
+    password: dev_password_2024
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+logging:
+  level:
+    com.athleteperformance: DEBUG
+    org.springframework.jdbc: DEBUG
