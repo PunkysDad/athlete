@@ -6,10 +6,8 @@ export default {
     slug: "athlete-performance-app",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/icon.png",
     userInterfaceStyle: "light",
     splash: {
-      image: "./assets/splash.png",
       resizeMode: "contain",
       backgroundColor: "#ffffff"
     },
@@ -26,7 +24,6 @@ export default {
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#FFFFFF"
       },
       package: "com.athleteperformance.app",
@@ -38,8 +35,8 @@ export default {
     },
     extra: {
       // Expose environment variables to the app
-      facebookAppId: process.env.FACEBOOK_APP_ID,
-      facebookClientToken: process.env.FACEBOOK_CLIENT_TOKEN,
+      facebookAppId: "788849897282522",
+      facebookClientToken: "59442a35d743a5e85fd94e2e1216eaeb",
       backendUrl: process.env.BACKEND_URL,
       appEnv: process.env.APP_ENV,
       // EAS Build configuration
@@ -64,10 +61,10 @@ export default {
       [
         "react-native-fbsdk-next",
         {
-          appID: process.env.FACEBOOK_APP_ID,
-          clientToken: process.env.FACEBOOK_CLIENT_TOKEN,
+          appID: "788849897282522",
+          clientToken: "59442a35d743a5e85fd94e2e1216eaeb",
           displayName: "Athlete Performance",
-          scheme: `fb${process.env.FACEBOOK_APP_ID}`,
+          scheme: "fb788849897282522",
           advertiserIDCollectionEnabled: false,
           autoLogAppEventsEnabled: false,
           isAutoInitEnabled: true,

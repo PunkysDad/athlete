@@ -1,18 +1,43 @@
 {
   "cli": {
-    "version": ">= 16.23.0",
-    "appVersionSource": "remote"
+    "version": ">= 3.0.0"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "image": "latest",
+        "env": {
+          "JAVA_VERSION": "17"
+        }
+      },
+      "ios": {
+        "image": "latest"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "image": "latest",
+        "env": {
+          "JAVA_VERSION": "17"
+        }
+      },
+      "ios": {
+        "image": "latest"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "android": {
+        "image": "latest",
+        "env": {
+          "JAVA_VERSION": "17"
+        }
+      },
+      "ios": {
+        "image": "latest"
+      }
     }
   },
   "submit": {
