@@ -4,10 +4,6 @@
 .env.development
 .env.production
 
-# Firebase Config Files (NEVER COMMIT)
-google-services.json
-GoogleService-Info.plist
-
 # Build artifacts
 node_modules/
 .expo/

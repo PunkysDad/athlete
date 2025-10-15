@@ -19,7 +19,10 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.athleteperformance.app",
-      googleServicesFile: "./GoogleService-Info.plist"
+      googleServicesFile: "./GoogleService-Info.plist",
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false
+      }
     },
     android: {
       adaptiveIcon: {

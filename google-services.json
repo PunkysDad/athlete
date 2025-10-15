@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "406359287255",
+    "project_id": "sports-74592",
+    "storage_bucket": "sports-74592.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:406359287255:android:6e2a0092a9b72a69ea1792",
+        "android_client_info": {
+          "package_name": "com.athleteperformance.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAy4hOhvarLpJ5Yy38UMeFFMH5zXJNjTVc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
