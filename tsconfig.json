@@ -5,7 +5,7 @@
     "allowSyntheticDefaultImports": true,
     "jsx": "react-jsx",
     "lib": ["dom", "es6"],
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",  // Changed from "node"
     "noEmit": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,

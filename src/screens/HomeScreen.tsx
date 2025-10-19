@@ -1,49 +1,89 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
-import { Text, Card, Title, Paragraph } from 'react-native-paper';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { Card, Button } from 'react-native-paper';
+import { MaterialIcons as Icon } from '@expo/vector-icons';
+import { theme, commonStyles } from '../theme';
 
-const HomeScreen = () => {
+export default function HomeScreen() {
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={commonStyles.containerPadded}>
       <View style={styles.header}>
-        <Text style={styles.title}>🏃‍♂️ Athlete Performance</Text>
-        <Text style={styles.subtitle}>Welcome back!</Text>
+        <Text style={commonStyles.heading2}>Welcome back, Jordan!</Text>
+        <Text style={commonStyles.bodySecondary}>Ready to improve your game?</Text>
       </View>
-      
-      {/* Your existing content can go here */}
-      <Card style={styles.card}>
+
+      <Card style={commonStyles.card}>
         <Card.Content>
-          <Title>Quick Actions</Title>
-          <Paragraph>Your performance tracking dashboard</Paragraph>
+          <View style={styles.cardHeader}>
+            <Icon name="trending-up" size={24} color={theme.colors.primary} />
+            <Text style={styles.cardTitle}>This Week's Progress</Text>
+          </View>
+          <Text style={commonStyles.body}>3 training sessions completed</Text>
+          <Text style={commonStyles.body}>2 new AI coaching conversations</Text>
+          <Text style={commonStyles.body}>1 video uploaded</Text>
+        </Card.Content>
+      </Card>
+
+      <Card style={commonStyles.card}>
+        <Card.Content>
+          <View style={styles.cardHeader}>
+            <Icon name="notifications" size={24} color={theme.colors.warning} />
+            <Text style={styles.cardTitle}>Recent Activity</Text>
+          </View>
+          <Text style={commonStyles.body}>Coach Martinez reviewed your profile</Text>
+          <Text style={commonStyles.body}>New message from teammate Alex</Text>
+        </Card.Content>
+      </Card>
+
+      <Card style={commonStyles.card}>
+        <Card.Content>
+          <Text style={commonStyles.heading3}>Quick Actions</Text>
+          <View style={styles.buttonRow}>
+            <Button 
+              mode="contained" 
+              icon="video" 
+              style={styles.actionButton}
+              buttonColor={theme.colors.primary}
+            >
+              Upload Video
+            </Button>
+            <Button 
+              mode="outlined" 
+              icon="psychology" 
+              style={styles.actionButton}
+              textColor={theme.colors.primary}
+            >
+              AI Coaching
+            </Button>
+          </View>
         </Card.Content>
       </Card>
     </ScrollView>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
   header: {
-    padding: 20,
+    marginBottom: theme.spacing.xl,
+  },
+  cardHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: theme.spacing.md,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#6200EA',
-    marginBottom: 8,
+  cardTitle: {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.text,
+    marginLeft: theme.spacing.sm,
   },
-  subtitle: {
-    fontSize: 18,
-    color: '#666',
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.md,
   },
-  card: {
-    margin: 16,
-    elevation: 4,
+  actionButton: {
+    flex: 1,
+    marginHorizontal: theme.spacing.xs,
   },
 });
-
-export default HomeScreen;

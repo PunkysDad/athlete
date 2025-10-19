@@ -36,7 +36,6 @@ export default {
       googleServicesFile: "./google-services.json"
     },
     web: {
-      favicon: null,
       bundler: "metro"
     },
     extra: {
@@ -49,7 +48,6 @@ export default {
       }
     },
     plugins: [
-      "expo-dev-client",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       [
