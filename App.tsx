@@ -6,9 +6,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { PaperProvider } from 'react-native-paper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 
-// Import authentication
-import { useAuth } from './src/hooks/useAuth';
-import AuthenticationFlow from './src/components/AuthenticationFlow';
+// Import simple authentication for development
+import { useSimpleAuth } from './src/hooks/useSimpleAuth';
 
 // Import screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -24,8 +23,22 @@ const Stack = createNativeStackNavigator();
 const LoadingScreen: React.FC = () => {
   return (
     <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color="#6200EA" />
-      <Text style={styles.loadingText}>Initializing...</Text>
+      <ActivityIndicator size="large" color="#0066FF" />
+      <Text style={styles.loadingText}>Loading GameIQ...</Text>
+    </View>
+  );
+};
+
+// Simple sign-in screen for development (replaces AuthenticationFlow)
+const DevSignInScreen: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
+  return (
+    <View style={styles.signInContainer}>
+      <Text style={styles.appTitle}>GameIQ</Text>
+      <Text style={styles.subtitle}>AI Sports Coach</Text>
+      <Text style={styles.devNote}>Development Mode</Text>
+      <Text style={styles.devInstructions}>
+        This will automatically sign you in with a mock user for development.
+      </Text>
     </View>
   );
 };
@@ -57,8 +70,10 @@ function MainTabs() {
 
           return <Icon name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#6200EA',
+        tabBarActiveTintColor: '#0066FF',
         tabBarInactiveTintColor: 'gray',
+        headerStyle: { backgroundColor: '#0066FF' },
+        headerTintColor: '#fff',
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
@@ -83,7 +98,7 @@ function RootStack() {
         component={EditProfileScreen}
         options={{
           title: 'Edit Profile',
-          headerStyle: { backgroundColor: '#6200EA' },
+          headerStyle: { backgroundColor: '#0066FF' },
           headerTintColor: '#fff'
         }}
       />
@@ -92,7 +107,7 @@ function RootStack() {
 }
 
 export default function App() {
-  const { user, initializing } = useAuth();
+  const { user, initializing, signIn } = useSimpleAuth();
 
   return (
     <PaperProvider>
@@ -103,7 +118,7 @@ export default function App() {
           <RootStack />
         </NavigationContainer>
       ) : (
-        <AuthenticationFlow />
+        <DevSignInScreen onSignIn={signIn} />
       )}
     </PaperProvider>
   );
@@ -120,5 +135,35 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#666666',
+  },
+  signInContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    padding: 20,
+  },
+  appTitle: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: '#0066FF',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 18,
+    color: '#666666',
+    marginBottom: 40,
+  },
+  devNote: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FF6B00',
+    marginBottom: 16,
+  },
+  devInstructions: {
+    fontSize: 14,
+    color: '#666666',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
