@@ -15,6 +15,7 @@ import { Card, Button, Chip } from 'react-native-paper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { theme, commonStyles } from '../theme';
+import FormattedMessage from '../components/FormattedMessage';
 
 interface Message {
   id: string;
@@ -195,12 +196,10 @@ export default function CoachingScreen() {
                   message.isUser ? styles.userMessage : styles.aiMessage,
                 ]}
               >
-                <Text style={[
-                  styles.messageText,
-                  message.isUser ? styles.userMessageText : styles.aiMessageText,
-                ]}>
-                  {message.text}
-                </Text>
+                <FormattedMessage 
+                  text={message.text}
+                  isUser={message.isUser}
+                />
               </View>
             </View>
           ))}
@@ -383,12 +382,6 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 16,
     lineHeight: 22,
-  },
-  userMessageText: {
-    color: '#ffffff',
-  },
-  aiMessageText: {
-    color: '#333333',
   },
   loadingContainer: {
     flexDirection: 'row',
