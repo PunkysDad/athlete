@@ -9,7 +9,7 @@ import {
   SafeAreaView,
   StatusBar
 } from 'react-native';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useSimpleAuth';
 
 const AuthenticationFlow: React.FC = () => {
   const { onFacebookSignIn } = useAuth();

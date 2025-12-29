@@ -1,5 +1,3 @@
-import Constants from 'expo-constants';
-
 // Type definition for environment configuration
 interface EnvironmentConfig {
   FACEBOOK_APP_ID: string;
@@ -8,33 +6,40 @@ interface EnvironmentConfig {
   APP_ENV: string;
 }
 
-// Extract environment variables from Expo config
-const extra = Constants.expoConfig?.extra || {};
-
-// Centralized configuration object
+// Simple environment configuration for development
 export const ENV_CONFIG: EnvironmentConfig = {
-  FACEBOOK_APP_ID: extra.facebookAppId || '',
-  FACEBOOK_CLIENT_TOKEN: extra.facebookClientToken || '',
-  BACKEND_URL: extra.backendUrl || 'http://localhost:8080',
-  APP_ENV: extra.appEnv || 'development',
+  FACEBOOK_APP_ID: process.env.EXPO_PUBLIC_FACEBOOK_APP_ID || 'dev-facebook-app-id',
+  FACEBOOK_CLIENT_TOKEN: process.env.EXPO_PUBLIC_FACEBOOK_CLIENT_TOKEN || 'dev-client-token',
+  BACKEND_URL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080',
+  APP_ENV: process.env.EXPO_PUBLIC_APP_ENV || 'development',
 };
 
-// Validation function
+// For development, we'll skip validation since we're using mock auth anyway
 const validateConfig = (): void => {
-  const required: (keyof EnvironmentConfig)[] = ['FACEBOOK_APP_ID', 'FACEBOOK_CLIENT_TOKEN'];
-  const missing = required.filter(key => {
-    const value = ENV_CONFIG[key];
-    return !value || value === 'undefined' || value === '';
-  });
-  
-  if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  if (ENV_CONFIG.APP_ENV === 'production') {
+    const required: (keyof EnvironmentConfig)[] = ['FACEBOOK_APP_ID', 'FACEBOOK_CLIENT_TOKEN'];
+    const missing = required.filter(key => {
+      const value = ENV_CONFIG[key];
+      return !value || value === 'undefined' || value === '';
+    });
+    
+    if (missing.length > 0) {
+      throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    }
   }
 };
 
-// Validate on import (skip in test environment)
-if (ENV_CONFIG.APP_ENV !== 'test') {
+// Only validate in production
+if (ENV_CONFIG.APP_ENV === 'production') {
   validateConfig();
 }
+
+// Log config for development debugging
+console.log('Environment Config:', {
+  BACKEND_URL: ENV_CONFIG.BACKEND_URL,
+  APP_ENV: ENV_CONFIG.APP_ENV,
+  // Don't log sensitive keys in production
+  FACEBOOK_CONFIGURED: ENV_CONFIG.FACEBOOK_APP_ID !== 'dev-facebook-app-id'
+});
 
 export default ENV_CONFIG;

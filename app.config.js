@@ -2,10 +2,12 @@ import 'dotenv/config';
 
 export default {
   expo: {
-    name: "Athlete Performance",
-    slug: "athlete-performance-app",
+    name: "GameIQ",
+    slug: "gameiq-app", 
     version: "1.0.0",
     orientation: "portrait",
+    jsEngine: 'hermes',
+    newArchEnabled: false,
     // Temporarily remove icon reference
     // icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -20,7 +22,7 @@ export default {
     ],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.athleteperformance.app",
+      bundleIdentifier: "com.gameiq.app",
       googleServicesFile: "./GoogleService-Info.plist",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false
@@ -32,7 +34,7 @@ export default {
       //   foregroundImage: "./assets/adaptive-icon.png",
       //   backgroundColor: "#FFFFFF"
       // },
-      package: "com.athleteperformance.app",
+      package: "com.gameiq.app",
       googleServicesFile: "./google-services.json"
     },
     web: {
@@ -41,42 +43,42 @@ export default {
     extra: {
       facebookAppId: process.env.FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID_HERE",
       facebookClientToken: process.env.FACEBOOK_CLIENT_TOKEN || "YOUR_CLIENT_TOKEN_HERE",
-      backendUrl: process.env.BACKEND_URL || "http://localhost:8080",
+      backendUrl: process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080",
       appEnv: process.env.APP_ENV || "development",
       eas: {
         projectId: "9f1dd9fe-d4a6-4b6c-abfb-60b996db6113"
       }
     },
+    // For SDK 54, comment out native plugins if using Expo Go
     plugins: [
-      "@react-native-firebase/app",
-      "@react-native-firebase/auth",
+      // "@react-native-firebase/app",
+      // "@react-native-firebase/auth",
       [
         "expo-build-properties",
         {
           android: {
             compileSdkVersion: 34,
             targetSdkVersion: 34,
-            buildToolsVersion: "34.0.0",
-            javaVersion: "17"
+            buildToolsVersion: "34.0.0"
           },
           ios: {
             useFrameworks: "static"
           }
         }
-      ],
-      [
-        "react-native-fbsdk-next",
-        {
-          appID: process.env.FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID_HERE",
-          clientToken: process.env.FACEBOOK_CLIENT_TOKEN || "YOUR_CLIENT_TOKEN_HERE",
-          displayName: "Athlete Performance",
-          scheme: `fb${process.env.FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID_HERE"}`,
-          advertiserIDCollectionEnabled: false,
-          autoLogAppEventsEnabled: false,
-          isAutoInitEnabled: true,
-          iosUserTrackingPermission: "This identifier will be used to deliver personalized ads to you."
-        }
       ]
+      // [
+      //   "react-native-fbsdk-next",
+      //   {
+      //     appID: process.env.FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID_HERE",
+      //     clientToken: process.env.FACEBOOK_CLIENT_TOKEN || "YOUR_CLIENT_TOKEN_HERE",
+      //     displayName: "GameIQ",
+      //     scheme: `fb${process.env.FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID_HERE"}`,
+      //     advertiserIDCollectionEnabled: false,
+      //     autoLogAppEventsEnabled: false,
+      //     isAutoInitEnabled: true,
+      //     iosUserTrackingPermission: "This identifier will be used to deliver personalized ads to you."
+      //   }
+      // ]
     ]
   }
 };
