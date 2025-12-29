@@ -8,67 +8,93 @@ interface FormattedMessageProps {
 }
 
 const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => {
-  // Simple markdown parsing for common elements
+  const cleanText = (text: string): string => {
+    return text
+      .trim()
+      .replace(/\n{3,}/g, '\n\n') // Replace 3+ newlines with just 2
+      .replace(/[ \t]+$/gm, '') // Remove trailing spaces/tabs from lines
+  };
+
   const parseMarkdown = (text: string) => {
-    const lines = text.split('\n');
+    const cleanedText = cleanText(text);
+    const lines = cleanedText.split('\n');
     const elements: React.ReactNode[] = [];
     
     lines.forEach((line, lineIndex) => {
-      if (line.trim() === '') {
-        elements.push(<View key={`space-${lineIndex}`} style={styles.lineBreak} />);
+      const trimmedLine = line.trim();
+      
+      // Handle empty lines
+      if (trimmedLine === '') {
+        // Only add line break if we don't already have consecutive line breaks
+        if (elements.length > 0) {
+          const lastElement = elements[elements.length - 1];
+          const isLastElementLineBreak = React.isValidElement(lastElement) && 
+            lastElement.key?.toString().startsWith('space-');
+          
+          if (!isLastElementLineBreak) {
+            elements.push(<View key={`space-${lineIndex}`} style={styles.lineBreak} />);
+          }
+        }
         return;
       }
 
-      // Headers (# ## ###)
-      if (line.startsWith('###')) {
+      // Headers (# ## ###) - make sure there's a space after #
+      if (line.match(/^###\s+/)) {
         elements.push(
           <Text key={lineIndex} style={[styles.header3, isUser && styles.userText]}>
-            {line.replace(/^###\s*/, '')}
+            {line.replace(/^###\s+/, '')}
           </Text>
         );
-      } else if (line.startsWith('##')) {
+      } else if (line.match(/^##\s+/)) {
         elements.push(
           <Text key={lineIndex} style={[styles.header2, isUser && styles.userText]}>
-            {line.replace(/^##\s*/, '')}
+            {line.replace(/^##\s+/, '')}
           </Text>
         );
-      } else if (line.startsWith('#')) {
+      } else if (line.match(/^#\s+/)) {
         elements.push(
           <Text key={lineIndex} style={[styles.header1, isUser && styles.userText]}>
-            {line.replace(/^#\s*/, '')}
+            {line.replace(/^#\s+/, '')}
           </Text>
         );
       }
-      // Bullet points
-      else if (line.startsWith('-') || line.startsWith('•')) {
+      // Bullet points - handle various bullet formats
+      else if (line.match(/^[-•*]\s/)) {
         elements.push(
           <View key={lineIndex} style={styles.bulletContainer}>
             <Text style={[styles.bullet, isUser && styles.userText]}>•</Text>
-            <Text style={[styles.bulletText, isUser && styles.userText]}>
-              {parseInlineMarkdown(line.replace(/^[-•]\s*/, ''))}
-            </Text>
+            <View style={styles.bulletTextContainer}>
+              <Text style={[styles.bulletText, isUser && styles.userText]}>
+                {parseInlineMarkdown(line.replace(/^[-•*]\s+/, ''))}
+              </Text>
+            </View>
           </View>
         );
       }
       // Numbered lists
-      else if (/^\d+\./.test(line)) {
+      else if (line.match(/^\d+\.\s/)) {
+        const numberMatch = line.match(/^(\d+\.)/);
         elements.push(
           <View key={lineIndex} style={styles.bulletContainer}>
-            <Text style={[styles.bullet, isUser && styles.userText]}>
-              {line.match(/^\d+\./)?.[0]} 
+            <Text style={[styles.numberBullet, isUser && styles.userText]}>
+              {numberMatch?.[1]}
             </Text>
-            <Text style={[styles.bulletText, isUser && styles.userText]}>
-              {parseInlineMarkdown(line.replace(/^\d+\.\s*/, ''))}
-            </Text>
+            <View style={styles.bulletTextContainer}>
+              <Text style={[styles.bulletText, isUser && styles.userText]}>
+                {parseInlineMarkdown(line.replace(/^\d+\.\s+/, ''))}
+              </Text>
+            </View>
           </View>
         );
       }
       // Regular paragraphs
-      else {
+      else if (trimmedLine.length > 0) {
         elements.push(
-          <Text key={lineIndex} style={[styles.paragraph, isUser && styles.userText]}>
-            {parseInlineMarkdown(line)}
-          </Text>
+          <View key={lineIndex} style={styles.paragraphContainer}>
+            <Text style={[styles.paragraph, isUser && styles.userText]}>
+              {parseInlineMarkdown(trimmedLine)}
+            </Text>
+          </View>
         );
       }
     });
@@ -76,51 +102,46 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
     return elements;
   };
 
-  // Parse inline markdown (bold, italic)
-  const parseInlineMarkdown = (text: string) => {
-    const parts = [];
-    let remainingText = text;
-    let key = 0;
+  const parseInlineMarkdown = (text: string): React.ReactNode => {
+    if (!text || typeof text !== 'string') {
+      return text;
+    }
 
-    while (remainingText.length > 0) {
-      // Bold text **text**
-      const boldMatch = remainingText.match(/\*\*(.*?)\*\*/);
-      if (boldMatch) {
-        const beforeBold = remainingText.substring(0, boldMatch.index);
-        if (beforeBold) {
-          parts.push(<Text key={key++}>{beforeBold}</Text>);
-        }
+    // Split by ** and process alternately as normal/bold
+    const segments = text.split('**');
+    
+    if (segments.length === 1) {
+      // No ** found, return as-is
+      return text;
+    }
+
+    const parts: React.ReactNode[] = [];
+    
+    segments.forEach((segment, index) => {
+      if (segment === '') {
+        return; // Skip empty segments
+      }
+      
+      if (index % 2 === 0) {
+        // Even indices are regular text
+        parts.push(<Text key={index}>{segment}</Text>);
+      } else {
+        // Odd indices are bold text
         parts.push(
-          <Text key={key++} style={styles.bold}>
-            {boldMatch[1]}
+          <Text key={index} style={[styles.bold, isUser && styles.userText]}>
+            {segment}
           </Text>
         );
-        remainingText = remainingText.substring(boldMatch.index! + boldMatch[0].length);
       }
-      // Italic text *text*
-      else {
-        const italicMatch = remainingText.match(/\*(.*?)\*/);
-        if (italicMatch && !remainingText.startsWith('**')) {
-          const beforeItalic = remainingText.substring(0, italicMatch.index);
-          if (beforeItalic) {
-            parts.push(<Text key={key++}>{beforeItalic}</Text>);
-          }
-          parts.push(
-            <Text key={key++} style={styles.italic}>
-              {italicMatch[1]}
-            </Text>
-          );
-          remainingText = remainingText.substring(italicMatch.index! + italicMatch[0].length);
-        } else {
-          // No more markdown, add remaining text
-          parts.push(<Text key={key++}>{remainingText}</Text>);
-          break;
-        }
-      }
-    }
+    });
 
     return parts.length > 0 ? parts : text;
   };
+
+  // Remove the processItalics function since we're simplifying
+  // const processItalics = (text: string, startKey: number) => {
+  //   // Removed for simplicity - focus on bold formatting first
+  // };
 
   return (
     <View style={styles.container}>
@@ -131,41 +152,40 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    // Natural sizing based on content
   },
   lineBreak: {
-    height: 8,
+    height: 6,
   },
   header1: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '700', // Use numeric weight for better cross-platform support
     color: '#333',
-    marginBottom: 8,
-    marginTop: 8,
+    marginVertical: 6,
   },
   header2: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontWeight: '600',
     color: '#333',
-    marginBottom: 6,
-    marginTop: 6,
+    marginVertical: 5,
   },
   header3: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#333',
+    marginVertical: 4,
+  },
+  paragraphContainer: {
     marginBottom: 4,
-    marginTop: 4,
   },
   paragraph: {
     fontSize: 16,
-    lineHeight: 22,
+    lineHeight: 22, // Better readability
     color: '#333',
-    marginBottom: 4,
   },
   bulletContainer: {
     flexDirection: 'row',
-    marginBottom: 4,
+    marginBottom: 3,
     alignItems: 'flex-start',
   },
   bullet: {
@@ -173,15 +193,26 @@ const styles = StyleSheet.create({
     color: '#333',
     marginRight: 8,
     marginTop: 2,
+    width: 12,
+  },
+  numberBullet: {
+    fontSize: 16,
+    color: '#333',
+    marginRight: 8,
+    marginTop: 2,
+    minWidth: 24, // Accommodate larger numbers
+    textAlign: 'left',
+  },
+  bulletTextContainer: {
+    flex: 1,
   },
   bulletText: {
     fontSize: 16,
     lineHeight: 22,
     color: '#333',
-    flex: 1,
   },
   bold: {
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   italic: {
     fontStyle: 'italic',
