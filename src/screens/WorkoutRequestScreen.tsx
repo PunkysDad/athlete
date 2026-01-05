@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   View,
   Text,
@@ -6,12 +7,13 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
-import { 
-  Card, 
-  Button, 
-  RadioButton, 
-  Checkbox, 
+import {
+  Card,
+  Button,
+  RadioButton,
+  Checkbox,
   TextInput,
   Chip,
   Divider,
@@ -19,26 +21,9 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { theme, commonStyles } from '../theme';
-import { workoutApiService, WorkoutRequest as ApiWorkoutRequest, WorkoutPlan } from '../services/workoutApiService';
-
-// Types
-interface WorkoutRequest {
-  sport: string;
-  position: string;
-  experienceLevel: 'beginner' | 'intermediate' | 'advanced';
-  trainingPhase: 'off-season' | 'pre-season' | 'in-season' | 'post-season';
-  equipment: string[];
-  timeAvailable: number; // minutes
-  trainingFocus: string[];
-  specialRequests?: string;
-}
-
-interface WorkoutResponse {
-  success: boolean;
-  data?: WorkoutPlan;
-  error?: string;
-  cost?: number;
-}
+import { workoutApiService } from '../services/workoutApiService';
+import { WorkoutData, WorkoutRequest } from '../interfaces/interfaces';
+import { RootStackParamList } from '../types/types';
 
 // Equipment options by category
 const EQUIPMENT_OPTIONS = {
@@ -62,9 +47,11 @@ const mockUser = {
   position: 'Wide Receiver'
 };
 
+type WorkoutRequestNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function WorkoutRequestScreen() {
-  const navigation = useNavigation();
-  
+  const navigation = useNavigation<WorkoutRequestNavigationProp>();
+
   // Form state
   const [formData, setFormData] = useState<WorkoutRequest>({
     sport: mockUser.sport,
@@ -76,26 +63,26 @@ export default function WorkoutRequestScreen() {
     trainingFocus: [],
     specialRequests: ''
   });
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Validation
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
+
     if (formData.equipment.length === 0) {
       newErrors.equipment = 'Please select at least one equipment option';
     }
-    
+
     if (formData.trainingFocus.length === 0) {
       newErrors.trainingFocus = 'Please select at least one training focus';
     }
-    
+
     if (formData.timeAvailable < 15) {
       newErrors.timeAvailable = 'Minimum workout time is 15 minutes';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -108,33 +95,34 @@ export default function WorkoutRequestScreen() {
     }
 
     setIsLoading(true);
-    
+
     try {
-      // Call your actual API endpoint
+      // Call API endpoint
       const response = await workoutApiService.generateWorkout(formData);
-      
+
       if (response.success && response.data) {
-        const costText = response.cost ? ` (Cost: ${response.cost.toFixed(3)})` : '';
-        
+        const workoutData: WorkoutData = {
+          ...response.data,
+          sport: formData.sport,
+          position: formData.position,
+        };
         Alert.alert(
           'Workout Generated!',
-          `Your ${formData.position} workout is ready. Duration: ${response.data.estimatedDuration} minutes${costText}`,
-        //   [
-        //     { text: 'Cancel', style: 'cancel' },
-        //     { 
-        //       text: 'View Workout', 
-        //       onPress: () => {
-        //         navigation.navigate('WorkoutDisplay', { 
-        //           workoutData: response.data 
-        //         });
-        //       }
-        //     }
-        //   ]
+          `Your ${formData.position} workout is ready. Duration: ${response.data.estimatedDuration} minutes`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'View Workout',
+              onPress: () => {
+                navigation.navigate('WorkoutDisplay', { workoutData });
+              }
+            }
+          ]
         );
       } else {
         throw new Error(response.error || 'Failed to generate workout');
       }
-      
+
     } catch (error) {
       console.error('Workout generation error:', error);
       Alert.alert(
@@ -147,15 +135,147 @@ export default function WorkoutRequestScreen() {
     }
   };
 
+  // Add this function after handleSubmitRequest
+  const handleMockWorkout = () => {
+    const mockWorkoutData: WorkoutData = {
+      id: "mock-18",
+      title: "60-MINUTE PRE-SEASON WR WORKOUT",
+      description: "Position-specific training for Wide Receiver in Football",
+      estimatedDuration: 60,
+      exercises: [],
+      focusAreas: ["Core stability", "Reaction time", "Aerobic base"],
+      createdAt: new Date().toISOString(),
+      sport: "Football",
+      position: "Wide Receiver",
+      generatedContent: `# 60-MINUTE PRE-SEASON WR WORKOUT
+      **Focus: Core Stability, Reaction Time & Aerobic Base**
+
+      ---
+
+      ## WARM-UP (10 minutes)
+
+      **Dynamic Movement Prep**
+      - High knees: 20 yards
+      - Butt kicks: 20 yards  
+      - Leg swings (forward/back): 10 each leg
+      - Leg swings (side-to-side): 10 each leg
+      - Walking lunges with rotation: 10 each leg
+      - Arm circles: 10 forward, 10 backward
+
+      **Coaching Cue:** Focus on controlled movements and gradually increasing range of motion. This prepares your hips and shoulders for explosive WR movements.
+
+      ---
+
+      ## CORE STABILITY CIRCUIT (15 minutes)
+      *3 rounds, 45 seconds work / 15 seconds rest*
+
+      ### Round 1-3:
+      1. **Plank to Pike with Medicine Ball**
+        - Hold plank, roll ball toward feet, pike up
+        - **WR Benefit:** Builds core strength for body control during contested catches
+
+      2. **Single-Leg Glute Bridge Hold**
+        - 45 seconds each leg per round
+        - **WR Benefit:** Hip stability for cutting and route running
+
+      3. **Dead Bug with Opposite Reach**
+        - Slow, controlled movement
+        - **WR Benefit:** Core stability while tracking ball overhead
+
+      4. **Medicine Ball Russian Twists**
+        - Keep feet elevated, rotate side to side
+        - **WR Benefit:** Rotational power for breaking tackles after catch
+
+      **Rest:** 60 seconds between rounds
+
+      ---
+
+      ## REACTION TIME & AGILITY (20 minutes)
+
+      ### Cone Drill Circuit (12 minutes)
+      *4 rounds, 2 minutes work / 1 minute rest*
+
+      **Station Rotation (30 seconds each):**
+
+      1. **5-10-5 Shuttle**
+        - Sprint 5 yards right, 10 yards left, 5 yards right
+        - **Coaching Cue:** Stay low, plant and drive off outside foot
+
+      2. **Four-Corner Reaction Drill**
+        - Set 4 cones in square (5 yards apart)
+        - Partner calls out numbers, sprint to that cone
+        - **WR Benefit:** Develops reaction to QB audibles and defensive shifts
+
+      3. **W-Pattern Cuts**
+        - Set 5 cones in W formation, sprint pattern focusing on sharp cuts
+        - **Coaching Cue:** Sink hips on cuts, maintain speed through breaks
+
+      4. **Box Drill with Plyometric Box**
+        - Step up, over, down, around box continuously
+        - **WR Benefit:** Foot speed and coordination for route adjustments
+
+      ### Medicine Ball Reaction Drills (8 minutes)
+      *2 rounds, 3 minutes work / 1 minute rest*
+
+      1. **Partner Ball Drop** (90 seconds)
+        - Partner drops ball from chest height, catch before second bounce
+        - **WR Benefit:** Hand-eye coordination and reaction time
+
+      2. **Wall Ball Catch** (90 seconds)
+        - Throw ball at wall, catch on return at different angles
+        - **WR Benefit:** Tracking and catching balls from various trajectories
+
+      ---
+
+      ## AEROBIC BASE CONDITIONING (12 minutes)
+
+      ### Field Running Circuit
+      *3 rounds, 3 minutes work / 1 minute rest*
+
+      **Round Structure:**
+      - **Minutes 1-2:** Tempo runs at 75% effort (full field length)
+      - **Minute 3:** Route running at game speed
+        - Out routes, comebacks, slants, posts
+        - Focus on precise footwork and acceleration
+
+      **Coaching Cues:**
+      - Maintain consistent pace during tempo runs
+      - Full speed on route breaks, controlled speed between
+      - **WR Benefit:** Builds cardiovascular base needed for 60+ plays per game
+
+      ---
+
+      ## COOL DOWN (3 minutes)
+
+      **Static Stretching:**
+      - Hamstring stretch: 30 seconds each leg
+      - Hip flexor stretch: 30 seconds each leg  
+      - Shoulder cross-body stretch: 20 seconds each arm
+      - Calf stretch: 20 seconds each leg
+
+      ---
+
+      ## INJURY PREVENTION NOTES
+
+      - Focus on proper landing mechanics during plyometric exercises
+      - Maintain core engagement throughout all movements
+      - Stop immediately if you experience any joint pain
+      - Hydrate adequately and listen to your body`
+    };
+
+    console.log('Mock workout data:', mockWorkoutData);
+    navigation.navigate('WorkoutDisplay', { workoutData: mockWorkoutData });
+  };
+
   // Equipment selection
   const toggleEquipment = (equipment: string) => {
     const current = formData.equipment;
     const updated = current.includes(equipment)
       ? current.filter(item => item !== equipment)
       : [...current, equipment];
-    
+
     setFormData({ ...formData, equipment: updated });
-    
+
     if (errors.equipment) {
       setErrors({ ...errors, equipment: '' });
     }
@@ -167,9 +287,9 @@ export default function WorkoutRequestScreen() {
     const updated = current.includes(focus)
       ? current.filter(item => item !== focus)
       : [...current, focus];
-    
+
     setFormData({ ...formData, trainingFocus: updated });
-    
+
     if (errors.trainingFocus) {
       setErrors({ ...errors, trainingFocus: '' });
     }
@@ -182,7 +302,7 @@ export default function WorkoutRequestScreen() {
         {errors.equipment && (
           <Text style={styles.errorText}>{errors.equipment}</Text>
         )}
-        
+
         {Object.entries(EQUIPMENT_OPTIONS).map(([category, items]) => (
           <View key={category} style={styles.equipmentCategory}>
             <Text style={[commonStyles.body, styles.categoryLabel]}>{category}</Text>
@@ -193,7 +313,7 @@ export default function WorkoutRequestScreen() {
                   onPress={() => toggleEquipment(equipment)}
                   color={theme.colors.primary}
                 />
-                <Text 
+                <Text
                   style={[commonStyles.body, styles.checkboxLabel]}
                   onPress={() => toggleEquipment(equipment)}
                 >
@@ -214,7 +334,7 @@ export default function WorkoutRequestScreen() {
         {errors.trainingFocus && (
           <Text style={styles.errorText}>{errors.trainingFocus}</Text>
         )}
-        
+
         {Object.entries(FOCUS_OPTIONS).map(([category, items]) => (
           <View key={category} style={styles.focusCategory}>
             <Text style={[commonStyles.body, styles.categoryLabel]}>{category}</Text>
@@ -271,7 +391,7 @@ export default function WorkoutRequestScreen() {
         <Card style={commonStyles.card}>
           <Card.Content>
             <Text style={commonStyles.heading3}>Experience Level</Text>
-            <RadioButton.Group 
+            <RadioButton.Group
               onValueChange={(value) => setFormData({ ...formData, experienceLevel: value as any })}
               value={formData.experienceLevel}
             >
@@ -280,17 +400,22 @@ export default function WorkoutRequestScreen() {
                 { value: 'intermediate', label: 'Intermediate (2-4 years)' },
                 { value: 'advanced', label: 'Advanced (5+ years)' }
               ].map(option => (
-                <View key={option.value} style={styles.radioRow}>
+                <TouchableOpacity
+                  key={option.value}
+                  style={styles.radioRow}
+                  onPress={() => setFormData({ ...formData, experienceLevel: option.value as any })}
+                  activeOpacity={0.7}
+                >
                   <RadioButton value={option.value} color={theme.colors.primary} />
-                  <Text style={commonStyles.body}>{option.label}</Text>
-                </View>
+                  <Text style={[commonStyles.body, styles.radioLabel]}>{option.label}</Text>
+                </TouchableOpacity>
               ))}
             </RadioButton.Group>
 
             <Divider style={styles.divider} />
 
             <Text style={commonStyles.heading3}>Training Phase</Text>
-            <RadioButton.Group 
+            <RadioButton.Group
               onValueChange={(value) => setFormData({ ...formData, trainingPhase: value as any })}
               value={formData.trainingPhase}
             >
@@ -300,10 +425,15 @@ export default function WorkoutRequestScreen() {
                 { value: 'in-season', label: 'In-season (Maintenance)' },
                 { value: 'post-season', label: 'Post-season (Recovery)' }
               ].map(option => (
-                <View key={option.value} style={styles.radioRow}>
+                <TouchableOpacity
+                  key={option.value}
+                  style={styles.radioRow}
+                  onPress={() => setFormData({ ...formData, trainingPhase: option.value as any })}
+                  activeOpacity={0.7}
+                >
                   <RadioButton value={option.value} color={theme.colors.primary} />
-                  <Text style={commonStyles.body}>{option.label}</Text>
-                </View>
+                  <Text style={[commonStyles.body, styles.radioLabel]}>{option.label}</Text>
+                </TouchableOpacity>
               ))}
             </RadioButton.Group>
           </Card.Content>
@@ -392,13 +522,24 @@ export default function WorkoutRequestScreen() {
           )}
         </Button>
 
+        {/* Add Mock Button for Testing */}
+        <Button
+          mode="outlined"
+          onPress={handleMockWorkout}
+          style={[styles.generateButton, styles.mockButton]}
+          textColor={theme.colors.primary}
+          contentStyle={styles.generateButtonContent}
+        >
+          Use Mock Data (Testing)
+        </Button>
+
         {/* Cost Info */}
         <Card style={[commonStyles.card, styles.costCard]}>
           <Card.Content>
             <View style={styles.costInfo}>
               <Icon name="info" size={16} color={theme.colors.primary} />
               <Text style={[commonStyles.caption, styles.costText]}>
-                AI-generated workouts are personalized for your position and goals. 
+                AI-generated workouts are personalized for your position and goals.
                 This will use ~$0.07 of your monthly AI quota.
               </Text>
             </View>
@@ -463,12 +604,16 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     color: theme.colors.primary,
   },
+  checkboxLabel: {
+    marginLeft: theme.spacing.sm,
+    flex: 1,
+  },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: theme.spacing.xs,
   },
-  checkboxLabel: {
+  radioLabel: {
     marginLeft: theme.spacing.sm,
     flex: 1,
   },
@@ -516,5 +661,10 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
     flex: 1,
     lineHeight: 16,
+  },
+  mockButton: {
+    marginTop: 0,
+    marginBottom: theme.spacing.md,
+    borderColor: theme.colors.primary,
   },
 });

@@ -15,9 +15,13 @@ import AthleteProfileScreen from './src/screens/AthleteProfileScreen';
 import PerformanceScreen from './src/screens/PerformanceScreen';
 import CoachingScreen from './src/screens/CoachingScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
+import WorkoutRequestScreen from './src/screens/WorkoutRequestScreen';
+import WorkoutDisplayScreen from './src/screens/WorkoutDisplayScreen';
+
+import { RootStackParamList } from './src/types/types';
 
 const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 // Loading screen component
 const LoadingScreen: React.FC = () => {
@@ -58,8 +62,8 @@ function MainTabs() {
             case 'Profile':
               iconName = 'person';
               break;
-            case 'Performance':
-              iconName = 'trending-up';
+            case 'Workouts':
+              iconName = 'fitness-center';
               break;
             case 'Coaching':
               iconName = 'psychology';
@@ -78,7 +82,16 @@ function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Profile" component={AthleteProfileScreen} />
-      <Tab.Screen name="Performance" component={PerformanceScreen} />
+      <Tab.Screen 
+        name="Workouts" 
+        component={HomeScreen} // Or a WorkoutLandingScreen
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.getParent()?.navigate('WorkoutRequest');
+          }
+        })}
+      />
       <Tab.Screen name="Coaching" component={CoachingScreen} />
     </Tab.Navigator>
   );
@@ -100,6 +113,23 @@ function RootStack() {
           title: 'Edit Profile',
           headerStyle: { backgroundColor: '#0066FF' },
           headerTintColor: '#fff'
+        }}
+      />
+      <Stack.Screen 
+        name="WorkoutRequest" 
+        component={WorkoutRequestScreen}
+        options={{
+          title: 'Generate Workout',
+          headerStyle: { backgroundColor: '#0066FF' },
+          headerTintColor: '#fff'
+        }}
+      />
+      <Stack.Screen 
+        name="WorkoutDisplay" 
+        component={WorkoutDisplayScreen}
+        options={{
+          title: 'Your Workout',
+          headerShown: false, // Since we have custom header in the component
         }}
       />
     </Stack.Navigator>

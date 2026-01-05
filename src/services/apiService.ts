@@ -1,5 +1,5 @@
-// src/services/apiService.ts
 import { Platform } from 'react-native';
+import { ApiResponse } from '../interfaces/interfaces';
 
 // API Configuration
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080';
@@ -13,41 +13,6 @@ const getBaseUrl = () => {
 };
 
 const BASE_URL = getBaseUrl();
-
-// Types
-export interface ApiResponse<T> {
-  data: T;
-  success: boolean;
-  error?: string;
-}
-
-export interface Video {
-  id: string;
-  youtubeUrl: string;
-  youtubeId: string;
-  title: string;
-  description?: string;
-  thumbnailUrl?: string;
-  sport: string;
-  category: string;
-  isFeatured: boolean;
-  displayOrder: number;
-  tags?: string[];
-  isPublic: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateVideoRequest {
-  youtubeUrl: string;
-  title?: string;
-  description?: string;
-  sport: string;
-  category: string;
-  datePerformed?: string;
-  tags?: string[];
-  isPublic?: boolean;
-}
 
 // Generic API function
 async function apiCall<T>(
@@ -99,56 +64,6 @@ export const apiService = {
   // Health check
   async checkHealth(): Promise<ApiResponse<{ status: string }>> {
     return apiCall('/actuator/health');
-  },
-
-  // Get available sports
-  async getSports(): Promise<ApiResponse<string[]>> {
-    return apiCall('/api/videos/sports');
-  },
-
-  // Get performance categories
-  async getCategories(): Promise<ApiResponse<string[]>> {
-    return apiCall('/api/videos/categories');
-  },
-
-  // Get user's videos
-  async getMyVideos(): Promise<ApiResponse<Video[]>> {
-    return apiCall('/api/videos/my-videos');
-  },
-
-  // Add a new video
-  async addVideo(videoData: CreateVideoRequest): Promise<ApiResponse<Video>> {
-    return apiCall('/api/videos', {
-      method: 'POST',
-      body: JSON.stringify(videoData),
-    });
-  },
-
-  // Update video
-  async updateVideo(videoId: string, videoData: Partial<CreateVideoRequest>): Promise<ApiResponse<Video>> {
-    return apiCall(`/api/videos/${videoId}`, {
-      method: 'PUT',
-      body: JSON.stringify(videoData),
-    });
-  },
-
-  // Delete video
-  async deleteVideo(videoId: string): Promise<ApiResponse<void>> {
-    return apiCall(`/api/videos/${videoId}`, {
-      method: 'DELETE',
-    });
-  },
-
-  // Set featured video
-  async setFeaturedVideo(videoId: string): Promise<ApiResponse<void>> {
-    return apiCall(`/api/videos/${videoId}/featured`, {
-      method: 'PUT',
-    });
-  },
-
-  // Discover public videos
-  async discoverVideos(sport: string, page: number = 0, size: number = 20): Promise<ApiResponse<Video[]>> {
-    return apiCall(`/api/videos/discover?sport=${sport}&page=${page}&size=${size}`);
   },
 };
 

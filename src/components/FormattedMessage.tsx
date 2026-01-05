@@ -19,18 +19,17 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
     const cleanedText = cleanText(text);
     const lines = cleanedText.split('\n');
     const elements: React.ReactNode[] = [];
-    
+
     lines.forEach((line, lineIndex) => {
       const trimmedLine = line.trim();
-      
+
       // Handle empty lines
       if (trimmedLine === '') {
-        // Only add line break if we don't already have consecutive line breaks
         if (elements.length > 0) {
           const lastElement = elements[elements.length - 1];
-          const isLastElementLineBreak = React.isValidElement(lastElement) && 
+          const isLastElementLineBreak = React.isValidElement(lastElement) &&
             lastElement.key?.toString().startsWith('space-');
-          
+
           if (!isLastElementLineBreak) {
             elements.push(<View key={`space-${lineIndex}`} style={styles.lineBreak} />);
           }
@@ -38,42 +37,55 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
         return;
       }
 
-      // Headers (# ## ###) - make sure there's a space after #
-      if (line.match(/^###\s+/)) {
+      // Horizontal rules (---)
+      if (trimmedLine === '---') {
+        elements.push(<View key={lineIndex} style={styles.horizontalRule} />);
+        return;
+      }
+
+      // Headers - check for # at start with space
+      if (trimmedLine.match(/^###\s+/)) {
         elements.push(
           <Text key={lineIndex} style={[styles.header3, isUser && styles.userText]}>
-            {line.replace(/^###\s+/, '')}
+            {trimmedLine.replace(/^###\s+/, '')}
           </Text>
         );
-      } else if (line.match(/^##\s+/)) {
+        return;
+      }
+
+      if (trimmedLine.match(/^##\s+/)) {
         elements.push(
           <Text key={lineIndex} style={[styles.header2, isUser && styles.userText]}>
-            {line.replace(/^##\s+/, '')}
+            {trimmedLine.replace(/^##\s+/, '')}
           </Text>
         );
-      } else if (line.match(/^#\s+/)) {
+        return;
+      }
+
+      if (trimmedLine.match(/^#\s+/)) {
         elements.push(
           <Text key={lineIndex} style={[styles.header1, isUser && styles.userText]}>
-            {line.replace(/^#\s+/, '')}
+            {trimmedLine.replace(/^#\s+/, '')}
           </Text>
         );
+        return;
       }
-      // Bullet points - handle various bullet formats
-      else if (line.match(/^[-•*]\s/)) {
+
+      // Italic text - full line surrounded by single asterisks
+      if (trimmedLine.match(/^\*[^*]+\*$/)) {
+        const content = trimmedLine.replace(/^\*([^*]+)\*$/, '$1');
         elements.push(
-          <View key={lineIndex} style={styles.bulletContainer}>
-            <Text style={[styles.bullet, isUser && styles.userText]}>•</Text>
-            <View style={styles.bulletTextContainer}>
-              <Text style={[styles.bulletText, isUser && styles.userText]}>
-                {parseInlineMarkdown(line.replace(/^[-•*]\s+/, ''))}
-              </Text>
-            </View>
-          </View>
+          <Text key={lineIndex} style={[styles.italic, isUser && styles.userText]}>
+            {content}
+          </Text>
         );
+        return;
       }
-      // Numbered lists
-      else if (line.match(/^\d+\.\s/)) {
-        const numberMatch = line.match(/^(\d+\.)/);
+
+      // Numbered lists (1. 2. etc.)
+      if (trimmedLine.match(/^\d+\.\s/)) {
+        const numberMatch = trimmedLine.match(/^(\d+\.)/);
+        const content = trimmedLine.replace(/^\d+\.\s+/, '');
         elements.push(
           <View key={lineIndex} style={styles.bulletContainer}>
             <Text style={[styles.numberBullet, isUser && styles.userText]}>
@@ -81,25 +93,70 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
             </Text>
             <View style={styles.bulletTextContainer}>
               <Text style={[styles.bulletText, isUser && styles.userText]}>
-                {parseInlineMarkdown(line.replace(/^\d+\.\s+/, ''))}
+                {renderInlineText(content)}
               </Text>
             </View>
           </View>
         );
+        return;
       }
-      // Regular paragraphs
-      else if (trimmedLine.length > 0) {
+
+      // Bullet points (- • *)
+      if (trimmedLine.match(/^[-•*]\s/)) {
+        const content = trimmedLine.replace(/^[-•*]\s+/, '');
         elements.push(
-          <View key={lineIndex} style={styles.paragraphContainer}>
-            <Text style={[styles.paragraph, isUser && styles.userText]}>
-              {parseInlineMarkdown(trimmedLine)}
-            </Text>
+          <View key={lineIndex} style={styles.bulletContainer}>
+            <Text style={[styles.bullet, isUser && styles.userText]}>•</Text>
+            <View style={styles.bulletTextContainer}>
+              <Text style={[styles.bulletText, isUser && styles.userText]}>
+                {renderInlineText(content)}
+              </Text>
+            </View>
           </View>
+        );
+        return;
+      }
+
+      // Regular paragraphs with potential bold formatting
+      elements.push(
+        <View key={lineIndex} style={styles.paragraphContainer}>
+          <Text style={[styles.paragraph, isUser && styles.userText]}>
+            {renderInlineText(trimmedLine)}
+          </Text>
+        </View>
+      );
+    });
+
+    return elements;
+  };
+
+  // New simplified inline text renderer
+  const renderInlineText = (text: string): React.ReactNode => {
+    if (!text || typeof text !== 'string') {
+      return text;
+    }
+
+    // Split by ** for bold formatting
+    const parts = text.split('**');
+    const elements: React.ReactNode[] = [];
+
+    parts.forEach((part, index) => {
+      if (part === '') return;
+
+      if (index % 2 === 0) {
+        // Even indices are regular text
+        elements.push(<Text key={index}>{part}</Text>);
+      } else {
+        // Odd indices are bold text
+        elements.push(
+          <Text key={index} style={[styles.bold, isUser && styles.userText]}>
+            {part}
+          </Text>
         );
       }
     });
 
-    return elements;
+    return elements.length > 0 ? elements : text;
   };
 
   const parseInlineMarkdown = (text: string): React.ReactNode => {
@@ -107,26 +164,44 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
       return text;
     }
 
-    // Split by ** and process alternately as normal/bold
-    const segments = text.split('**');
-    
-    if (segments.length === 1) {
-      // No ** found, return as-is
-      return text;
+    // First handle single asterisks for italic (before bold)
+    let result = text;
+
+    // Handle italic with single asterisks
+    const italicMatches = result.match(/\*([^*]+)\*/g);
+    if (italicMatches) {
+      italicMatches.forEach((match, index) => {
+        const content = match.replace(/\*/g, '');
+        result = result.replace(match, `<ITALIC_${index}>${content}</ITALIC_${index}>`);
+      });
     }
 
+    // Then handle bold with double asterisks
+    const segments = result.split('**');
     const parts: React.ReactNode[] = [];
-    
+
     segments.forEach((segment, index) => {
-      if (segment === '') {
-        return; // Skip empty segments
-      }
-      
-      if (index % 2 === 0) {
-        // Even indices are regular text
+      if (segment === '') return;
+
+      // Check for italic markers
+      if (segment.includes('<ITALIC_')) {
+        const italicPattern = /<ITALIC_\d+>(.*?)<\/ITALIC_\d+>/g;
+        const italicSegments = segment.split(italicPattern);
+
+        italicSegments.forEach((italicSeg, italicIndex) => {
+          if (italicIndex % 2 === 0) {
+            parts.push(<Text key={`${index}-${italicIndex}`}>{italicSeg}</Text>);
+          } else {
+            parts.push(
+              <Text key={`${index}-${italicIndex}`} style={[styles.italic, isUser && styles.userText]}>
+                {italicSeg}
+              </Text>
+            );
+          }
+        });
+      } else if (index % 2 === 0) {
         parts.push(<Text key={index}>{segment}</Text>);
       } else {
-        // Odd indices are bold text
         parts.push(
           <Text key={index} style={[styles.bold, isUser && styles.userText]}>
             {segment}
@@ -219,6 +294,12 @@ const styles = StyleSheet.create({
   },
   userText: {
     color: '#ffffff',
+  },
+  horizontalRule: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 12,
+    width: '100%',
   },
 });
 

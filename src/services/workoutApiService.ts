@@ -1,47 +1,7 @@
-// src/services/workoutApiService.ts
+import { ApiResponse, WorkoutPlan, WorkoutRequest } from "../interfaces/interfaces";
 
-interface WorkoutRequest {
-  sport: string;
-  position: string;
-  experienceLevel: 'beginner' | 'intermediate' | 'advanced';
-  trainingPhase: 'off-season' | 'pre-season' | 'in-season' | 'post-season';
-  equipment: string[];
-  timeAvailable: number;
-  trainingFocus: string[];
-  specialRequests?: string;
-}
-
-interface WorkoutPlan {
-  id: string;
-  title: string;
-  description: string;
-  estimatedDuration: number;
-  exercises: Exercise[];
-  focusAreas: string[];
-  createdAt: string;
-}
-
-interface Exercise {
-  name: string;
-  description: string;
-  sets: number;
-  reps: string;
-  duration?: string;
-  restPeriod?: string;
-  instructions?: string[];
-  videoUrl?: string;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  cost?: number; // Track API usage cost
-}
-
-// Your backend configuration
 const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:8080/api/v1' // Development
+  ? 'http://192.168.254.5:8080/api/v1' // Development
   : 'https://your-production-api.com/api/v1'; // Production
 
 class WorkoutApiService {
@@ -50,6 +10,8 @@ class WorkoutApiService {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     try {
+      console.log(`Making request to: ${API_BASE_URL}${endpoint}`);
+      
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         headers: {
           'Content-Type': 'application/json',
@@ -70,6 +32,7 @@ class WorkoutApiService {
       }
 
       const data = await response.json();
+      console.log('API Response:', data);
       return {
         success: true,
         data,
@@ -78,6 +41,14 @@ class WorkoutApiService {
 
     } catch (error) {
       console.error('Network/API Error:', error);
+
+      if (error instanceof TypeError && error.message.includes('Network request failed')) {
+        return {
+          success: false,
+          error: 'Cannot connect to backend server. Make sure your backend is running on localhost:8080'
+        };
+      }
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -172,6 +143,3 @@ class WorkoutApiService {
 
 // Export singleton instance
 export const workoutApiService = new WorkoutApiService();
-
-// Export types for use in components
-export type { WorkoutRequest, WorkoutPlan, Exercise, ApiResponse };
