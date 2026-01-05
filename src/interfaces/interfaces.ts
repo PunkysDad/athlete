@@ -52,3 +52,9 @@ export interface WorkoutResponse {
   error?: string;
   cost?: number;
 }
+
+export interface ActivityStats {
+  totalChats: number;
+  totalWorkouts: number;
+  recentActivity: number; // Days since last activity
+}
