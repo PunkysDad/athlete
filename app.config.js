@@ -7,7 +7,7 @@ export default {
     version: "1.0.0",
     orientation: "portrait",
     jsEngine: 'hermes',
-    newArchEnabled: false,
+    newArchEnabled: true,
     // Temporarily remove icon reference
     // icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -22,8 +22,9 @@ export default {
     ],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.gameiq.app",
+      bundleIdentifier: "com.justinbooth.gameiq",
       googleServicesFile: "./GoogleService-Info.plist",
+      usesAppleSignIn: true, // Required for Apple Sign-In
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false
       }
@@ -34,7 +35,7 @@ export default {
       //   foregroundImage: "./assets/adaptive-icon.png",
       //   backgroundColor: "#FFFFFF"
       // },
-      package: "com.gameiq.app",
+      package: "com.justinbooth.gameiq",
       googleServicesFile: "./google-services.json"
     },
     web: {
@@ -46,13 +47,21 @@ export default {
       backendUrl: process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080",
       appEnv: process.env.APP_ENV || "development",
       eas: {
-        projectId: "9f1dd9fe-d4a6-4b6c-abfb-60b996db6113"
+        projectId: "ecaaa5e4-f225-44ee-a214-bdf423f43020"
+      },
+      // Firebase configuration from GoogleService-Info.plist
+      firebaseConfig: {
+        apiKey: "AIzaSyAOuvLI7rp5jPzLVgKk2ckh84UHgO8ZGb8",
+        projectId: "gameiq-37d8d",
+        storageBucket: "gameiq-37d8d.firebasestorage.app",
+        iosClientId: "413016117016-mt8rq2cjaenq5qn3meek9s228sipf16j.apps.googleusercontent.com",
+        iosBundleId: "com.justinbooth.gameiq"
       }
     },
-    // For SDK 54, comment out native plugins if using Expo Go
+    // Development build plugins for authentication
     plugins: [
-      // "@react-native-firebase/app",
-      // "@react-native-firebase/auth",
+      "expo-dev-client", // Required for development builds
+      "expo-apple-authentication", // Apple Sign-In
       [
         "expo-build-properties",
         {
@@ -62,10 +71,12 @@ export default {
             buildToolsVersion: "34.0.0"
           },
           ios: {
-            useFrameworks: "static"
+            useFrameworks: "static",
+            deploymentTarget: "15.1"
           }
         }
       ]
+      // Facebook will be added later if needed
       // [
       //   "react-native-fbsdk-next",
       //   {
