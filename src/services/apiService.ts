@@ -1,5 +1,5 @@
-// src/services/apiService.ts
 import { Platform } from 'react-native';
+import { ActivityStats, ApiResponse } from '../interfaces/interfaces';
 
 // API Configuration
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080';
@@ -13,41 +13,6 @@ const getBaseUrl = () => {
 };
 
 const BASE_URL = getBaseUrl();
-
-// Types
-export interface ApiResponse<T> {
-  data: T;
-  success: boolean;
-  error?: string;
-}
-
-export interface Video {
-  id: string;
-  youtubeUrl: string;
-  youtubeId: string;
-  title: string;
-  description?: string;
-  thumbnailUrl?: string;
-  sport: string;
-  category: string;
-  isFeatured: boolean;
-  displayOrder: number;
-  tags?: string[];
-  isPublic: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateVideoRequest {
-  youtubeUrl: string;
-  title?: string;
-  description?: string;
-  sport: string;
-  category: string;
-  datePerformed?: string;
-  tags?: string[];
-  isPublic?: boolean;
-}
 
 // Generic API function
 async function apiCall<T>(
@@ -101,54 +66,19 @@ export const apiService = {
     return apiCall('/actuator/health');
   },
 
-  // Get available sports
-  async getSports(): Promise<ApiResponse<string[]>> {
-    return apiCall('/api/videos/sports');
+  // Get user stats from /users/{userId}/stats endpoint
+  async getUserStats(userId: number): Promise<ApiResponse<any>> {
+    return apiCall(`/api/v1/users/${userId}/stats`);
   },
 
-  // Get performance categories
-  async getCategories(): Promise<ApiResponse<string[]>> {
-    return apiCall('/api/videos/categories');
+  // Get user's conversation history
+  async getUserConversations(userId: number): Promise<ApiResponse<any[]>> {
+    return apiCall(`/api/v1/conversations/user/${userId}`);
   },
 
-  // Get user's videos
-  async getMyVideos(): Promise<ApiResponse<Video[]>> {
-    return apiCall('/api/videos/my-videos');
-  },
-
-  // Add a new video
-  async addVideo(videoData: CreateVideoRequest): Promise<ApiResponse<Video>> {
-    return apiCall('/api/videos', {
-      method: 'POST',
-      body: JSON.stringify(videoData),
-    });
-  },
-
-  // Update video
-  async updateVideo(videoId: string, videoData: Partial<CreateVideoRequest>): Promise<ApiResponse<Video>> {
-    return apiCall(`/api/videos/${videoId}`, {
-      method: 'PUT',
-      body: JSON.stringify(videoData),
-    });
-  },
-
-  // Delete video
-  async deleteVideo(videoId: string): Promise<ApiResponse<void>> {
-    return apiCall(`/api/videos/${videoId}`, {
-      method: 'DELETE',
-    });
-  },
-
-  // Set featured video
-  async setFeaturedVideo(videoId: string): Promise<ApiResponse<void>> {
-    return apiCall(`/api/videos/${videoId}/featured`, {
-      method: 'PUT',
-    });
-  },
-
-  // Discover public videos
-  async discoverVideos(sport: string, page: number = 0, size: number = 20): Promise<ApiResponse<Video[]>> {
-    return apiCall(`/api/videos/discover?sport=${sport}&page=${page}&size=${size}`);
+  // Get user's workout history
+  async getUserWorkouts(userId: number): Promise<ApiResponse<any[]>> {
+    return apiCall(`/api/v1/workouts/user/${userId}`);
   },
 };
 
@@ -161,5 +91,63 @@ export const testConnection = async (): Promise<boolean> => {
   } else {
     console.error('Backend connection failed:', result.error);
     return false;
+  }
+};
+
+// Activity stats helper function (transforms backend data to frontend format)
+export const getActivityStats = async (userId: number): Promise<ApiResponse<ActivityStats>> => {
+  try {
+    // Try to get stats from the stats endpoint first
+    const statsResult = await apiService.getUserStats(userId);
+    
+    if (statsResult.success && statsResult.data.totalConversations !== undefined) {
+      // Transform backend UserStatsResponse to frontend ActivityStats
+      const activityStats: ActivityStats = {
+        totalChats: statsResult.data.totalConversations || 0,
+        totalWorkouts: statsResult.data.totalWorkouts || 0,
+        recentActivity: statsResult.data.daysSinceLastActivity || 0
+      };
+      return { success: true, data: activityStats };
+    }
+
+    // Fallback: Get data from individual endpoints
+    const [chatsResult, workoutsResult] = await Promise.all([
+      apiService.getUserConversations(userId),
+      apiService.getUserWorkouts(userId)
+    ]);
+
+    if (chatsResult.success && workoutsResult.success) {
+      // Calculate recent activity (days since last chat or workout)
+      const allActivities = [
+        ...chatsResult.data.map((c: any) => new Date(c.timestamp || c.createdAt)),
+        ...workoutsResult.data.map((w: any) => new Date(w.createdAt))
+      ];
+      
+      const mostRecentActivity = allActivities.length > 0 
+        ? Math.max(...allActivities.map(d => d.getTime()))
+        : 0;
+      
+      const daysSinceLastActivity = mostRecentActivity > 0 
+        ? Math.floor((Date.now() - mostRecentActivity) / (1000 * 60 * 60 * 24))
+        : 0;
+      
+      const activityStats: ActivityStats = {
+        totalChats: chatsResult.data.length,
+        totalWorkouts: workoutsResult.data.length,
+        recentActivity: daysSinceLastActivity
+      };
+      
+      return { success: true, data: activityStats };
+    } else {
+      return { 
+        success: false, 
+        error: 'Failed to load activity data from individual endpoints' 
+      };
+    }
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Network error while fetching activity stats' 
+    };
   }
 };

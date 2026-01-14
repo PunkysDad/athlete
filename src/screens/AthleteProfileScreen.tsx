@@ -4,28 +4,22 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   TouchableOpacity,
-  Dimensions,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { Card, Chip, Button, Avatar, ProgressBar } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { theme, commonStyles, getPerformanceColor, getPerformanceLevel } from '../theme';
-import { apiService, Video } from '../services/apiService';
+import { apiService } from '../services/apiService';
 
 type RootStackParamList = {
   MainTabs: undefined;
   EditProfile: { userId: string };
-  VideoDetail: { video: Video };
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-
-const { width } = Dimensions.get('window');
 
 // Mock athlete data - in production, this would come from your API
 const mockAthleteData = {
@@ -36,62 +30,158 @@ const mockAthleteData = {
   school: 'Central High School',
   graduationYear: 2025,
   profileImage: 'https://via.placeholder.com/150',
-  stats: {
-    speed: 85,
-    strength: 72,
-    agility: 88,
-    endurance: 76,
-    sportsIQ: 82,
-  },
   aiCompetencies: [
-    { skill: 'Defensive Formations', level: 'Advanced', progress: 0.9 },
-    { skill: 'Route Recognition', level: 'Intermediate', progress: 0.7 },
-    { skill: 'Game Strategy', level: 'Beginner', progress: 0.4 },
+    { skill: 'Position Technique', level: 'Advanced', progress: 0.9 },
+    { skill: 'Training Consistency', level: 'Intermediate', progress: 0.7 },
+    { skill: 'Performance Analysis', level: 'Beginner', progress: 0.4 },
   ],
-  coachReviews: [
-    {
-      id: '1',
-      reviewer: 'Coach Martinez',
-      role: 'Head Coach',
-      comment: 'Exceptional work ethic and natural talent. Shows great potential for college-level play.',
-      rating: 4.8,
-      date: '2024-09-15'
-    }
-  ]
 };
+
+interface ActivityStats {
+  totalChats: number;
+  totalWorkouts: number;
+  recentActivity: number; // Days since last activity
+}
 
 export default function AthleteProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [activeTab, setActiveTab] = useState('overview');
   
   // Backend integration state
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [videosLoading, setVideosLoading] = useState(false);
-  const [videosError, setVideosError] = useState<string | null>(null);
   const [backendConnected, setBackendConnected] = useState(false);
-
-  // Load videos from backend
-  const loadUserVideos = async () => {
-    setVideosLoading(true);
-    setVideosError(null);
+  const [activityStats, setActivityStats] = useState<ActivityStats>({
+    totalChats: 0,
+    totalWorkouts: 0,
+    recentActivity: 0
+  });
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
+const loadActivityStats = async () => {
+    setStatsLoading(true);
+    setStatsError(null);
 
     try {
-      const result = await apiService.getMyVideos();
+      console.log('🔍 Starting loadActivityStats...');
       
-      if (result.success) {
-        setVideos(result.data);
+      // Method 1: Use existing stats endpoint (if you update UserStatsResponse)
+      const statsResult = await apiService.getUserStats(1); // Replace 1 with actual userId
+      console.log('📊 Stats result:', JSON.stringify(statsResult, null, 2));
+      
+      if (statsResult.success) {
+        console.log('✅ Stats endpoint successful, data:', statsResult.data);
+        setActivityStats({
+          totalChats: statsResult.data.totalConversations || 0,
+          totalWorkouts: statsResult.data.totalWorkouts || 0, // You'll need to add this field
+          recentActivity: statsResult.data.daysSinceLastActivity || 0 // You'll need to add this field
+        });
         setBackendConnected(true);
       } else {
-        setVideosError(result.error || 'Failed to load videos');
-        console.error('Failed to load videos:', result.error);
+        console.log('❌ Stats endpoint failed, trying individual endpoints...');
+        // Fallback: Try to get data from individual endpoints
+        const [chatsResult, workoutsResult] = await Promise.all([
+          apiService.getUserConversations(1), // Replace 1 with actual userId
+          apiService.getUserWorkouts(1) // Replace 1 with actual userId
+        ]);
+        
+        console.log('💬 Chats result:', JSON.stringify(chatsResult, null, 2));
+        console.log('💪 Workouts result:', JSON.stringify(workoutsResult, null, 2));
+        
+        if (chatsResult.success && workoutsResult.success) {
+          console.log('✅ Individual endpoints successful');
+          console.log('💬 Chats data length:', chatsResult.data?.length || 'undefined');
+          console.log('💪 Workouts data length:', workoutsResult.data?.length || 'undefined');
+          
+          // Calculate recent activity (days since last chat or workout)
+          const allActivities = [
+            ...chatsResult.data.map(c => new Date(c.timestamp || c.createdAt)),
+            ...workoutsResult.data.map(w => new Date(w.createdAt))
+          ];
+          
+          const mostRecentActivity = allActivities.length > 0 
+            ? Math.max(...allActivities.map(d => d.getTime()))
+            : 0;
+          
+          const daysSinceLastActivity = mostRecentActivity > 0 
+            ? Math.floor((Date.now() - mostRecentActivity) / (1000 * 60 * 60 * 24))
+            : 0;
+          
+          const finalStats = {
+            totalChats: chatsResult.data.length,
+            totalWorkouts: workoutsResult.data.length,
+            recentActivity: daysSinceLastActivity
+          };
+          
+          console.log('🎯 Final activity stats:', finalStats);
+          setActivityStats(finalStats);
+          setBackendConnected(true);
+        } else {
+          console.log('❌ Individual endpoints failed');
+          setStatsError('Failed to load activity data from endpoints');
+        }
       }
     } catch (error) {
-      setVideosError(error instanceof Error ? error.message : 'Unknown error');
-      console.error('Error loading videos:', error);
+      console.log('💥 Error in loadActivityStats:', error);
+      setStatsError(error instanceof Error ? error.message : 'Unknown error');
+      console.error('Error loading activity stats:', error);
     } finally {
-      setVideosLoading(false);
+      setStatsLoading(false);
     }
   };
+  // Load activity stats from backend
+  // const loadActivityStats = async () => {
+  //   setStatsLoading(true);
+  //   setStatsError(null);
+
+  //   try {
+  //     // Method 1: Use existing stats endpoint (if you update UserStatsResponse)
+  //     const statsResult = await apiService.getUserStats(1); // Replace 1 with actual userId
+      
+  //     if (statsResult.success) {
+  //       setActivityStats({
+  //         totalChats: statsResult.data.totalConversations || 0,
+  //         totalWorkouts: statsResult.data.totalWorkouts || 0, // You'll need to add this field
+  //         recentActivity: statsResult.data.daysSinceLastActivity || 0 // You'll need to add this field
+  //       });
+  //       setBackendConnected(true);
+  //     } else {
+  //       // Fallback: Try to get data from individual endpoints
+  //       const [chatsResult, workoutsResult] = await Promise.all([
+  //         apiService.getUserConversations(1), // Replace 1 with actual userId
+  //         apiService.getUserWorkouts(1) // Replace 1 with actual userId
+  //       ]);
+        
+  //       if (chatsResult.success && workoutsResult.success) {
+  //         // Calculate recent activity (days since last chat or workout)
+  //         const allActivities = [
+  //           ...chatsResult.data.map(c => new Date(c.timestamp || c.createdAt)),
+  //           ...workoutsResult.data.map(w => new Date(w.createdAt))
+  //         ];
+          
+  //         const mostRecentActivity = allActivities.length > 0 
+  //           ? Math.max(...allActivities.map(d => d.getTime()))
+  //           : 0;
+          
+  //         const daysSinceLastActivity = mostRecentActivity > 0 
+  //           ? Math.floor((Date.now() - mostRecentActivity) / (1000 * 60 * 60 * 24))
+  //           : 0;
+          
+  //         setActivityStats({
+  //           totalChats: chatsResult.data.length,
+  //           totalWorkouts: workoutsResult.data.length,
+  //           recentActivity: daysSinceLastActivity
+  //         });
+  //         setBackendConnected(true);
+  //       } else {
+  //         setStatsError('Failed to load activity data from endpoints');
+  //       }
+  //     }
+  //   } catch (error) {
+  //     setStatsError(error instanceof Error ? error.message : 'Unknown error');
+  //     console.error('Error loading activity stats:', error);
+  //   } finally {
+  //     setStatsLoading(false);
+  //   }
+  // };
 
   // Test backend connection
   const testBackendConnection = async () => {
@@ -106,99 +196,24 @@ export default function AthleteProfileScreen() {
   // Load data on component mount
   useEffect(() => {
     testBackendConnection();
-    loadUserVideos();
+    loadActivityStats();
   }, []);
 
-  // Refresh videos when videos tab is selected
-  useEffect(() => {
-    if (activeTab === 'videos') {
-      loadUserVideos();
-    }
-  }, [activeTab]);
-
-  const renderStatCard = (statName: string, value: number, icon: string) => (
+  const renderActivityStatCard = (
+    statName: string, 
+    value: number, 
+    icon: string, 
+    subtitle: string
+  ) => (
     <View style={[styles.statCard, { backgroundColor: theme.colors.primaryLight + '15' }]}>
       <Icon name={icon as any} size={24} color={theme.colors.primary} />
-      <Text style={[styles.statValue, { color: getPerformanceColor(value) }]}>{value}</Text>
+      <Text style={[styles.statValue, { color: theme.colors.primary }]}>{value}</Text>
       <Text style={[commonStyles.caption, styles.statLabel]}>{statName}</Text>
-      <ProgressBar 
-        progress={value / 100} 
-        color={getPerformanceColor(value)} 
-        style={styles.progressBar} 
-      />
-      <Text style={[commonStyles.caption, { color: getPerformanceColor(value) }]}>
-        {getPerformanceLevel(value)}
+      <Text style={[commonStyles.caption, styles.statSubtitle, { color: theme.colors.textTertiary }]}>
+        {subtitle}
       </Text>
     </View>
   );
-
-  // Updated video card renderer using backend data
-  const renderVideoCard = (video: Video, index: number) => (
-    <Card key={video.id || index} style={styles.videoCard}>
-      <TouchableOpacity onPress={() => handleVideoPress(video)}>
-        {video.thumbnailUrl ? (
-          <Image source={{ uri: video.thumbnailUrl }} style={styles.videoThumbnail} />
-        ) : (
-          <View style={[styles.videoThumbnail, styles.placeholderThumbnail]}>
-            <Icon name="play-circle-outline" size={40} color={theme.colors.textSecondary} />
-          </View>
-        )}
-        
-        <View style={styles.videoOverlay}>
-          <Icon name="play-circle-outline" size={40} color="white" />
-        </View>
-        
-        <Card.Content style={styles.videoContent}>
-          <Text style={[commonStyles.caption, styles.videoTitle]} numberOfLines={2}>
-            {video.title}
-          </Text>
-          <View style={styles.videoMeta}>
-            <Text style={[commonStyles.caption, { color: theme.colors.textTertiary }]}>
-              {video.sport}
-            </Text>
-            {video.isFeatured && (
-              <Chip 
-                mode="outlined" 
-                textStyle={{ fontSize: 10 }}
-                style={styles.featuredChip}
-              >
-                ⭐ Featured
-              </Chip>
-            )}
-          </View>
-          <Text style={[commonStyles.caption, { color: theme.colors.textTertiary }]}>
-            {new Date(video.createdAt).toLocaleDateString()}
-          </Text>
-        </Card.Content>
-      </TouchableOpacity>
-    </Card>
-  );
-
-  const handleVideoPress = (video: Video) => {
-    // Navigate to video detail or open YouTube
-    Alert.alert(
-      video.title,
-      `Sport: ${video.sport}\nCategory: ${video.category}\nPublic: ${video.isPublic ? 'Yes' : 'No'}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Watch on YouTube', 
-          onPress: () => {
-            // TODO: Open YouTube app or browser
-            console.log('Opening YouTube URL:', video.youtubeUrl);
-          }
-        }
-      ]
-    );
-  };
-
-  const handleAddVideo = () => {
-    Alert.alert(
-      'Add Video',
-      'Video upload feature coming soon! You\'ll be able to add YouTube videos to your profile.',
-      [{ text: 'OK' }]
-    );
-  };
 
   const renderCompetencyCard = (competency: any, index: number) => (
     <Card key={index} style={commonStyles.card}>
@@ -267,125 +282,101 @@ export default function AthleteProfileScreen() {
         </Card.Content>
       </Card>
 
-      {/* Performance Stats */}
-      <Card style={commonStyles.card}>
-        <Card.Content>
-          <Text style={commonStyles.heading3}>Performance Metrics</Text>
-          <View style={styles.statsGrid}>
-            {renderStatCard('Speed', mockAthleteData.stats.speed, 'flash-on')}
-            {renderStatCard('Strength', mockAthleteData.stats.strength, 'fitness-center')}
-            {renderStatCard('Agility', mockAthleteData.stats.agility, 'trending-up')}
-            {renderStatCard('Endurance', mockAthleteData.stats.endurance, 'favorite')}
-          </View>
-        </Card.Content>
-      </Card>
-
-      {/* Recent Videos from Backend */}
+      {/* Activity Stats */}
       <Card style={commonStyles.card}>
         <Card.Content>
           <View style={commonStyles.rowBetween}>
-            <Text style={commonStyles.heading3}>Recent Videos ({videos.length})</Text>
+            <Text style={commonStyles.heading3}>Training Activity</Text>
             <Button 
               mode="text" 
-              onPress={() => setActiveTab('videos')}
+              onPress={loadActivityStats}
               textColor={theme.colors.primary}
+              disabled={statsLoading}
             >
-              View All
+              {statsLoading ? 'Loading...' : 'Refresh'}
             </Button>
           </View>
           
-          {videosLoading ? (
+          {statsLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color={theme.colors.primary} />
-              <Text style={commonStyles.caption}>Loading videos...</Text>
+              <Text style={commonStyles.caption}>Loading activity stats...</Text>
             </View>
-          ) : videosError ? (
+          ) : statsError ? (
             <View style={styles.errorContainer}>
               <Text style={[commonStyles.caption, { color: 'red' }]}>
-                {videosError}
+                {statsError}
               </Text>
-              <Button mode="text" onPress={loadUserVideos} compact>
+              <Button mode="text" onPress={loadActivityStats} compact>
                 Retry
               </Button>
             </View>
-          ) : videos.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {videos.slice(0, 3).map(renderVideoCard)}
-            </ScrollView>
           ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={commonStyles.bodySecondary}>No videos yet</Text>
-              <Button 
-                mode="outlined" 
-                onPress={handleAddVideo}
-                style={{ marginTop: theme.spacing.sm }}
-              >
-                Add First Video
-              </Button>
+            <View style={styles.statsGrid}>
+              {renderActivityStatCard(
+                'AI Chats', 
+                activityStats.totalChats, 
+                'chat', 
+                'Coaching conversations'
+              )}
+              {renderActivityStatCard(
+                'Workouts', 
+                activityStats.totalWorkouts, 
+                'fitness-center', 
+                'Generated plans'
+              )}
+              {renderActivityStatCard(
+                'Days Ago', 
+                activityStats.recentActivity, 
+                'access-time', 
+                'Last activity'
+              )}
+              {renderActivityStatCard(
+                'Total', 
+                activityStats.totalChats + activityStats.totalWorkouts, 
+                'trending-up', 
+                'AI interactions'
+              )}
             </View>
           )}
         </Card.Content>
       </Card>
-    </View>
-  );
 
-  const renderVideosTab = () => (
-    <View>
-      {/* Videos Header */}
-      <View style={styles.videosHeader}>
-        <Text style={commonStyles.heading3}>
-          My Videos ({videos.length})
-        </Text>
-        <Button 
-          mode="contained" 
-          onPress={handleAddVideo}
-          style={{ backgroundColor: theme.colors.primary }}
-        >
-          Add Video
-        </Button>
-      </View>
-
-      {videosLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={commonStyles.body}>Loading your videos...</Text>
-        </View>
-      ) : videosError ? (
-        <Card style={styles.errorCard}>
-          <Card.Content>
-            <Text style={commonStyles.heading3}>Failed to Load Videos</Text>
-            <Text style={commonStyles.bodySecondary}>{videosError}</Text>
-            <Button 
-              mode="contained" 
-              onPress={loadUserVideos}
-              style={{ marginTop: theme.spacing.md }}
-            >
-              Try Again
-            </Button>
-          </Card.Content>
-        </Card>
-      ) : videos.length > 0 ? (
-        <View style={styles.videosGrid}>
-          {videos.map(renderVideoCard)}
-        </View>
-      ) : (
-        <Card style={commonStyles.card}>
-          <Card.Content style={styles.emptyVideosContent}>
-            <Icon name="videocam" size={60} color={theme.colors.textSecondary} />
-            <Text style={commonStyles.heading3}>No Videos Yet</Text>
-            <Text style={[commonStyles.bodySecondary, { textAlign: 'center', marginVertical: theme.spacing.md }]}>
-              Start building your athletic profile by adding your first performance video from YouTube.
-            </Text>
-            <Button 
-              mode="contained" 
-              onPress={handleAddVideo}
-              style={{ backgroundColor: theme.colors.primary }}
-            >
-              Add Your First Video
-            </Button>
-          </Card.Content>
-        </Card>
-      )}
+      {/* Quick Actions */}
+      <Card style={commonStyles.card}>
+        <Card.Content>
+          <Text style={commonStyles.heading3}>Quick Actions</Text>
+          <View style={styles.quickActionsGrid}>
+            <TouchableOpacity style={styles.quickActionCard}>
+              <Icon name="chat" size={32} color={theme.colors.primary} />
+              <Text style={[commonStyles.bodySecondary, { textAlign: 'center', marginTop: 8 }]}>
+                Start AI Chat
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.quickActionCard}>
+              <Icon name="fitness-center" size={32} color={theme.colors.primary} />
+              <Text style={[commonStyles.bodySecondary, { textAlign: 'center', marginTop: 8 }]}>
+                Generate Workout
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.quickActionCard}>
+              <Icon name="history" size={32} color={theme.colors.primary} />
+              <Text style={[commonStyles.bodySecondary, { textAlign: 'center', marginTop: 8 }]}>
+                View History
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.quickActionCard}>
+              <Icon name="analytics" size={32} color={theme.colors.primary} />
+              <Text style={[commonStyles.bodySecondary, { textAlign: 'center', marginTop: 8 }]}>
+                View Analytics
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Card.Content>
+      </Card>
     </View>
   );
 
@@ -393,11 +384,47 @@ export default function AthleteProfileScreen() {
     <View>
       <Card style={commonStyles.card}>
         <Card.Content>
-          <Text style={commonStyles.heading3}>Sports Knowledge Competencies</Text>
+          <Text style={commonStyles.heading3}>Training Competencies</Text>
           <Text style={[commonStyles.bodySecondary, { marginBottom: theme.spacing.base }]}>
-            Verified through AI coaching conversations
+            Skills developed through AI coaching and workout generation
           </Text>
           {mockAthleteData.aiCompetencies.map(renderCompetencyCard)}
+        </Card.Content>
+      </Card>
+
+      {/* Recent AI Interactions */}
+      <Card style={commonStyles.card}>
+        <Card.Content>
+          <Text style={commonStyles.heading3}>Recent AI Interactions</Text>
+          <Text style={[commonStyles.bodySecondary, { marginBottom: theme.spacing.base }]}>
+            Your latest coaching conversations and workout generations
+          </Text>
+          
+          <View style={styles.recentActivityList}>
+            <View style={styles.activityItem}>
+              <Icon name="chat" size={20} color={theme.colors.primary} />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={commonStyles.body}>Position-specific training advice</Text>
+                <Text style={commonStyles.caption}>2 hours ago</Text>
+              </View>
+            </View>
+            
+            <View style={styles.activityItem}>
+              <Icon name="fitness-center" size={20} color={theme.colors.primary} />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={commonStyles.body}>Wide Receiver off-season workout</Text>
+                <Text style={commonStyles.caption}>1 day ago</Text>
+              </View>
+            </View>
+            
+            <View style={styles.activityItem}>
+              <Icon name="chat" size={20} color={theme.colors.primary} />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={commonStyles.body}>Route running technique discussion</Text>
+                <Text style={commonStyles.caption}>3 days ago</Text>
+              </View>
+            </View>
+          </View>
         </Card.Content>
       </Card>
     </View>
@@ -419,12 +446,11 @@ export default function AthleteProfileScreen() {
         </Button>
       </View>
 
-      {/* Tab Navigation */}
+      {/* Tab Navigation - Removed Videos tab */}
       <View style={styles.tabContainer}>
         {[
           { key: 'overview', label: 'Overview' },
-          { key: 'videos', label: `Videos (${videos.length})` },
-          { key: 'ai', label: 'Sports IQ' }
+          { key: 'training', label: 'Training' }
         ].map((tab) => (
           <TouchableOpacity
             key={tab.key}
@@ -448,8 +474,7 @@ export default function AthleteProfileScreen() {
       {/* Tab Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {activeTab === 'overview' && renderOverviewTab()}
-        {activeTab === 'videos' && renderVideosTab()}
-        {activeTab === 'ai' && renderAITab()}
+        {activeTab === 'training' && renderAITab()}
       </ScrollView>
     </View>
   );
@@ -508,61 +533,28 @@ const styles = StyleSheet.create({
   statLabel: {
     marginTop: theme.spacing.xs,
     textAlign: 'center',
-  },
-  progressBar: {
-    width: '100%',
-    marginTop: theme.spacing.sm,
-    marginBottom: theme.spacing.xs,
-  },
-  videoCard: {
-    width: 150,
-    marginRight: theme.spacing.md,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.base,
-    ...theme.shadows.sm,
-  },
-  videoThumbnail: {
-    width: 150,
-    height: 100,
-    borderTopLeftRadius: theme.borderRadius.base,
-    borderTopRightRadius: theme.borderRadius.base,
-  },
-  placeholderThumbnail: {
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  videoOverlay: {
-    position: 'absolute',
-    top: 30,
-    left: 55,
-  },
-  videoContent: {
-    padding: theme.spacing.sm,
-  },
-  videoTitle: {
     fontWeight: theme.typography.fontWeight.semibold,
-    color: theme.colors.text,
   },
-  videoMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
+  statSubtitle: {
+    marginTop: 2,
+    textAlign: 'center',
+    fontSize: 10,
   },
-  featuredChip: {
-    height: 20,
-  },
-  videosHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-  },
-  videosGrid: {
+  quickActionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    marginTop: theme.spacing.sm,
+  },
+  quickActionCard: {
+    width: '48%',
+    padding: theme.spacing.base,
+    borderRadius: theme.borderRadius.base,
+    backgroundColor: theme.colors.primaryLight + '10',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.primaryLight + '30',
   },
   loadingContainer: {
     alignItems: 'center',
@@ -572,22 +564,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: theme.spacing.md,
   },
-  errorCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: 'red',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.md,
-  },
-  emptyVideosContent: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.xl,
-  },
   competencyProgress: {
     marginVertical: theme.spacing.sm,
   },
   competencyPercentage: {
     textAlign: 'right',
+  },
+  recentActivityList: {
+    marginTop: theme.spacing.sm,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
   },
 });
