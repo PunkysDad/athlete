@@ -1,6 +1,7 @@
 // src/components/onboarding/OnboardingFlow.tsx
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import { revenueCatService, SUBSCRIPTION_PRODUCTS } from '../../services/revenueCatService';
 
 // Sport and Position data
 const SPORTS_DATA = {
@@ -82,6 +83,7 @@ interface OnboardingFlowProps {
 
 export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({
     sport: null,
     position: null,
@@ -99,14 +101,93 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
     setCurrentStep(3);
   };
 
-  const handleSubscriptionSelection = (tierData: { tier: string, billing: 'monthly' | 'annual' }) => {
-    const finalData = { 
-      ...onboardingData, 
-      subscriptionTier: tierData.tier,
-      billingCycle: tierData.billing
-    };
-    setOnboardingData(finalData);
-    onComplete(finalData);
+  const handleSubscriptionSelection = async (tierData: { tier: string, billing: 'monthly' | 'annual' }) => {
+    try {
+      // Show loading state
+      setIsLoading(true);
+
+      // Get available packages from RevenueCat
+      const packages = await revenueCatService.getAvailablePackages();
+      
+      // Find the matching package based on user selection
+      let targetProductId = '';
+      if (tierData.tier === 'BASIC' && tierData.billing === 'monthly') {
+        targetProductId = SUBSCRIPTION_PRODUCTS.BASIC_MONTHLY;
+      } else if (tierData.tier === 'PREMIUM' && tierData.billing === 'monthly') {
+        targetProductId = SUBSCRIPTION_PRODUCTS.PREMIUM_MONTHLY;
+      } else if (tierData.tier === 'BASIC' && tierData.billing === 'annual') {
+        targetProductId = SUBSCRIPTION_PRODUCTS.BASIC_ANNUAL;
+      } else if (tierData.tier === 'PREMIUM' && tierData.billing === 'annual') {
+        targetProductId = SUBSCRIPTION_PRODUCTS.PREMIUM_ANNUAL;
+      }
+
+      console.log('Looking for product:', targetProductId);
+      console.log('Available packages:', packages.map(p => p.product.identifier));
+
+      const packageToPurchase = packages.find(pkg => 
+        pkg.product.identifier === targetProductId
+      );
+
+      if (!packageToPurchase) {
+        throw new Error(`Subscription package not found: ${targetProductId}`);
+      }
+
+      console.log('Attempting to purchase:', packageToPurchase.product.title);
+
+      // Trigger actual App Store purchase
+      const subscriptionInfo = await revenueCatService.purchaseSubscription(packageToPurchase);
+
+      console.log('Purchase successful:', subscriptionInfo);
+
+      // Purchase successful - complete onboarding with actual subscription data
+      const finalData = { 
+        ...onboardingData, 
+        subscriptionTier: subscriptionInfo.tier,
+        billingCycle: subscriptionInfo.billingCycle || tierData.billing,
+        isSubscriptionActive: subscriptionInfo.isActive
+      };
+
+      setOnboardingData(finalData);
+      onComplete(finalData);
+
+    } catch (error) {
+      console.error('Subscription purchase failed:', error);
+      
+      // Handle different error types
+      let errorMessage = 'Failed to process subscription. Please try again.';
+      
+      if (error.message.includes('cancelled')) {
+        errorMessage = 'Purchase was cancelled. You can try again anytime.';
+      } else if (error.message.includes('pending')) {
+        errorMessage = 'Payment is pending approval. Check back in a few minutes.';
+      } else if (error.message.includes('not found')) {
+        errorMessage = 'Subscription option temporarily unavailable. Please try again.';
+      }
+
+      Alert.alert(
+        'Subscription Error',
+        errorMessage,
+        [
+          { text: 'Try Again', onPress: () => setIsLoading(false) },
+          { 
+            text: 'Skip for Now', 
+            style: 'cancel',
+            onPress: () => {
+              // Allow user to complete onboarding without subscription
+              const finalData = { 
+                ...onboardingData, 
+                subscriptionTier: 'NONE',
+                billingCycle: tierData.billing,
+                isSubscriptionActive: false
+              };
+              onComplete(finalData);
+            }
+          }
+        ]
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBackButton = () => {

@@ -9,6 +9,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 // Using Firebase JS SDK v9+ (current recommended approach)
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signOut, signInWithCredential, OAuthProvider } from 'firebase/auth';
+import { revenueCatService } from './src/services/revenueCatService';
 
 // Import screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -250,6 +251,36 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
 
+  // Move testRevenueCat INSIDE the component so it can access user state
+  const testRevenueCat = async () => {
+    if (!user?.uid) {
+      console.log('❌ No user available for RevenueCat test');
+      return;
+    }
+
+    console.log('🔑 Checking environment variables...');
+    console.log('iOS key:', process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS ? 'Present' : 'Missing');
+    console.log('Android key:', process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID ? 'Present' : 'Missing');
+
+    try {
+      console.log('🧪 Testing RevenueCat...');
+      await revenueCatService.initialize(user.uid);
+      console.log('✅ RevenueCat initialized successfully');
+      
+      const packages = await revenueCatService.getAvailablePackages();
+      console.log(`📦 Found ${packages.length} packages`);
+    } catch (error) {
+      console.error('❌ RevenueCat test failed:', error);
+    }
+  };
+
+  // Test RevenueCat when user changes
+  useEffect(() => {
+    if (user?.uid) {
+      testRevenueCat();
+    }
+  }, [user]);
+
   useEffect(() => {
     // Listen for Firebase authentication state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -290,40 +321,33 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Rest of your component code remains the same...
   const handleAuthSuccess = (authenticatedUser: any) => {
-    // Firebase auth state listener will handle the rest
     console.log('Authentication successful for:', authenticatedUser.uid);
   };
-
-  // Update the onboarding completion handler in your App.tsx or AuthScreen
 
   const handleOnboardingComplete = async (onboardingData: { sport: string | null; position: string | null; subscriptionTier: string | null; billingCycle: 'monthly' | 'annual' }) => {
     try {
       console.log('Completing onboarding with data:', onboardingData);
       
-      // Create user data with subscription selection
       const userData = {
         email: user.email || '',
         firebaseUid: user.uid,
         displayName: user.displayName || user.email?.split('@')[0] || 'GameIQ Athlete',
         primarySport: onboardingData.sport?.toUpperCase(),
         primaryPosition: onboardingData.position?.toUpperCase(),
-        subscriptionTier: onboardingData.subscriptionTier, // BASIC or PREMIUM
-        billingCycle: onboardingData.billingCycle, // monthly or annual
+        subscriptionTier: onboardingData.subscriptionTier,
+        billingCycle: onboardingData.billingCycle,
         age: null
       };
 
       console.log('Sending user data to backend:', userData);
-
       const newUser = await userService.createUser(userData);
       console.log('User created successfully:', newUser);
-
-      // Save user data to your app state/context
-      // setCurrentUser(newUser);
-      // setIsOnboardingComplete(true);
       
-      // Navigate to main app
-      // Your navigation logic here
+      // Update state to exit onboarding
+      setUserProfile(newUser);
+      setShowOnboarding(false);
       
     } catch (error) {
       console.error('Error completing onboarding:', error);
@@ -344,6 +368,7 @@ export default function App() {
     }
   };
 
+  // Render logic remains the same
   if (initializing) {
     return (
       <PaperProvider>

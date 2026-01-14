@@ -75,7 +75,13 @@ export default {
             deploymentTarget: "15.1"
           }
         }
-      ]
+      ],
+      // [
+      //   "react-native-purchases",
+      //   {
+      //     useAmazon: false
+      //   }
+      // ],
       // Facebook will be added later if needed
       // [
       //   "react-native-fbsdk-next",
