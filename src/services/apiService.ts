@@ -80,6 +80,22 @@ export const apiService = {
   async getUserWorkouts(userId: number): Promise<ApiResponse<any[]>> {
     return apiCall(`/api/v1/workouts/user/${userId}`);
   },
+
+  // Update user's saved profile
+  async updateUserProfile(
+    userId: number,
+    data: {
+      displayName?: string | null;
+      primarySport?: string | null;
+      primaryPosition?: string | null;
+      age?: number | null;
+    }
+  ): Promise<ApiResponse<any>> {
+    return apiCall(`/api/v1/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // Connection test utility

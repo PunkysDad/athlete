@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -14,6 +14,7 @@ import {
 import { Card, Button, Chip } from 'react-native-paper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import Constants from 'expo-constants';
+import { getAuth } from 'firebase/auth';
 import { theme, commonStyles } from '../theme';
 import FormattedMessage from '../components/FormattedMessage';
 
@@ -32,20 +33,62 @@ interface CoachingAnalysisResponse {
   timestamp: string;
 }
 
+interface UserProfile {
+  id: number;
+  primarySport: string;
+  primaryPosition: string;
+}
+
 export default function CoachingScreen() {
   const [isInChat, setIsInChat] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+  const auth = getAuth();
 
   // Get backend URL from environment
   const backendUrl = Constants.expoConfig?.extra?.backendUrl || 'http://localhost:8080';
 
+  // Fetch user profile on mount
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        console.error('No authenticated user found');
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `${backendUrl}/api/v1/users/firebase/${currentUser.uid}`
+        );
+
+        if (response.ok) {
+          const profile = await response.json();
+          setUserProfile(profile);
+          console.log('User profile loaded:', profile);
+        } else {
+          console.error('Failed to fetch user profile:', response.status);
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+
   const startChatSession = () => {
+    if (!userProfile) {
+      Alert.alert('Error', 'Unable to load your profile. Please try again.');
+      return;
+    }
+
     const welcomeMessage: Message = {
       id: '1',
-      text: "Hey! I'm your personal AI coach. I know you're a Point Guard in Basketball, so I can help with position-specific training, game IQ, and strategy. What do you want to work on?",
+      text: `Hey! I'm your personal AI coach. I know you're a ${userProfile.primaryPosition} in ${userProfile.primarySport}, so I can help with position-specific training, game IQ, and strategy. What do you want to work on?`,
       isUser: false,
       timestamp: new Date(),
     };
@@ -55,7 +98,7 @@ export default function CoachingScreen() {
   };
 
   const sendMessage = async () => {
-    if (!inputText.trim() || isLoading) return;
+    if (!inputText.trim() || isLoading || !userProfile) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -75,22 +118,19 @@ export default function CoachingScreen() {
     }, 100);
 
     try {
-      // Debug: Create proper coaching situation request
-      const fullUrl = `${backendUrl}/api/v1/coaching/analyze?userId=1`;
+      // Use the actual user's ID from their profile
+      const fullUrl = `${backendUrl}/api/v1/coaching/analyze?userId=${userProfile.id}`;
       const requestBody = {
-        sport: 'BASKETBALL',
+        sport: userProfile.primarySport,
         situation: {
           'question': userMessage.text,
-          'position': 'Point Guard',
-          'level': 'high school',
-          'context': 'skill development'
+          'position': userProfile.primaryPosition,
         }
       };
       
       console.log('Calling backend URL:', fullUrl);
       console.log('Request body:', JSON.stringify(requestBody, null, 2));
       
-      // Call your backend coaching analysis endpoint
       const response = await fetch(fullUrl, {
         method: 'POST',
         headers: {
@@ -102,18 +142,24 @@ export default function CoachingScreen() {
       console.log('Response status:', response.status);
       
       if (!response.ok) {
-        // Get the actual error response body
         const errorText = await response.text();
         console.log('Error response body:', errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        
+        // Try to parse error as JSON
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.message || errorText);
+        } catch {
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
       }
 
       const data = await response.json();
 
-      // Add Claude's response to chat - using recommendation from your CoachingAnalysisResponse
+      // Add Claude's response to chat
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: data.recommendation, // This matches your CoachingAnalysisResponse.recommendation
+        text: data.recommendation,
         isUser: false,
         timestamp: new Date(),
       };
@@ -125,13 +171,13 @@ export default function CoachingScreen() {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error calling Claude API:', error);
       
       // Add error message to chat
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: "Sorry, I'm having trouble connecting right now. Please check that your backend server is running and try again.",
+        text: `Sorry, I encountered an error: ${error.message || 'Unable to connect to coaching server'}`,
         isUser: false,
         timestamp: new Date(),
       };
@@ -139,8 +185,8 @@ export default function CoachingScreen() {
       setMessages(prev => [...prev, errorMessage]);
       
       Alert.alert(
-        'Connection Error',
-        'Unable to reach the coaching server. Make sure your backend is running.',
+        'Coaching Error',
+        error.message || 'Unable to reach the coaching server.',
         [{ text: 'OK' }]
       );
     } finally {
@@ -168,7 +214,9 @@ export default function CoachingScreen() {
           </TouchableOpacity>
           <View style={styles.chatHeaderContent}>
             <Text style={styles.chatHeaderTitle}>AI Coach</Text>
-            <Text style={styles.chatHeaderSubtitle}>Basketball • Point Guard</Text>
+            <Text style={styles.chatHeaderSubtitle}>
+              {userProfile?.primarySport} • {userProfile?.primaryPosition}
+            </Text>
           </View>
           <View style={styles.statusIndicator}>
             <Icon name="circle" size={8} color="#4CAF50" />
@@ -242,7 +290,7 @@ export default function CoachingScreen() {
     );
   }
 
-  // Main Coaching Screen (your existing layout)
+  // Main Coaching Screen
   return (
     <ScrollView style={commonStyles.containerPadded}>
       <View style={styles.header}>
@@ -265,8 +313,9 @@ export default function CoachingScreen() {
             style={styles.startButton}
             buttonColor={theme.colors.primary}
             onPress={startChatSession}
+            disabled={!userProfile}
           >
-            Begin AI Coaching Session
+            {userProfile ? 'Begin AI Coaching Session' : 'Loading...'}
           </Button>
         </Card.Content>
       </Card>
@@ -275,9 +324,8 @@ export default function CoachingScreen() {
         <Card.Content>
           <Text style={commonStyles.heading3}>Your Sports IQ Progress</Text>
           <View style={styles.competencyRow}>
-            <Chip mode="outlined" style={styles.chip}>Defensive Formations: 90%</Chip>
-            <Chip mode="outlined" style={styles.chip}>Route Recognition: 70%</Chip>
-            <Chip mode="outlined" style={styles.chip}>Game Strategy: 40%</Chip>
+            <Chip mode="outlined" style={styles.chip}>Position Mastery: Coming Soon</Chip>
+            <Chip mode="outlined" style={styles.chip}>Game Strategy: Coming Soon</Chip>
           </View>
         </Card.Content>
       </Card>
