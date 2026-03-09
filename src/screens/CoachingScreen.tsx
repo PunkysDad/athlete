@@ -1,22 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  StyleSheet, 
-  TextInput, 
-  TouchableOpacity, 
-  KeyboardAvoidingView, 
-  Platform, 
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
   ActivityIndicator,
-  Alert 
+  Alert,
+  Modal,
 } from 'react-native';
-import { Card, Button, Chip } from 'react-native-paper';
+import { Divider, ActivityIndicator as PaperIndicator, Portal } from 'react-native-paper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
-import Constants from 'expo-constants';
 import { getAuth } from 'firebase/auth';
-import { theme, commonStyles } from '../theme';
 import FormattedMessage from '../components/FormattedMessage';
+import { apiService } from '../services/apiService';
+import { TagResponse } from '../interfaces/interfaces';
+
+const NAVY   = '#1a2744';
+const SILVER = '#b0bec5';
+const BG     = '#f5f7fa';
+const TAG_COLORS = ['#007AFF', '#FF3B30', '#34C759', '#FF9500', '#AF52DE', '#FF2D55', '#5AC8FA'];
 
 interface Message {
   id: string;
@@ -25,58 +31,72 @@ interface Message {
   timestamp: Date;
 }
 
-interface CoachingAnalysisResponse {
-  sport: string;
-  situation: string;
-  recommendation: string;
-  reasoning: string[];
-  timestamp: string;
-}
-
 interface UserProfile {
   id: number;
   primarySport: string;
   primaryPosition: string;
 }
 
+const COACHING_TIPS = [
+  {
+    sport: 'Football',
+    bad:  "How do I read defenses better?",
+    good: "How do I identify Cover 2 versus Cover 4 based on safety depth and corner alignment at the snap?",
+  },
+  {
+    sport: 'Basketball',
+    bad:  "How do I get better on offense?",
+    good: "As a PG, how do I read a hedge-and-recover ball screen defense to decide between the pull-up, pocket pass, or reset?",
+  },
+  {
+    sport: 'Baseball',
+    bad:  "How do I hit better?",
+    good: "How do I recognize a pitcher's curveball out of the hand versus a fastball based on spin and release point?",
+  },
+  {
+    sport: 'Soccer',
+    bad:  "How do I play better defensively?",
+    good: "As a center back, how do I decide when to step and press versus hold my line when a striker receives the ball with their back to goal?",
+  },
+  {
+    sport: 'Hockey',
+    bad:  "How do I read plays better?",
+    good: "As a defenseman, how do I identify an opposing winger's breakout pattern to anticipate an intercept opportunity at the blue line?",
+  },
+];
+
 export default function CoachingScreen() {
-  const [isInChat, setIsInChat] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [inputText, setInputText] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isInChat, setIsInChat]       = useState(false);
+  const [messages, setMessages]       = useState<Message[]>([]);
+  const [inputText, setInputText]     = useState('');
+  const [isLoading, setIsLoading]     = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
-  const auth = getAuth();
+  const scrollViewRef                 = useRef<ScrollView>(null);
+  const auth                          = getAuth();
 
-  // Get backend URL from environment
-  const backendUrl = Constants.expoConfig?.extra?.backendUrl || 'http://localhost:8080';
+  const [conversationId, setConversationId]   = useState<number | null>(null);
+  const [tagModalVisible, setTagModalVisible] = useState(false);
+  const [existingTags, setExistingTags]       = useState<TagResponse[]>([]);
+  const [assignedTagIds, setAssignedTagIds]   = useState<Set<number>>(new Set());
+  const [tagsLoading, setTagsLoading]         = useState(false);
+  const [newTagName, setNewTagName]           = useState('');
+  const [newTagColor, setNewTagColor]         = useState('#007AFF');
+  const [showNewTagInput, setShowNewTagInput] = useState(false);
+  const [savingTag, setSavingTag]             = useState(false);
 
-  // Fetch user profile on mount
+  const backendUrl = 'http://192.168.254.5:8080';
+
   useEffect(() => {
     const fetchUserProfile = async () => {
       const currentUser = auth.currentUser;
-      if (!currentUser) {
-        console.error('No authenticated user found');
-        return;
-      }
-
+      if (!currentUser) return;
       try {
-        const response = await fetch(
-          `${backendUrl}/api/v1/users/firebase/${currentUser.uid}`
-        );
-
-        if (response.ok) {
-          const profile = await response.json();
-          setUserProfile(profile);
-          console.log('User profile loaded:', profile);
-        } else {
-          console.error('Failed to fetch user profile:', response.status);
-        }
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
+        const res = await fetch(`${backendUrl}/api/v1/users/firebase/${currentUser.uid}`);
+        if (res.ok) setUserProfile(await res.json());
+      } catch (e) {
+        console.error('Error fetching user profile:', e);
       }
     };
-
     fetchUserProfile();
   }, []);
 
@@ -85,110 +105,65 @@ export default function CoachingScreen() {
       Alert.alert('Error', 'Unable to load your profile. Please try again.');
       return;
     }
-
-    const welcomeMessage: Message = {
+    setMessages([{
       id: '1',
       text: `Hey! I'm your personal AI coach. I know you're a ${userProfile.primaryPosition} in ${userProfile.primarySport}, so I can help with position-specific training, game IQ, and strategy. What do you want to work on?`,
       isUser: false,
       timestamp: new Date(),
-    };
-    
-    setMessages([welcomeMessage]);
+    }]);
+    setConversationId(null);
+    setAssignedTagIds(new Set());
     setIsInChat(true);
   };
 
   const sendMessage = async () => {
     if (!inputText.trim() || isLoading || !userProfile) return;
-
-    const userMessage: Message = {
+    const userMsg: Message = {
       id: Date.now().toString(),
       text: inputText.trim(),
       isUser: true,
       timestamp: new Date(),
     };
-
-    // Add user message to chat
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMsg]);
     setInputText('');
     setIsLoading(true);
-
-    // Scroll to bottom
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-
+    setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     try {
-      // Use the actual user's ID from their profile
-      const fullUrl = `${backendUrl}/api/v1/coaching/analyze?userId=${userProfile.id}`;
-      const requestBody = {
-        sport: userProfile.primarySport,
-        situation: {
-          'question': userMessage.text,
-          'position': userProfile.primaryPosition,
+      const res = await fetch(
+        `${backendUrl}/api/v1/coaching/analyze?userId=${userProfile.id}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sport: userProfile.primarySport,
+            situation: { question: userMsg.text, position: userProfile.primaryPosition },
+          }),
         }
-      };
-      
-      console.log('Calling backend URL:', fullUrl);
-      console.log('Request body:', JSON.stringify(requestBody, null, 2));
-      
-      const response = await fetch(fullUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      console.log('Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log('Error response body:', errorText);
-        
-        // Try to parse error as JSON
-        try {
-          const errorJson = JSON.parse(errorText);
-          throw new Error(errorJson.message || errorText);
-        } catch {
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
+      );
+      if (!res.ok) {
+        const errText = await res.text();
+        try { throw new Error(JSON.parse(errText).message || errText); }
+        catch { throw new Error(`HTTP ${res.status}: ${errText}`); }
       }
-
-      const data = await response.json();
-
-      // Add Claude's response to chat
-      const aiMessage: Message = {
+      const data = await res.json();
+      if (conversationId === null && data.conversationId) {
+        setConversationId(data.conversationId);
+      }
+      setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         text: data.recommendation,
         isUser: false,
         timestamp: new Date(),
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
-
-      // Scroll to bottom after AI response
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-
+      }]);
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (error: any) {
-      console.error('Error calling Claude API:', error);
-      
-      // Add error message to chat
-      const errorMessage: Message = {
+      setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         text: `Sorry, I encountered an error: ${error.message || 'Unable to connect to coaching server'}`,
         isUser: false,
         timestamp: new Date(),
-      };
-      
-      setMessages(prev => [...prev, errorMessage]);
-      
-      Alert.alert(
-        'Coaching Error',
-        error.message || 'Unable to reach the coaching server.',
-        [{ text: 'OK' }]
-      );
+      }]);
+      Alert.alert('Coaching Error', error.message || 'Unable to reach the coaching server.', [{ text: 'OK' }]);
     } finally {
       setIsLoading(false);
     }
@@ -198,280 +173,388 @@ export default function CoachingScreen() {
     setIsInChat(false);
     setMessages([]);
     setInputText('');
+    setConversationId(null);
+    setAssignedTagIds(new Set());
   };
 
-  // Chat Interface
+  const openTagModal = async () => {
+    if (!conversationId) {
+      Alert.alert('Send a message first', 'Ask your coach a question before adding tags.');
+      return;
+    }
+    if (!userProfile) return;
+    setTagModalVisible(true);
+    setTagsLoading(true);
+    try {
+      const result = await apiService.getUserTags(userProfile.id);
+      if (result.success) setExistingTags(result.data);
+    } finally {
+      setTagsLoading(false);
+    }
+  };
+
+  const toggleTagAssignment = async (tagId: number) => {
+    if (!conversationId || !userProfile) return;
+    const isAssigned = assignedTagIds.has(tagId);
+    try {
+      if (isAssigned) {
+        await apiService.removeTagFromConversation(userProfile.id, conversationId, tagId);
+        setAssignedTagIds(prev => { const next = new Set(prev); next.delete(tagId); return next; });
+      } else {
+        await apiService.addTagToConversation(userProfile.id, conversationId, tagId);
+        setAssignedTagIds(prev => new Set(prev).add(tagId));
+      }
+    } catch {
+      Alert.alert('Error', 'Failed to update tag. Please try again.');
+    }
+  };
+
+  const handleCreateAndAssignTag = async () => {
+    if (!newTagName.trim() || !userProfile) return;
+    setSavingTag(true);
+    try {
+      const result = await apiService.createTag(userProfile.id, newTagName.trim(), newTagColor);
+      if (!result.success) { Alert.alert('Error', result.error || 'Failed to create tag.'); return; }
+      const newTag = result.data;
+      setExistingTags(prev => [...prev, newTag]);
+      if (conversationId) {
+        await apiService.addTagToConversation(userProfile.id, conversationId, newTag.id);
+        setAssignedTagIds(prev => new Set(prev).add(newTag.id));
+      }
+      setNewTagName('');
+      setNewTagColor('#007AFF');
+      setShowNewTagInput(false);
+    } finally {
+      setSavingTag(false);
+    }
+  };
+
   if (isInChat) {
     return (
-      <KeyboardAvoidingView 
-        style={styles.chatContainer} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        {/* Chat Header */}
-        <View style={styles.chatHeader}>
-          <TouchableOpacity onPress={endChatSession} style={styles.backButton}>
-            <Icon name="arrow-back" size={24} color={theme.colors.primary} />
-          </TouchableOpacity>
-          <View style={styles.chatHeaderContent}>
-            <Text style={styles.chatHeaderTitle}>AI Coach</Text>
-            <Text style={styles.chatHeaderSubtitle}>
-              {userProfile?.primarySport} • {userProfile?.primaryPosition}
-            </Text>
-          </View>
-          <View style={styles.statusIndicator}>
-            <Icon name="circle" size={8} color="#4CAF50" />
-            <Text style={styles.statusText}>Online</Text>
-          </View>
-        </View>
-
-        {/* Messages */}
-        <ScrollView 
-          ref={scrollViewRef}
-          style={styles.messagesContainer}
-          contentContainerStyle={styles.messagesContent}
-        >
-          {messages.map((message) => (
-            <View
-              key={message.id}
-              style={[
-                styles.messageWrapper,
-                message.isUser ? styles.userMessageWrapper : styles.aiMessageWrapper,
-              ]}
+      <View style={styles.chatContainer}>
+        <Portal>
+          <Modal
+            visible={tagModalVisible}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setTagModalVisible(false)}
+          >
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={styles.modalOverlay}
             >
-              <View
-                style={[
-                  styles.messageBubble,
-                  message.isUser ? styles.userMessage : styles.aiMessage,
-                ]}
-              >
-                <FormattedMessage 
-                  text={message.text}
-                  isUser={message.isUser}
-                />
+              <View style={styles.modalContainer}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Add Tags</Text>
+                  <TouchableOpacity onPress={() => setTagModalVisible(false)} style={{ padding: 8 }}>
+                    <Icon name="close" size={20} color={NAVY} />
+                  </TouchableOpacity>
+                </View>
+
+                {tagsLoading ? (
+                  <PaperIndicator style={{ marginVertical: 20 }} color={NAVY} />
+                ) : (
+                  <>
+                    {existingTags.length > 0 && (
+                      <View style={styles.tagList}>
+                        {existingTags.map(tag => {
+                          const assigned = assignedTagIds.has(tag.id);
+                          return (
+                            <TouchableOpacity
+                              key={tag.id}
+                              style={[styles.tagRow, assigned && { backgroundColor: tag.color + '20' }]}
+                              onPress={() => toggleTagAssignment(tag.id)}
+                            >
+                              <View style={[styles.tagDot, { backgroundColor: tag.color }]} />
+                              <Text style={styles.tagRowName}>{tag.name}</Text>
+                              {assigned && <Icon name="check" size={18} color={tag.color} />}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+
+                    <Divider style={{ marginVertical: 12 }} />
+
+                    {showNewTagInput ? (
+                      <View style={styles.newTagForm}>
+                        <TextInput
+                          style={styles.newTagInput}
+                          placeholder="Tag name"
+                          value={newTagName}
+                          onChangeText={setNewTagName}
+                          maxLength={100}
+                        />
+                        <View style={styles.colorRow}>
+                          {TAG_COLORS.map(c => (
+                            <TouchableOpacity
+                              key={c}
+                              style={[styles.colorSwatch, { backgroundColor: c }, newTagColor === c && styles.colorSwatchSelected]}
+                              onPress={() => setNewTagColor(c)}
+                            />
+                          ))}
+                        </View>
+                        <View style={styles.newTagActions}>
+                          <TouchableOpacity
+                            style={styles.cancelButton}
+                            onPress={() => { setShowNewTagInput(false); setNewTagName(''); }}
+                          >
+                            <Text style={styles.cancelButtonText}>Cancel</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.createButton, (!newTagName.trim() || savingTag) && { opacity: 0.5 }]}
+                            onPress={handleCreateAndAssignTag}
+                            disabled={!newTagName.trim() || savingTag}
+                          >
+                            {savingTag
+                              ? <ActivityIndicator size="small" color="#fff" />
+                              : <Text style={styles.createButtonText}>Create & Add</Text>
+                            }
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ) : (
+                      <TouchableOpacity style={styles.createTagButton} onPress={() => setShowNewTagInput(true)}>
+                        <Icon name="add" size={18} color={NAVY} />
+                        <Text style={styles.createTagText}>Create new tag</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+
+                <TouchableOpacity
+                  style={[styles.createButton, { marginTop: 16, alignSelf: 'stretch', alignItems: 'center' }]}
+                  onPress={() => setTagModalVisible(false)}
+                >
+                  <Text style={styles.createButtonText}>Done</Text>
+                </TouchableOpacity>
               </View>
+            </KeyboardAvoidingView>
+          </Modal>
+        </Portal>
+
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        >
+          <View style={styles.chatHeader}>
+            <TouchableOpacity onPress={endChatSession} style={styles.backButton}>
+              <Icon name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.chatHeaderContent}>
+              <Text style={styles.chatHeaderTitle}>AI Coach</Text>
+              <Text style={styles.chatHeaderSubtitle}>
+                {userProfile?.primarySport} • {userProfile?.primaryPosition}
+              </Text>
             </View>
-          ))}
-          
-          {isLoading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-              <Text style={styles.loadingText}>Coach is thinking...</Text>
+            <View style={styles.statusIndicator}>
+              <Icon name="circle" size={8} color="#4CAF50" />
+              <Text style={styles.statusText}>Online</Text>
+            </View>
+          </View>
+
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.messagesContainer}
+            contentContainerStyle={styles.messagesContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {messages.map((message) => (
+              <View
+                key={message.id}
+                style={[styles.messageWrapper, message.isUser ? styles.userMessageWrapper : styles.aiMessageWrapper]}
+              >
+                <View style={[styles.messageBubble, message.isUser ? styles.userMessage : styles.aiMessage]}>
+                  <FormattedMessage text={message.text} isUser={message.isUser} />
+                </View>
+              </View>
+            ))}
+            {isLoading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={NAVY} />
+                <Text style={styles.loadingText}>Coach is thinking...</Text>
+              </View>
+            )}
+          </ScrollView>
+
+          {conversationId !== null && (
+            <View style={styles.tagBar}>
+              <TouchableOpacity style={styles.tagBarButton} onPress={openTagModal}>
+                <Icon name="label" size={16} color={NAVY} />
+                <Text style={styles.tagBarButtonText}>
+                  {assignedTagIds.size > 0 ? `Tags (${assignedTagIds.size})` : 'Add Tag'}
+                </Text>
+              </TouchableOpacity>
+              {assignedTagIds.size > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tagChipScroll}>
+                  {existingTags
+                    .filter(t => assignedTagIds.has(t.id))
+                    .map(t => (
+                      <View key={t.id} style={[styles.tagChip, { borderColor: t.color, backgroundColor: t.color + '20' }]}>
+                        <Text style={[styles.tagChipText, { color: t.color }]}>{t.name}</Text>
+                      </View>
+                    ))}
+                </ScrollView>
+              )}
             </View>
           )}
-        </ScrollView>
 
-        {/* Input Area */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.textInput}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="Ask about your position, training, strategy..."
-            multiline
-            maxLength={500}
-            editable={!isLoading}
-          />
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              (!inputText.trim() || isLoading) && styles.sendButtonDisabled,
-            ]}
-            onPress={sendMessage}
-            disabled={!inputText.trim() || isLoading}
-          >
-            <Icon 
-              name="send" 
-              size={20} 
-              color={(!inputText.trim() || isLoading) ? '#ccc' : '#fff'} 
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.textInput}
+              value={inputText}
+              onChangeText={setInputText}
+              placeholder="Ask about your position, training, strategy..."
+              multiline
+              maxLength={500}
+              editable={!isLoading}
+              blurOnSubmit={true}
+              onSubmitEditing={sendMessage}
             />
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+            <TouchableOpacity
+              style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
+              onPress={sendMessage}
+              disabled={!inputText.trim() || isLoading}
+            >
+              <Icon name="send" size={20} color={(!inputText.trim() || isLoading) ? '#ccc' : '#fff'} />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
     );
   }
 
-  // Main Coaching Screen
   return (
-    <ScrollView style={commonStyles.containerPadded}>
-      <View style={styles.header}>
-        <Text style={commonStyles.heading2}>AI Sports Coaching</Text>
-        <Text style={commonStyles.bodySecondary}>Build your sports knowledge</Text>
+    <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Icon name="psychology" size={22} color={NAVY} />
+          <Text style={styles.cardTitle}>Start New Conversation</Text>
+        </View>
+        <Text style={styles.cardBody}>
+          Get personalized coaching for YOUR position. Ask about training, game strategy, skill development, or anything to improve your game.
+        </Text>
+        <TouchableOpacity
+          style={[styles.createButton, { marginTop: 14, alignSelf: 'stretch', alignItems: 'center', opacity: userProfile ? 1 : 0.5 }]}
+          onPress={startChatSession}
+          disabled={!userProfile}
+        >
+          <Text style={styles.createButtonText}>{userProfile ? 'Begin AI Coaching Session' : 'Loading...'}</Text>
+        </TouchableOpacity>
       </View>
 
-      <Card style={commonStyles.card}>
-        <Card.Content>
-          <View style={commonStyles.cardHeader}>
-            <Icon name="psychology" size={24} color={theme.colors.primary} />
-            <Text style={commonStyles.heading3}>Start New Conversation</Text>
+      <View style={styles.tipsCard}>
+        <View style={styles.cardHeader}>
+          <Icon name="lightbulb" size={22} color={NAVY} />
+          <Text style={styles.cardTitle}>Tips for Better Coaching Questions</Text>
+        </View>
+        <Text style={styles.tipsIntro}>
+          Specific questions get specific answers. Here's how to get the most out of your AI coach:
+        </Text>
+        {COACHING_TIPS.map((tip, i) => (
+          <View key={i} style={styles.tipRow}>
+            <Text style={styles.tipSport}>{tip.sport}</Text>
+            <View style={styles.tipBad}>
+              <View style={styles.tipBadge}>
+                <Icon name="close" size={12} color="#fff" />
+              </View>
+              <Text style={styles.tipBadText}>{tip.bad}</Text>
+            </View>
+            <Icon name="arrow-downward" size={16} color={SILVER} style={styles.tipArrow} />
+            <View style={styles.tipGood}>
+              <View style={[styles.tipBadge, styles.tipBadgeGood]}>
+                <Icon name="check" size={12} color="#fff" />
+              </View>
+              <Text style={styles.tipGoodText}>{tip.good}</Text>
+            </View>
+            {i < COACHING_TIPS.length - 1 && <View style={styles.tipDivider} />}
           </View>
-          <Text style={commonStyles.body}>
-            Get personalized coaching for YOUR position. Ask about training, game strategy, skill development, or anything to improve your game.
+        ))}
+        <View style={styles.tipsHighlight}>
+          <Icon name="info" size={14} color={NAVY} style={{ marginTop: 1 }} />
+          <Text style={styles.tipsHighlightText}>
+            Focus on specific game situations, formations, reads, or decisions — the more precise your question, the more actionable the answer.
           </Text>
-          <Button 
-            mode="contained" 
-            icon="chat"
-            style={styles.startButton}
-            buttonColor={theme.colors.primary}
-            onPress={startChatSession}
-            disabled={!userProfile}
-          >
-            {userProfile ? 'Begin AI Coaching Session' : 'Loading...'}
-          </Button>
-        </Card.Content>
-      </Card>
-
-      <Card style={commonStyles.card}>
-        <Card.Content>
-          <Text style={commonStyles.heading3}>Your Sports IQ Progress</Text>
-          <View style={styles.competencyRow}>
-            <Chip mode="outlined" style={styles.chip}>Position Mastery: Coming Soon</Chip>
-            <Chip mode="outlined" style={styles.chip}>Game Strategy: Coming Soon</Chip>
-          </View>
-        </Card.Content>
-      </Card>
-
-      <Card style={commonStyles.card}>
-        <Card.Content>
-          <View style={commonStyles.cardHeader}>
-            <Icon name="history" size={24} color={theme.colors.secondary} />
-            <Text style={commonStyles.heading3}>Recent Sessions</Text>
-          </View>
-          <Text style={commonStyles.body}>Your AI coaching conversation history will appear here.</Text>
-        </Card.Content>
-      </Card>
+        </View>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    marginBottom: theme.spacing.xl,
-  },
-  startButton: {
-    marginTop: theme.spacing.md,
-  },
-  competencyRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: theme.spacing.sm,
-  },
-  chip: {
-    margin: theme.spacing.xs,
-    backgroundColor: theme.colors.primaryLight + '20',
-  },
-  
-  // Chat Interface Styles
-  chatContainer: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  chatHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#f8f9fa',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  backButton: {
-    marginRight: 12,
-  },
-  chatHeaderContent: {
-    flex: 1,
-  },
-  chatHeaderTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  chatHeaderSubtitle: {
-    fontSize: 14,
-    color: '#666',
-  },
-  statusIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusText: {
-    marginLeft: 4,
-    fontSize: 12,
-    color: '#4CAF50',
-  },
-  messagesContainer: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  messagesContent: {
-    padding: 16,
-  },
-  messageWrapper: {
-    marginBottom: 12,
-  },
-  userMessageWrapper: {
-    alignItems: 'flex-end',
-  },
-  aiMessageWrapper: {
-    alignItems: 'flex-start',
-  },
-  messageBubble: {
-    maxWidth: '85%',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  userMessage: {
-    backgroundColor: theme.colors.primary,
-    borderBottomRightRadius: 4,
-  },
-  aiMessage: {
-    backgroundColor: '#f1f3f5',
-    borderBottomLeftRadius: 4,
-  },
-  messageText: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-  },
-  loadingText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: '#666',
-    fontStyle: 'italic',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    padding: 16,
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
-  },
-  textInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginRight: 12,
-    maxHeight: 100,
-    fontSize: 16,
-    backgroundColor: '#f8f9fa',
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
+  screen: { flex: 1, backgroundColor: BG, padding: 16 },
+
+  card: { backgroundColor: '#fff', borderRadius: 8, marginBottom: 16, elevation: 1, padding: 16 },
+  tipsCard: { backgroundColor: '#fff', borderRadius: 8, borderLeftWidth: 4, borderLeftColor: NAVY, marginBottom: 32, elevation: 1, padding: 16 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: NAVY },
+  cardBody: { fontSize: 14, color: '#607d8b', lineHeight: 20, marginBottom: 4 },
+
+  tipsIntro: { fontSize: 13, color: '#607d8b', lineHeight: 19, marginBottom: 16 },
+  tipSport: { fontSize: 11, fontWeight: '700', color: NAVY, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 },
+  tipRow: { marginBottom: 4 },
+  tipBad: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 4 },
+  tipGood: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  tipBadge: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#e53935', alignItems: 'center', justifyContent: 'center', marginTop: 1, flexShrink: 0 },
+  tipBadgeGood: { backgroundColor: '#2e7d32' },
+  tipBadText: { flex: 1, fontSize: 13, color: '#9e9e9e', fontStyle: 'italic', lineHeight: 18 },
+  tipGoodText: { flex: 1, fontSize: 13, color: '#2c3e50', fontWeight: '500', lineHeight: 18 },
+  tipArrow: { marginLeft: 4, marginVertical: 2 },
+  tipDivider: { height: 1, backgroundColor: BG, marginVertical: 12 },
+  tipsHighlight: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: BG, borderRadius: 6, padding: 10, marginTop: 16, gap: 6 },
+  tipsHighlightText: { flex: 1, fontSize: 12, color: NAVY, fontWeight: '500', lineHeight: 17 },
+
+  chatContainer: { flex: 1, backgroundColor: '#fff' },
+  chatHeader: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: NAVY },
+  backButton: { marginRight: 12 },
+  chatHeaderContent: { flex: 1 },
+  chatHeaderTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
+  chatHeaderSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 1 },
+  statusIndicator: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statusText: { fontSize: 12, color: '#4CAF50' },
+
+  messagesContainer: { flex: 1, backgroundColor: BG },
+  messagesContent: { padding: 16 },
+  messageWrapper: { marginBottom: 12 },
+  userMessageWrapper: { alignItems: 'flex-end' },
+  aiMessageWrapper: { alignItems: 'flex-start' },
+  messageBubble: { maxWidth: '85%', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
+  userMessage: { backgroundColor: NAVY, borderBottomRightRadius: 4 },
+  aiMessage: { backgroundColor: '#fff', borderBottomLeftRadius: 4, elevation: 1 },
+  loadingContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 8 },
+  loadingText: { fontSize: 14, color: '#607d8b', fontStyle: 'italic' },
+
+  tagBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e9ecef', gap: 10 },
+  tagBarButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: NAVY, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  tagBarButtonText: { color: NAVY, fontSize: 13, fontWeight: '600' },
+  tagChipScroll: { flex: 1 },
+  tagChip: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginRight: 6 },
+  tagChipText: { fontSize: 12, fontWeight: '500' },
+
+  inputContainer: { flexDirection: 'row', alignItems: 'flex-end', padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e9ecef' },
+  textInput: { flex: 1, borderWidth: 1, borderColor: '#dde2e8', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, marginRight: 12, maxHeight: 100, fontSize: 15, backgroundColor: BG },
+  sendButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: NAVY, alignItems: 'center', justifyContent: 'center' },
+  sendButtonDisabled: { backgroundColor: '#ccc' },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: NAVY },
+  tagList: { gap: 4 },
+  tagRow: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 8 },
+  tagDot: { width: 12, height: 12, borderRadius: 6, marginRight: 10 },
+  tagRowName: { flex: 1, fontSize: 15, color: '#2c3e50' },
+  createTagButton: { flexDirection: 'row', alignItems: 'center', padding: 10, gap: 6 },
+  createTagText: { color: NAVY, fontSize: 15, fontWeight: '500' },
+  newTagForm: { gap: 12 },
+  newTagInput: { borderWidth: 1, borderColor: '#dde2e8', borderRadius: 8, padding: 10, fontSize: 15 },
+  colorRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  colorSwatch: { width: 28, height: 28, borderRadius: 14 },
+  colorSwatchSelected: { borderWidth: 3, borderColor: NAVY },
+  newTagActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
+  cancelButton: { paddingHorizontal: 16, paddingVertical: 10, justifyContent: 'center' },
+  cancelButtonText: { color: NAVY, fontSize: 15 },
+  createButton: { backgroundColor: NAVY, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  createButtonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

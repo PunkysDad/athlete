@@ -8,182 +8,185 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { Card, Chip, Button, Avatar, ProgressBar } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Card, Button, Avatar } from 'react-native-paper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
-import { theme, commonStyles, getPerformanceColor, getPerformanceLevel } from '../theme';
+import { appTheme } from '../theme/appTheme';
+import { theme, commonStyles } from '../theme';
 import { apiService } from '../services/apiService';
-import { UserService } from '../services/userService'; // Import UserService
-import { getAuth } from 'firebase/auth'; // Import Firebase auth
-
-type RootStackParamList = {
-  MainTabs: undefined;
-  ProfileEdit: { userId: string }; // Updated navigation target
-};
-
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-
-// Mock athlete data - replace with real data from API
-const mockAthleteData = {
-  id: '8', // Real user ID from database
-  name: 'jfrankbooth', // Real display_name from database
-  sport: 'Football', // Real primary_sport from database  
-  position: 'QB', // Real primary_position from database
-  school: 'Central High School', // TODO: Get from user profile
-  graduationYear: 2025, // TODO: Get from user profile
-  profileImage: 'https://via.placeholder.com/150', // TODO: Get from user profile
-  aiCompetencies: [
-    { skill: 'Position Technique', level: 'Advanced', progress: 0.9 },
-    { skill: 'Training Consistency', level: 'Intermediate', progress: 0.7 },
-    { skill: 'Performance Analysis', level: 'Beginner', progress: 0.4 },
-  ],
-};
-
-interface ActivityStats {
-  totalChats: number;
-  totalWorkouts: number;
-  recentActivity: number; // Days since last activity
-}
+import { UserService } from '../services/userService';
+import { getAuth } from 'firebase/auth';
+import {
+  ActivityStats,
+  TagWithItems,
+  TaggedItem,
+} from '../interfaces/interfaces';
+import TagContentBottomSheet from '../components/TagContentBottomSheet';
 
 export default function HomeScreen() {
-  const navigation = useNavigation<NavigationProp>();
+  const auth = getAuth();
+  const userService = new UserService();
   const [activeTab, setActiveTab] = useState('overview');
-  const auth = getAuth(); // Initialize Firebase auth
-  const userService = new UserService(); // Initialize UserService
-  
-  // Backend integration state
-  const [backendConnected, setBackendConnected] = useState(false);
+
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [userLoading, setUserLoading] = useState(true);
+
+  const [backendConnected, setBackendConnected] = useState(false);
   const [activityStats, setActivityStats] = useState<ActivityStats>({
     totalChats: 0,
     totalWorkouts: 0,
-    recentActivity: 0
+    recentActivity: 0,
   });
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
 
-  // Get current user data from Firebase Auth + your UserService
+  const [tagsWithItems, setTagsWithItems] = useState<TagWithItems[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  const [expandedTags, setExpandedTags] = useState<Set<number>>(new Set());
+
+  const [selectedItem, setSelectedItem] = useState<TaggedItem | null>(null);
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [focusCount, setFocusCount] = useState(0);
+
+  // -------------------------------------------------------------------------
+  // User resolution
+  // -------------------------------------------------------------------------
+
   const getCurrentUser = async (): Promise<{ user: any; userId: number } | null> => {
     try {
       const firebaseUser = auth.currentUser;
-      if (!firebaseUser) {
-        console.log('❌ No Firebase user authenticated');
-        return null;
-      }
-
-      console.log('🔍 Firebase user UID:', firebaseUser.uid);
-      
-      // Use your existing UserService to get user data
+      if (!firebaseUser) return null;
       const userData = await userService.checkUserExists(firebaseUser.uid);
-      
-      if (userData) {
-        console.log('✅ Found user in backend:', userData);
-        return {
-          user: userData,
-          userId: userData.id
-        };
-      } else {
-        console.log('❌ User not found in backend database');
-        return null;
-      }
+      if (userData) return { user: userData, userId: userData.id };
+      return null;
     } catch (error) {
       console.error('Error getting current user:', error);
       return null;
     }
   };
 
-  const loadActivityStats = async () => {
-    if (!currentUserId) {
-      console.log('❌ No current user ID available');
-      setStatsError('User not authenticated');
-      return;
-    }
+  // -------------------------------------------------------------------------
+  // Activity stats
+  // -------------------------------------------------------------------------
 
+  const loadActivityStats = async (userId: number) => {
     setStatsLoading(true);
     setStatsError(null);
-
     try {
-      console.log('🔍 Starting loadActivityStats for user ID:', currentUserId);
-      
-      // Method 1: Use existing stats endpoint (if you update UserStatsResponse)
-      const statsResult = await apiService.getUserStats(currentUserId);
-      console.log('📊 Stats result:', JSON.stringify(statsResult, null, 2));
-      
+      const statsResult = await apiService.getUserStats(userId);
       if (statsResult.success) {
-        console.log('✅ Stats endpoint successful, data:', statsResult.data);
         setActivityStats({
           totalChats: statsResult.data.totalConversations || 0,
-          totalWorkouts: statsResult.data.totalWorkouts || 0, // You'll need to add this field
-          recentActivity: statsResult.data.daysSinceLastActivity || 0 // You'll need to add this field
+          totalWorkouts: statsResult.data.totalWorkouts || 0,
+          recentActivity: statsResult.data.daysSinceLastActivity || 0,
         });
         setBackendConnected(true);
       } else {
-        console.log('❌ Stats endpoint failed, trying individual endpoints...');
-        // Fallback: Try to get data from individual endpoints
         const [chatsResult, workoutsResult] = await Promise.all([
-          apiService.getUserConversations(currentUserId),
-          apiService.getUserWorkouts(currentUserId)
+          apiService.getUserConversations(userId),
+          apiService.getUserWorkouts(userId),
         ]);
-        
-        console.log('💬 Chats result:', JSON.stringify(chatsResult, null, 2));
-        console.log('💪 Workouts result:', JSON.stringify(workoutsResult, null, 2));
-        
         if (chatsResult.success && workoutsResult.success) {
-          console.log('✅ Individual endpoints successful');
-          console.log('💬 Chats data length:', chatsResult.data?.length || 'undefined');
-          console.log('💪 Workouts data length:', workoutsResult.data?.length || 'undefined');
-          
-          // Calculate recent activity (days since last chat or workout)
           const allActivities = [
-            ...chatsResult.data.map(c => new Date(c.timestamp || c.createdAt)),
-            ...workoutsResult.data.map(w => new Date(w.createdAt))
+            ...chatsResult.data.map((c: any) => new Date(c.timestamp || c.createdAt)),
+            ...workoutsResult.data.map((w: any) => new Date(w.createdAt)),
           ];
-          
-          const mostRecentActivity = allActivities.length > 0 
+          const mostRecent = allActivities.length > 0
             ? Math.max(...allActivities.map(d => d.getTime()))
             : 0;
-          
-          const daysSinceLastActivity = mostRecentActivity > 0 
-            ? Math.floor((Date.now() - mostRecentActivity) / (1000 * 60 * 60 * 24))
+          const daysSince = mostRecent > 0
+            ? Math.floor((Date.now() - mostRecent) / (1000 * 60 * 60 * 24))
             : 0;
-          
-          const finalStats = {
+          setActivityStats({
             totalChats: chatsResult.data.length,
             totalWorkouts: workoutsResult.data.length,
-            recentActivity: daysSinceLastActivity
-          };
-          
-          console.log('🎯 Final activity stats:', finalStats);
-          setActivityStats(finalStats);
+            recentActivity: daysSince,
+          });
           setBackendConnected(true);
         } else {
-          console.log('❌ Individual endpoints failed');
-          setStatsError('Failed to load activity data from endpoints');
+          setStatsError('Failed to load activity data');
         }
       }
     } catch (error) {
-      console.log('💥 Error in loadActivityStats:', error);
       setStatsError(error instanceof Error ? error.message : 'Unknown error');
-      console.error('Error loading activity stats:', error);
     } finally {
       setStatsLoading(false);
     }
   };
 
-  // Test backend connection
   const testBackendConnection = async () => {
     try {
       const result = await apiService.checkHealth();
       setBackendConnected(result.success);
-    } catch (error) {
+    } catch {
       setBackendConnected(false);
     }
   };
 
-  // Load data on component mount
+  // -------------------------------------------------------------------------
+  // Tags
+  // -------------------------------------------------------------------------
+
+  const formatDate = (dateStr: string): string => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const loadTagsWithContent = async (userId: number) => {
+    setTagsLoading(true);
+    try {
+      const tagsResult = await apiService.getUserTags(userId);
+      if (!tagsResult.success) return;
+
+      const enriched: TagWithItems[] = await Promise.all(
+        tagsResult.data.map(async (tag) => {
+          const [convResult, workoutResult] = await Promise.all([
+            apiService.getConversationsByTag(userId, tag.id),
+            apiService.getWorkoutsByTag(userId, tag.id),
+          ]);
+
+          const chatItems: TaggedItem[] = (convResult.success ? convResult.data : []).map((c: any) => ({
+            id: c.id,
+            title: c.title || 'Coaching conversation',
+            type: 'chat' as const,
+            date: formatDate(c.createdAt),
+          }));
+
+          const workoutItems: TaggedItem[] = (workoutResult.success ? workoutResult.data : []).map((w: any) => ({
+            id: w.id,
+            title: w.title || `${w.position || ''} ${w.sport || ''} workout`.trim(),
+            type: 'workout' as const,
+            date: formatDate(w.createdAt),
+          }));
+
+          return { ...tag, items: [...chatItems, ...workoutItems] };
+        })
+      );
+
+      const withContent = enriched.filter(t => t.items.length > 0);
+      setTagsWithItems(withContent);
+      setExpandedTags(new Set(withContent.map(t => t.id)));
+    } catch (err) {
+      console.error('Error loading tags:', err);
+    } finally {
+      setTagsLoading(false);
+    }
+  };
+
+  const toggleTag = (tagId: number) => {
+    setExpandedTags(prev => {
+      const next = new Set(prev);
+      next.has(tagId) ? next.delete(tagId) : next.add(tagId);
+      return next;
+    });
+  };
+
+  const totalTaggedItems = tagsWithItems.reduce((sum, t) => sum + t.items.length, 0);
+
+  // -------------------------------------------------------------------------
+  // Lifecycle
+  // -------------------------------------------------------------------------
+
   useFocusEffect(
     useCallback(() => {
       const initializeUser = async () => {
@@ -193,314 +196,273 @@ export default function HomeScreen() {
           setCurrentUser(result.user);
           setCurrentUserId(result.userId);
           testBackendConnection();
+          await loadActivityStats(result.userId);
+          await loadTagsWithContent(result.userId);
         } else {
           setStatsError('Please log in to view your activity stats');
         }
         setUserLoading(false);
+        setFocusCount(prev => prev + 1);
       };
-
       initializeUser();
     }, [])
   );
 
-  // Reload stats when currentUserId changes
-  useEffect(() => {
-    if (currentUserId) {
-      loadActivityStats();
-    }
-  }, [currentUserId]);
+  // -------------------------------------------------------------------------
+  // Render helpers
+  // -------------------------------------------------------------------------
 
-  const renderActivityStatCard = (
-    statName: string, 
-    value: number, 
-    icon: string, 
-    subtitle: string
-  ) => (
-    <View style={[styles.statCard, { backgroundColor: theme.colors.primaryLight + '15' }]}>
-      <Icon name={icon as any} size={24} color={theme.colors.primary} />
-      <Text style={[styles.statValue, { color: theme.colors.primary }]}>{value}</Text>
-      <Text style={[commonStyles.caption, styles.statLabel]}>{statName}</Text>
-      <Text style={[commonStyles.caption, styles.statSubtitle, { color: theme.colors.textTertiary }]}>
-        {subtitle}
-      </Text>
+  const renderStatCard = (label: string, value: number, icon: string, subtitle: string) => (
+    <View style={styles.statCard}>
+      <Icon name={icon as any} size={22} color="#0066FF" />
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statSubtitle}>{subtitle}</Text>
     </View>
-  );
-
-  const renderCompetencyCard = (competency: any, index: number) => (
-    <Card key={index} style={commonStyles.card}>
-      <Card.Content>
-        <View style={commonStyles.rowBetween}>
-          <Text style={[commonStyles.body, { flex: 1 }]}>{competency.skill}</Text>
-          <Chip 
-            mode="outlined" 
-            textStyle={[commonStyles.caption]}
-            style={{ backgroundColor: theme.colors.primaryLight + '20' }}
-          >
-            {competency.level}
-          </Chip>
-        </View>
-        <ProgressBar 
-          progress={competency.progress} 
-          color={theme.colors.primary} 
-          style={styles.competencyProgress} 
-        />
-        <Text style={[commonStyles.caption, styles.competencyPercentage]}>
-          {Math.round(competency.progress * 100)}% Mastery
-        </Text>
-      </Card.Content>
-    </Card>
   );
 
   const renderOverviewTab = () => (
     <View>
-
-      {/* Basic Info Card */}
-      <Card style={commonStyles.card}>
+      {/* Profile Card */}
+      <Card style={styles.card}>
         <Card.Content>
           <View style={commonStyles.rowBetween}>
             <View>
-              <Text style={commonStyles.heading2}>
+              <Text style={styles.cardHeading}>
                 {currentUser?.displayName || currentUser?.email || 'Athlete'}
               </Text>
-              <Text style={[commonStyles.body, { marginTop: theme.spacing.xs }]}>
+              <Text style={styles.cardBody}>
                 {currentUser?.primarySport || 'Sport'} • {currentUser?.primaryPosition || 'Position'}
               </Text>
-              <Text style={[commonStyles.bodySecondary, { marginTop: theme.spacing.xs }]}>
-                Subscription: {currentUser?.subscriptionTier || 'FREE'}
-              </Text>
+              <View style={styles.tierBadge}>
+                <Text style={styles.tierBadgeText}>
+                  {currentUser?.subscriptionTier || 'FREE'}
+                </Text>
+              </View>
             </View>
-            <Avatar.Image 
-              size={80} 
-              source={{ uri: mockAthleteData.profileImage }}
+            <Avatar.Icon
+              size={64}
+              icon="account"
+              style={styles.avatar}
+              color={appTheme.navy}
             />
           </View>
         </Card.Content>
       </Card>
 
       {/* Activity Stats */}
-      <Card style={commonStyles.card}>
+      <Card style={styles.card}>
         <Card.Content>
           <View style={commonStyles.rowBetween}>
-            <Text style={commonStyles.heading3}>Training Activity</Text>
-            <Button 
-              mode="text" 
-              onPress={loadActivityStats}
-              textColor={theme.colors.primary}
+            <Text style={styles.cardHeading}>Training Activity</Text>
+            <Button
+              mode="text"
+              onPress={() => currentUserId && loadActivityStats(currentUserId)}
+              textColor={appTheme.navy}
               disabled={statsLoading || !currentUserId}
             >
               {statsLoading ? 'Loading...' : 'Refresh'}
             </Button>
           </View>
-          
+
           {userLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-              <Text style={commonStyles.caption}>Loading user data...</Text>
+            <View style={styles.centered}>
+              <ActivityIndicator size="small" color={appTheme.navy} />
+              <Text style={styles.cardCaption}>Loading user data...</Text>
             </View>
           ) : !currentUserId ? (
-            <View style={styles.errorContainer}>
-              <Text style={[commonStyles.caption, { color: 'orange' }]}>
+            <View style={styles.centered}>
+              <Text style={[styles.cardCaption, { color: '#f59e0b' }]}>
                 Please log in to view your training stats
               </Text>
             </View>
           ) : statsLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-              <Text style={commonStyles.caption}>Loading activity stats...</Text>
+            <View style={styles.centered}>
+              <ActivityIndicator size="small" color={appTheme.navy} />
+              <Text style={styles.cardCaption}>Loading activity stats...</Text>
             </View>
           ) : statsError ? (
-            <View style={styles.errorContainer}>
-              <Text style={[commonStyles.caption, { color: 'red' }]}>
-                {statsError}
-              </Text>
-              <Button mode="text" onPress={loadActivityStats} compact>
+            <View style={styles.centered}>
+              <Text style={[styles.cardCaption, { color: appTheme.red }]}>{statsError}</Text>
+              <Button
+                mode="text"
+                onPress={() => currentUserId && loadActivityStats(currentUserId)}
+                textColor={appTheme.navy}
+                compact
+              >
                 Retry
               </Button>
             </View>
           ) : (
             <View style={styles.statsGrid}>
-              {renderActivityStatCard(
-                'AI Chats', 
-                activityStats.totalChats, 
-                'chat', 
-                'Coaching conversations'
-              )}
-              {renderActivityStatCard(
-                'Workouts', 
-                activityStats.totalWorkouts, 
-                'fitness-center', 
-                'Generated plans'
-              )}
-              {renderActivityStatCard(
-                'Days Ago', 
-                activityStats.recentActivity, 
-                'access-time', 
-                'Last activity'
-              )}
-              {renderActivityStatCard(
-                'Total', 
-                activityStats.totalChats + activityStats.totalWorkouts, 
-                'trending-up', 
-                'AI interactions'
-              )}
+              {renderStatCard('AI Chats', activityStats.totalChats, 'chat', 'Coaching conversations')}
+              {renderStatCard('Workouts', activityStats.totalWorkouts, 'fitness-center', 'Generated plans')}
+              {renderStatCard('Days Ago', activityStats.recentActivity, 'access-time', 'Last activity')}
+              {renderStatCard('Total', activityStats.totalChats + activityStats.totalWorkouts, 'trending-up', 'AI interactions')}
             </View>
           )}
         </Card.Content>
       </Card>
-
-      {/* Quick Actions */}
-      {/* <Card style={commonStyles.card}>
-        <Card.Content>
-          <Text style={commonStyles.heading3}>Quick Actions</Text>
-          <View style={styles.quickActionsGrid}>
-            <TouchableOpacity style={styles.quickActionCard}>
-              <Icon name="chat" size={32} color={theme.colors.primary} />
-              <Text style={[commonStyles.bodySecondary, { textAlign: 'center', marginTop: 8 }]}>
-                Start AI Chat
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.quickActionCard}>
-              <Icon name="fitness-center" size={32} color={theme.colors.primary} />
-              <Text style={[commonStyles.bodySecondary, { textAlign: 'center', marginTop: 8 }]}>
-                Generate Workout
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.quickActionCard}>
-              <Icon name="history" size={32} color={theme.colors.primary} />
-              <Text style={[commonStyles.bodySecondary, { textAlign: 'center', marginTop: 8 }]}>
-                View History
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.quickActionCard}>
-              <Icon name="analytics" size={32} color={theme.colors.primary} />
-              <Text style={[commonStyles.bodySecondary, { textAlign: 'center', marginTop: 8 }]}>
-                View Analytics
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </Card.Content>
-      </Card> */}
     </View>
   );
 
-  const renderTrainingTab = () => (
+  const renderTagsTab = () => (
     <View>
-      <Card style={commonStyles.card}>
-        <Card.Content>
-          <Text style={commonStyles.heading3}>Training Competencies</Text>
-          <Text style={[commonStyles.bodySecondary, { marginBottom: theme.spacing.base }]}>
-            Skills developed through AI coaching and workout generation
+      <View style={[commonStyles.rowBetween, { marginBottom: theme.spacing.base }]}>
+        <Text style={styles.cardHeading}>My Tagged Content</Text>
+        {tagsWithItems.length > 0 && (
+          <Text style={styles.cardCaption}>
+            {tagsWithItems.length} tags · {totalTaggedItems} items
           </Text>
-          {mockAthleteData.aiCompetencies.map(renderCompetencyCard)}
-        </Card.Content>
-      </Card>
+        )}
+      </View>
 
-      {/* Recent AI Interactions */}
-      <Card style={commonStyles.card}>
-        <Card.Content>
-          <Text style={commonStyles.heading3}>Recent AI Interactions</Text>
-          <Text style={[commonStyles.bodySecondary, { marginBottom: theme.spacing.base }]}>
-            Your latest coaching conversations and workout generations
-          </Text>
-          
-          <View style={styles.recentActivityList}>
-            <View style={styles.activityItem}>
-              <Icon name="chat" size={20} color={theme.colors.primary} />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={commonStyles.body}>Position-specific training advice</Text>
-                <Text style={commonStyles.caption}>2 hours ago</Text>
-              </View>
+      {tagsLoading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="small" color={appTheme.navy} />
+          <Text style={[styles.cardCaption, { marginTop: theme.spacing.sm }]}>Loading tags...</Text>
+        </View>
+      ) : tagsWithItems.length === 0 ? (
+        <Card style={styles.card}>
+          <Card.Content>
+            <View style={styles.emptyState}>
+              <Icon name="label-outline" size={48} color={appTheme.silver} />
+              <Text style={[styles.cardBody, { marginTop: theme.spacing.base, textAlign: 'center' }]}>
+                No tagged content yet
+              </Text>
+              <Text style={[styles.cardCaption, { marginTop: theme.spacing.xs, textAlign: 'center' }]}>
+                Tag your coaching chats and workout plans to organize them here
+              </Text>
             </View>
-            
-            <View style={styles.activityItem}>
-              <Icon name="fitness-center" size={20} color={theme.colors.primary} />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={commonStyles.body}>Wide Receiver off-season workout</Text>
-                <Text style={commonStyles.caption}>1 day ago</Text>
-              </View>
+          </Card.Content>
+        </Card>
+      ) : (
+        tagsWithItems.map(tag => {
+          const isExpanded = expandedTags.has(tag.id);
+          return (
+            <View key={tag.id} style={styles.tagGroup}>
+              <TouchableOpacity
+                style={[styles.tagPill, { backgroundColor: tag.color + '33', borderColor: tag.color }]}
+                onPress={() => toggleTag(tag.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.tagPillText, { color: tag.color }]}>{tag.name}</Text>
+                <View style={[styles.tagCount, { backgroundColor: tag.color }]}>
+                  <Text style={styles.tagCountText}>{tag.items.length}</Text>
+                </View>
+                <Icon
+                  name={isExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                  size={18}
+                  color={tag.color}
+                  style={{ marginLeft: 4 }}
+                />
+              </TouchableOpacity>
+
+              {isExpanded && tag.items.map(item => (
+                <TouchableOpacity
+                  key={`${item.type}-${item.id}`}
+                  style={styles.taggedItem}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setSelectedItem(item);
+                    setSheetVisible(true);
+                  }}
+                >
+                  <View style={styles.taggedItemIcon}>
+                    <Icon
+                      name={item.type === 'chat' ? 'chat' : 'fitness-center'}
+                      size={18}
+                      color="#0066FF"
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.taggedItemTitle} numberOfLines={2} ellipsizeMode="tail">
+                      {item.title}
+                    </Text>
+                    <Text style={styles.cardCaption}>
+                      {item.type === 'chat' ? 'Chat' : 'Workout'} · {item.date}
+                    </Text>
+                  </View>
+                  <Icon name="chevron-right" size={18} color={appTheme.silver} />
+                </TouchableOpacity>
+              ))}
             </View>
-            
-            <View style={styles.activityItem}>
-              <Icon name="chat" size={20} color={theme.colors.primary} />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={commonStyles.body}>Route running technique discussion</Text>
-                <Text style={commonStyles.caption}>3 days ago</Text>
-              </View>
-            </View>
-          </View>
-        </Card.Content>
-      </Card>
+          );
+        })
+      )}
     </View>
   );
+
+  // -------------------------------------------------------------------------
+  // Main render
+  // -------------------------------------------------------------------------
 
   return (
     <View style={commonStyles.container}>
-      {/* Header with Profile Edit Button */}
+      {/* Header — matches site nav style */}
       <View style={styles.header}>
-        <Text style={commonStyles.heading2}>GameIQ Dashboard</Text>
-        <Button
-          mode="outlined"
-          icon="account-edit"
-          onPress={() => navigation.navigate('ProfileEdit', { userId: currentUser?.id.toString() || '1' })}
-          textColor={theme.colors.primary}
-          style={{ borderColor: theme.colors.primary }}
-        >
-          Profile
-        </Button>
+        <Text style={styles.headerTitle}>Dashboard</Text>
+        <Text style={styles.headerSubtitle}>
+          {currentUser?.primarySport
+            ? `${currentUser.primarySport} · ${currentUser.primaryPosition}`
+            : 'Your training overview'}
+        </Text>
       </View>
 
-      {/* Tab Navigation */}
+      {/* Tabs */}
       <View style={styles.tabContainer}>
-        {[
-          { key: 'overview', label: 'Overview' },
-          { key: 'training', label: 'Training' }
-        ].map((tab) => (
+        {[{ key: 'overview', label: 'Overview' }, { key: 'tags', label: 'Tags' }].map(tab => (
           <TouchableOpacity
             key={tab.key}
-            style={[
-              styles.tab, 
-              activeTab === tab.key && { borderBottomColor: theme.colors.primary }
-            ]}
+            style={[styles.tab, activeTab === tab.key && styles.tabActive]}
             onPress={() => setActiveTab(tab.key)}
           >
-            <Text style={[
-              commonStyles.body,
-              { color: activeTab === tab.key ? theme.colors.primary : theme.colors.textSecondary },
-              activeTab === tab.key && { fontWeight: 'bold' }
-            ]}>
+            <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
               {tab.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* Tab Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {activeTab === 'overview' && renderOverviewTab()}
-        {activeTab === 'training' && renderTrainingTab()}
+        {activeTab === 'tags' && renderTagsTab()}
       </ScrollView>
+
+      <TagContentBottomSheet
+        item={selectedItem}
+        visible={sheetVisible}
+        onClose={() => setSheetVisible(false)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // Header — navy background matching site nav/hero
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: theme.spacing.base,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    backgroundColor: appTheme.navy,
+    paddingHorizontal: theme.spacing.base,
+    paddingVertical: theme.spacing.lg,
+    borderBottomWidth: 0,
   },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 2,
+  },
+
+  // Tabs — active tab uses navy underline
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: appTheme.gray,
   },
   tab: {
     flex: 1,
@@ -509,14 +471,71 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
+  tabActive: {
+    borderBottomColor: appTheme.navy,
+  },
+  tabText: {
+    fontSize: 15,
+    color: appTheme.textLight,
+  },
+  tabTextActive: {
+    color: appTheme.navy,
+    fontWeight: '700',
+  },
+
   content: {
     flex: 1,
     padding: theme.spacing.base,
+    backgroundColor: appTheme.gray,
   },
-  warningCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: 'orange',
+
+  // Cards — white surface on gray background matching site .content area
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: theme.borderRadius.base,
+    marginBottom: theme.spacing.base,
+    ...theme.shadows.sm,
   },
+  cardHeading: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: appTheme.navy,
+  },
+  cardBody: {
+    fontSize: 14,
+    color: appTheme.text,
+    marginTop: theme.spacing.xs,
+    lineHeight: 20,
+  },
+  cardCaption: {
+    fontSize: 12,
+    color: appTheme.textLight,
+    lineHeight: 16,
+  },
+
+  // Tier badge — red accent matching site's red variable
+  tierBadge: {
+    marginTop: theme.spacing.sm,
+    alignSelf: 'flex-start',
+    backgroundColor: appTheme.red + '18',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: appTheme.red + '40',
+  },
+  tierBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: appTheme.red,
+    letterSpacing: 0.5,
+  },
+
+  avatar: {
+    backgroundColor: appTheme.navy + '18',
+  },
+
+  // Stats grid
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -529,61 +548,94 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.base,
     marginBottom: theme.spacing.md,
     alignItems: 'center',
-    ...theme.shadows.sm,
+    backgroundColor: appTheme.gray,
+    borderLeftWidth: 4,
+    borderLeftColor: appTheme.red,
   },
   statValue: {
-    fontSize: theme.typography.fontSize['2xl'],
-    fontWeight: theme.typography.fontWeight.bold,
+    fontSize: 28,
+    fontWeight: '800',
+    color: appTheme.navy,
     marginTop: theme.spacing.sm,
   },
   statLabel: {
     marginTop: theme.spacing.xs,
     textAlign: 'center',
-    fontWeight: theme.typography.fontWeight.semibold,
+    fontWeight: '600',
+    fontSize: 12,
+    color: appTheme.text,
   },
   statSubtitle: {
     marginTop: 2,
     textAlign: 'center',
     fontSize: 10,
+    color: appTheme.textLight,
   },
-  quickActionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: theme.spacing.sm,
-  },
-  quickActionCard: {
-    width: '48%',
-    padding: theme.spacing.base,
-    borderRadius: theme.borderRadius.base,
-    backgroundColor: theme.colors.primaryLight + '10',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-    borderWidth: 1,
-    borderColor: theme.colors.primaryLight + '30',
-  },
-  loadingContainer: {
+
+  centered: {
     alignItems: 'center',
     paddingVertical: theme.spacing.lg,
   },
-  errorContainer: {
+  emptyState: {
     alignItems: 'center',
-    paddingVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.xl,
   },
-  competencyProgress: {
-    marginVertical: theme.spacing.sm,
+
+  // Tags
+  tagGroup: {
+    marginBottom: theme.spacing.lg,
   },
-  competencyPercentage: {
-    textAlign: 'right',
-  },
-  recentActivityList: {
-    marginTop: theme.spacing.sm,
-  },
-  activityItem: {
+  tagPill: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: theme.spacing.base,
     paddingVertical: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    marginBottom: theme.spacing.sm,
+  },
+  tagPillText: {
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  tagCount: {
+    marginLeft: theme.spacing.sm,
+    borderRadius: 10,
+    minWidth: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  tagCountText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  taggedItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: theme.borderRadius.base,
+    paddingHorizontal: theme.spacing.base,
+    paddingVertical: theme.spacing.base,
+    marginBottom: theme.spacing.sm,
+    ...theme.shadows.sm,
+  },
+  taggedItemIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: appTheme.gray,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.base,
+  },
+  taggedItemTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: appTheme.text,
+    marginBottom: 2,
   },
 });

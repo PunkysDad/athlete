@@ -5,6 +5,12 @@ export interface ApiResponse<T> {
   cost?: number;
 }
 
+export interface ActivityStats {
+  totalChats: number;
+  totalWorkouts: number;
+  recentActivity: number;
+}
+
 export interface Exercise {
   name: string;
   sets: number;
@@ -53,8 +59,40 @@ export interface WorkoutResponse {
   cost?: number;
 }
 
-export interface ActivityStats {
-  totalChats: number;
-  totalWorkouts: number;
-  recentActivity: number; // Days since last activity
+// -------------------------------------------------------------------------
+// Tag interfaces — mirror the backend TagController response DTOs
+// -------------------------------------------------------------------------
+
+export interface TagResponse {
+  id: number;
+  name: string;
+  color: string;
+  createdAt: string;
+}
+
+export interface TaggedConversationResponse {
+  id: number;
+  title: string | null;
+  conversationType: string | null;
+  createdAt: string;
+}
+
+export interface TaggedWorkoutResponse {
+  id: number;
+  title: string | null;
+  sport: string | null;
+  position: string | null;
+  createdAt: string;
+}
+
+export interface TaggedItem {
+  id: number;
+  title: string;
+  type: 'chat' | 'workout';
+  date: string;
+}
+
+// A tag enriched with its associated content items, used by the Tags screen
+export interface TagWithItems extends TagResponse {
+  items: TaggedItem[];
 }
