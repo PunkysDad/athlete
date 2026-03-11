@@ -37,32 +37,23 @@ const SUBSCRIPTION_TIERS = [
   {
     id: 'BASIC',
     name: 'Basic',
-    monthlyPrice: '$11.99/month',
-    annualPrice: '$95.99/year',
-    annualSavings: 'Save $48/year',
+    monthlyPrice: '$12.99/month',
     emoji: '⭐',
     features: [
       'AI coaching for your position',
-      'Unlimited quizzes & IQ tracking',
       'Position-specific workout plans',
-      'Basic progress tracking',
-      'Ad-free experience'
     ],
     popular: true
   },
   {
     id: 'PREMIUM',
     name: 'Premium',
-    monthlyPrice: '$16.99/month', 
-    annualPrice: '$135.99/year',
-    annualSavings: 'Save $68/year',
+    monthlyPrice: '$19.99/month', 
     emoji: '🚀',
     features: [
-      'AI coaching for ALL sports/positions',
-      'Advanced workout generation',
-      'Detailed progress analytics',
-      'Social sharing features',
-      'Priority support',
+      'Approximately twice the amount of AI coaching chats than Basic',
+      'Approximately twice the amount of workout plans than Basic',
+      'SportsIQ tagging system to organize your chats and workouts',
       'Early access to new features'
     ],
     popular: false
@@ -101,30 +92,34 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
     setCurrentStep(3);
   };
 
-  const handleSubscriptionSelection = async (tierData: { tier: string, billing: 'monthly' | 'annual' }) => {
+  const syncSubscriptionToBackend = async (userId: number, tier: 'BASIC' | 'PREMIUM' | 'TRIAL') => {
     try {
-      // Show loading state
-      setIsLoading(true);
-
-      // Get available packages from RevenueCat
-      const packages = await revenueCatService.getAvailablePackages();
-      
-      // Find the matching package based on user selection
-      let targetProductId = '';
-      if (tierData.tier === 'BASIC' && tierData.billing === 'monthly') {
-        targetProductId = SUBSCRIPTION_PRODUCTS.BASIC_MONTHLY;
-      } else if (tierData.tier === 'PREMIUM' && tierData.billing === 'monthly') {
-        targetProductId = SUBSCRIPTION_PRODUCTS.PREMIUM_MONTHLY;
-      } else if (tierData.tier === 'BASIC' && tierData.billing === 'annual') {
-        targetProductId = SUBSCRIPTION_PRODUCTS.BASIC_ANNUAL;
-      } else if (tierData.tier === 'PREMIUM' && tierData.billing === 'annual') {
-        targetProductId = SUBSCRIPTION_PRODUCTS.PREMIUM_ANNUAL;
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/api/v1/users/${userId}/subscription`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscriptionTier: tier }),
+        }
+      );
+      if (!res.ok) {
+        console.error('Failed to sync subscription tier to backend:', await res.text());
       }
+    } catch (err) {
+      console.error('Error syncing subscription to backend:', err);
+    }
+  };
 
-      console.log('Looking for product:', targetProductId);
-      console.log('Available packages:', packages.map(p => p.product.identifier));
+  const handleSubscriptionSelection = async (tierData: { tier: string, billing: 'monthly' | 'annual' }) => {
+    setIsLoading(true);
+    try {
+      const packages = await revenueCatService.getAvailablePackages();
 
-      const packageToPurchase = packages.find(pkg => 
+      const targetProductId = tierData.tier === 'PREMIUM'
+        ? SUBSCRIPTION_PRODUCTS.PREMIUM_MONTHLY
+        : SUBSCRIPTION_PRODUCTS.BASIC_MONTHLY;
+
+      const packageToPurchase = packages.find(pkg =>
         pkg.product.identifier === targetProductId
       );
 
@@ -132,35 +127,45 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
         throw new Error(`Subscription package not found: ${targetProductId}`);
       }
 
-      console.log('Attempting to purchase:', packageToPurchase.product.title);
-
-      // Trigger actual App Store purchase
       const subscriptionInfo = await revenueCatService.purchaseSubscription(packageToPurchase);
 
-      console.log('Purchase successful:', subscriptionInfo);
+      // Sync confirmed tier to backend so API enforcement stays in sync
+      try {
+        const firebaseUid = user?.uid;
+        if (firebaseUid) {
+          const userRes = await fetch(
+            `${process.env.EXPO_PUBLIC_API_URL}/api/v1/users/firebase/${firebaseUid}`
+          );
+          const userData = await userRes.json();
+          await fetch(
+            `${process.env.EXPO_PUBLIC_API_URL}/api/v1/users/${userData.id}/subscription`,
+            {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ subscriptionTier: subscriptionInfo.tier }),
+            }
+          );
+        }
+      } catch (syncErr) {
+        // Non-fatal — user has paid, don't block onboarding completion
+        console.error('Backend subscription sync failed:', syncErr);
+      }
 
-      // Purchase successful - complete onboarding with actual subscription data
-      const finalData = { 
-        ...onboardingData, 
+      onComplete({
+        ...onboardingData,
         subscriptionTier: subscriptionInfo.tier,
-        billingCycle: subscriptionInfo.billingCycle || tierData.billing,
-        isSubscriptionActive: subscriptionInfo.isActive
-      };
+        billingCycle: tierData.billing,
+      });
 
-      setOnboardingData(finalData);
-      onComplete(finalData);
-
-    } catch (error) {
-      console.error('Subscription purchase failed:', error);
-      
-      // Handle different error types
+    } catch (error: any) {
+      const msg = error?.message ?? '';
       let errorMessage = 'Failed to process subscription. Please try again.';
-      
-      if (error.message.includes('cancelled')) {
+
+      if (msg.includes('cancelled')) {
         errorMessage = 'Purchase was cancelled. You can try again anytime.';
-      } else if (error.message.includes('pending')) {
+      } else if (msg.includes('pending')) {
         errorMessage = 'Payment is pending approval. Check back in a few minutes.';
-      } else if (error.message.includes('not found')) {
+      } else if (msg.includes('not found')) {
         errorMessage = 'Subscription option temporarily unavailable. Please try again.';
       }
 
@@ -169,20 +174,15 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
         errorMessage,
         [
           { text: 'Try Again', onPress: () => setIsLoading(false) },
-          { 
-            text: 'Skip for Now', 
+          {
+            text: 'Skip for Now',
             style: 'cancel',
-            onPress: () => {
-              // Allow user to complete onboarding without subscription
-              const finalData = { 
-                ...onboardingData, 
-                subscriptionTier: 'NONE',
-                billingCycle: tierData.billing,
-                isSubscriptionActive: false
-              };
-              onComplete(finalData);
-            }
-          }
+            onPress: () => onComplete({
+              ...onboardingData,
+              subscriptionTier: 'TRIAL',
+              billingCycle: tierData.billing,
+            }),
+          },
         ]
       );
     } finally {
@@ -199,7 +199,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
   const renderSportSelection = () => (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Welcome to GameIQ!</Text>
+        <Text style={styles.title}>Welcome to SportsIQ!</Text>
         <Text style={styles.subtitle}>What sport do you want to master?</Text>
         <Text style={styles.stepIndicator}>Step 1 of 3</Text>
 
@@ -267,18 +267,40 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
         <Text style={styles.stepIndicator}>Step 3 of 3</Text>
 
         <ScrollView style={styles.optionsContainer} showsVerticalScrollIndicator={false}>
+          {/* Free Trial Option */}
+          <TouchableOpacity
+            style={styles.trialCard}
+            onPress={() => onComplete({
+              ...onboardingData,
+              subscriptionTier: 'TRIAL',
+              billingCycle: 'monthly',
+            })}
+          >
+            <View style={styles.subscriptionHeader}>
+              <Text style={styles.subscriptionEmoji}>🎯</Text>
+              <View style={styles.subscriptionInfo}>
+                <Text style={styles.subscriptionName}>Start Free Trial</Text>
+                <Text style={styles.trialPrice}>No credit card required</Text>
+              </View>
+            </View>
+            <View style={styles.featuresList}>
+              <Text style={styles.featureText}>• 3 AI coaching questions</Text>
+              <Text style={styles.featureText}>• 1 position-specific workout plan</Text>
+              <Text style={styles.featureText}>• Upgrade anytime</Text>
+            </View>
+          </TouchableOpacity>
+
+          <Text style={styles.orDivider}>— or subscribe for full access —</Text>
+
+          {/* Paid Tiers */}
           {SUBSCRIPTION_TIERS.map((tier) => (
             <View key={tier.id} style={styles.tierSection}>
-              {/* Monthly Option */}
               <TouchableOpacity
-                style={[
-                  styles.subscriptionCard,
-                  tier.popular && styles.popularCard
-                ]}
+                style={[styles.subscriptionCard, tier.popular && styles.popularCard]}
                 onPress={() => handleSubscriptionSelection({ tier: tier.id, billing: 'monthly' })}
               >
                 {tier.popular && <Text style={styles.popularBadge}>MOST POPULAR</Text>}
-                
+
                 <View style={styles.subscriptionHeader}>
                   <Text style={styles.subscriptionEmoji}>{tier.emoji}</Text>
                   <View style={styles.subscriptionInfo}>
@@ -291,23 +313,6 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
                   {tier.features.map((feature, index) => (
                     <Text key={index} style={styles.featureText}>• {feature}</Text>
                   ))}
-                </View>
-              </TouchableOpacity>
-
-              {/* Annual Option */}
-              <TouchableOpacity
-                style={[styles.subscriptionCard, styles.annualCard]}
-                onPress={() => handleSubscriptionSelection({ tier: tier.id, billing: 'annual' })}
-              >
-                <Text style={styles.annualBadge}>SAVE MONEY</Text>
-                
-                <View style={styles.subscriptionHeader}>
-                  <Text style={styles.subscriptionEmoji}>{tier.emoji}</Text>
-                  <View style={styles.subscriptionInfo}>
-                    <Text style={styles.subscriptionName}>{tier.name} Annual</Text>
-                    <Text style={styles.subscriptionPrice}>{tier.annualPrice}</Text>
-                    <Text style={styles.savingsText}>{tier.annualSavings}</Text>
-                  </View>
                 </View>
               </TouchableOpacity>
             </View>
@@ -483,5 +488,25 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 6,
     lineHeight: 20,
+  },
+  trialCard: {
+    backgroundColor: '#f0f8ff',
+    borderWidth: 2,
+    borderColor: '#0066FF',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 8,
+  },
+  trialPrice: {
+    fontSize: 14,
+    color: '#0066FF',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  orDivider: {
+    textAlign: 'center',
+    fontSize: 13,
+    color: '#999',
+    marginVertical: 16,
   },
 });

@@ -23,10 +23,19 @@ class WorkoutApiService {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`API Error ${response.status}:`, errorText);
-        return {
-          success: false,
-          error: `HTTP ${response.status}: ${errorText}`
-        };
+
+        // Try to extract a meaningful message from the response body
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          // Backend returns trial/subscription errors in the description field
+          if (errorJson?.description) errorMessage = errorJson.description;
+          else if (errorJson?.message)  errorMessage = errorJson.message;
+        } catch {
+          if (errorText) errorMessage = errorText;
+        }
+
+        return { success: false, error: errorMessage };
       }
 
       const data = await response.json();

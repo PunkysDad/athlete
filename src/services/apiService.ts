@@ -2,6 +2,15 @@ import { ActivityStats, ApiResponse, TagResponse, TaggedConversationResponse, Ta
 
 const BASE_URL = 'http://192.168.254.5:8080';
 
+// Errors thrown by the backend trial/subscription enforcement contain this flag
+// so screens can distinguish a limit error from a generic network failure.
+export class TrialLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TrialLimitError';
+  }
+}
+
 async function apiCall<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -18,12 +27,43 @@ async function apiCall<T>(
     };
     console.log(`API Call: ${config.method || 'GET'} ${url}`);
     const response = await fetch(url, config);
+
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      // Attempt to read the backend error body — this is where trial/subscription
+      // messages live (e.g. "Trial chat limit reached (3 questions)...")
+      let backendMessage: string | null = null;
+      try {
+        const errorBody = await response.json();
+        // Spring Boot wraps errors in { message: "..." } or { error: "..." }
+        backendMessage = errorBody?.message ?? errorBody?.error ?? null;
+      } catch {
+        // body wasn't JSON — fall through to statusText
+      }
+
+      const errorMessage = backendMessage ?? `HTTP ${response.status}: ${response.statusText}`;
+
+      // Surface trial/subscription limit errors as a typed error so callers
+      // can show the paywall instead of a generic alert.
+      if (
+        backendMessage &&
+        (backendMessage.includes('Trial') ||
+          backendMessage.includes('trial') ||
+          backendMessage.includes('subscription') ||
+          backendMessage.includes('budget reached') ||
+          backendMessage.includes('limit reached'))
+      ) {
+        throw new TrialLimitError(backendMessage);
+      }
+
+      throw new Error(errorMessage);
     }
+
     const data = await response.json();
     return { data, success: true };
   } catch (error) {
+    // Re-throw TrialLimitError so callers can catch it specifically
+    if (error instanceof TrialLimitError) throw error;
+
     console.error('API Error:', error);
     return {
       data: {} as T,
@@ -42,6 +82,11 @@ export const apiService = {
   // User stats
   async getUserStats(userId: number): Promise<ApiResponse<any>> {
     return apiCall(`/api/v1/users/${userId}/stats`);
+  },
+
+  // Trial status — returns trialChatsUsed and trialWorkoutsUsed for the user
+  async getTrialStatus(userId: number): Promise<ApiResponse<{ subscriptionTier: string; trialChatsUsed: number; trialWorkoutsUsed: number }>> {
+    return apiCall(`/api/v1/users/${userId}/trial-status`);
   },
 
   // Conversation history

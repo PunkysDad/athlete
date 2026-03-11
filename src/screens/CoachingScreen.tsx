@@ -16,7 +16,8 @@ import { Divider, ActivityIndicator as PaperIndicator, Portal } from 'react-nati
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
 import FormattedMessage from '../components/FormattedMessage';
-import { apiService } from '../services/apiService';
+import TrialLimitModal from '../components/TrialLimitModal';
+import { apiService, TrialLimitError } from '../services/apiService';
 import { TagResponse } from '../interfaces/interfaces';
 
 const NAVY   = '#1a2744';
@@ -84,6 +85,9 @@ export default function CoachingScreen() {
   const [showNewTagInput, setShowNewTagInput] = useState(false);
   const [savingTag, setSavingTag]             = useState(false);
 
+  // Trial limit modal
+  const [trialLimitVisible, setTrialLimitVisible] = useState(false);
+
   const backendUrl = 'http://192.168.254.5:8080';
 
   useEffect(() => {
@@ -142,8 +146,24 @@ export default function CoachingScreen() {
       );
       if (!res.ok) {
         const errText = await res.text();
-        try { throw new Error(JSON.parse(errText).message || errText); }
-        catch { throw new Error(`HTTP ${res.status}: ${errText}`); }
+        let backendMessage: string | null = null;
+        try { backendMessage = JSON.parse(errText)?.message ?? null; } catch { /* not JSON */ }
+        const msg = backendMessage ?? `HTTP ${res.status}: ${errText}`;
+
+        // Trial / subscription limit — show paywall instead of generic alert
+        if (
+          backendMessage &&
+          (backendMessage.includes('Trial') ||
+            backendMessage.includes('trial') ||
+            backendMessage.includes('limit reached') ||
+            backendMessage.includes('budget reached') ||
+            backendMessage.includes('subscription'))
+        ) {
+          setTrialLimitVisible(true);
+          return;
+        }
+
+        throw new Error(msg);
       }
       const data = await res.json();
       if (conversationId === null && data.conversationId) {
@@ -157,6 +177,10 @@ export default function CoachingScreen() {
       }]);
       setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (error: any) {
+      if (error instanceof TrialLimitError) {
+        setTrialLimitVisible(true);
+        return;
+      }
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         text: `Sorry, I encountered an error: ${error.message || 'Unable to connect to coaching server'}`,
@@ -232,6 +256,17 @@ export default function CoachingScreen() {
   if (isInChat) {
     return (
       <View style={styles.chatContainer}>
+        <TrialLimitModal
+          visible={trialLimitVisible}
+          limitType="chat"
+          onDismiss={() => setTrialLimitVisible(false)}
+          onUpgrade={() => {
+            setTrialLimitVisible(false);
+            // TODO: navigate to subscription/paywall screen when built
+            Alert.alert('Subscribe', 'Subscription screen coming soon.');
+          }}
+        />
+
         <Portal>
           <Modal
             visible={tagModalVisible}

@@ -28,6 +28,7 @@ import { workoutApiService } from '../services/workoutApiService';
 import { UserService } from '../services/userService';
 import { WorkoutData, WorkoutRequest } from '../interfaces/interfaces';
 import { RootStackParamList } from '../types/types';
+import TrialLimitModal from '../components/TrialLimitModal';
 
 type WorkoutRequestNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -82,6 +83,7 @@ export default function WorkoutRequestScreen() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [trialLimitVisible, setTrialLimitVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -134,9 +136,19 @@ export default function WorkoutRequestScreen() {
         const userData = await userResponse.json();
         resolvedUserId = userData.id;
         setCurrentUserId(resolvedUserId);
-      } catch {
-        Alert.alert('Error', 'Could not resolve user. Please try again.');
-        return;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '';
+        if (
+          message.includes('Trial') ||
+          message.includes('trial') ||
+          message.includes('limit reached') ||
+          message.includes('budget reached') ||
+          message.includes('subscription')
+        ) {
+          setTrialLimitVisible(true);
+        } else {
+          Alert.alert('Error', message || 'Failed to generate workout. Please try again.');
+        }
       }
     }
     setIsLoading(true);
@@ -258,6 +270,16 @@ export default function WorkoutRequestScreen() {
 
   return (
     <View style={commonStyles.container}>
+      <TrialLimitModal
+        visible={trialLimitVisible}
+        limitType="workout"
+        onDismiss={() => setTrialLimitVisible(false)}
+        onUpgrade={() => {
+          setTrialLimitVisible(false);
+          // TODO: navigate to subscription/paywall screen when built
+          Alert.alert('Subscribe', 'Subscription screen coming soon.');
+        }}
+      />
       {/* Navy header */}
       <View style={styles.header}>
         <Icon name="fitness-center" size={22} color="#fff" />

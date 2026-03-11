@@ -10,6 +10,8 @@ import {
   Modal,
   TextInput,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import {
   Card,
@@ -127,7 +129,10 @@ export default function WorkoutDisplayScreen() {
       animationType="slide"
       onRequestClose={() => setTagModalVisible(false)}
     >
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalOverlay}
+      >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Add Tags</Text>
@@ -206,7 +211,7 @@ export default function WorkoutDisplayScreen() {
             Done
           </Button>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 
