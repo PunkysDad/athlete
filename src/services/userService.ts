@@ -1,25 +1,4 @@
-// src/services/userService.ts
-interface CreateUserRequest {
-  email: string;
-  firebaseUid: string;
-  displayName: string;
-  primarySport?: string;
-  primaryPosition?: string;
-  age?: number;
-}
-
-interface UserResponse {
-  id: number;
-  firebaseUid: string;
-  email?: string;
-  displayName?: string;
-  subscriptionTier: string;
-  primarySport?: string;
-  primaryPosition?: string;
-  createdAt: string;
-  isActive: boolean;
-}
-
+import { CreateUserRequest, UserResponse } from '../interfaces/interfaces';
 export class UserService {
   private baseUrl: string;
 

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
 import { revenueCatService, SUBSCRIPTION_PRODUCTS } from '../../services/revenueCatService';
+import { OnboardingData, OnboardingFlowProps } from '../../interfaces/interfaces';
 
 // Sport and Position data
 const SPORTS_DATA = {
@@ -60,20 +61,8 @@ const SUBSCRIPTION_TIERS = [
   }
 ];
 
-interface OnboardingData {
-  sport: string | null;
-  position: string | null;
-  subscriptionTier: string | null;
-  billingCycle: 'monthly' | 'annual';
-}
-
-interface OnboardingFlowProps {
-  user: any; // Firebase user
-  onComplete: (data: OnboardingData) => void;
-}
-
-export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete }) => {
-  const [currentStep, setCurrentStep] = useState(1);
+export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete, startAtStep }) => {
+  const [currentStep, setCurrentStep] = useState(startAtStep ?? 1);
   const [isLoading, setIsLoading] = useState(false);
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({
     sport: null,

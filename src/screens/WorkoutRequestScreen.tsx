@@ -29,6 +29,7 @@ import { UserService } from '../services/userService';
 import { WorkoutData, WorkoutRequest } from '../interfaces/interfaces';
 import { RootStackParamList } from '../types/types';
 import TrialLimitModal from '../components/TrialLimitModal';
+import { useUpgrade } from '../context/UpgradeContext';
 
 type WorkoutRequestNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -172,7 +173,19 @@ export default function WorkoutRequestScreen() {
         throw new Error(response.error || 'Failed to generate workout');
       }
     } catch (error) {
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to generate workout. Please try again.');
+      const message = error instanceof Error ? error.message : '';
+      console.log('Caught error message:', message);
+      if (
+        message.includes('Trial') ||
+        message.includes('trial') ||
+        message.includes('limit reached') ||
+        message.includes('budget reached') ||
+        message.includes('subscription')
+      ) {
+        setTrialLimitVisible(true);
+      } else {
+        Alert.alert('Error', message || 'Failed to generate workout. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -268,6 +281,8 @@ export default function WorkoutRequestScreen() {
     </Card>
   );
 
+  const { onUpgradePress } = useUpgrade();
+
   return (
     <View style={commonStyles.container}>
       <TrialLimitModal
@@ -276,8 +291,7 @@ export default function WorkoutRequestScreen() {
         onDismiss={() => setTrialLimitVisible(false)}
         onUpgrade={() => {
           setTrialLimitVisible(false);
-          // TODO: navigate to subscription/paywall screen when built
-          Alert.alert('Subscribe', 'Subscription screen coming soon.');
+          onUpgradePress();
         }}
       />
       {/* Navy header */}

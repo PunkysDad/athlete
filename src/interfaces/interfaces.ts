@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -95,4 +96,52 @@ export interface TaggedItem {
 // A tag enriched with its associated content items, used by the Tags screen
 export interface TagWithItems extends TagResponse {
   items: TaggedItem[];
+}
+
+export interface UpgradeContextValue {
+  onUpgradePress: () => void;
+}
+
+export interface UpgradeProviderProps {
+  onUpgradePress: () => void;
+  children: ReactNode;
+}
+export interface OnboardingFlowProps {
+  user: any;
+  onComplete: (data: OnboardingData) => void;
+  startAtStep?: number;
+}
+
+export interface OnboardingData {
+  sport: string | null;
+  position: string | null;
+  subscriptionTier: string | null;
+  billingCycle: 'monthly' | 'annual';
+}
+
+export interface OnboardingFlowProps {
+  user: any; // Firebase user
+  onComplete: (data: OnboardingData) => void;
+}
+export interface CreateUserRequest {
+  email: string;
+  firebaseUid: string;
+  displayName: string;
+  primarySport?: string;
+  primaryPosition?: string;
+  age?: number | null;
+  subscriptionTier?: string;
+  billingCycle?: string;
+}
+
+export interface UserResponse {
+  id: number;
+  firebaseUid: string;
+  email?: string;
+  displayName?: string;
+  subscriptionTier: string;
+  primarySport?: string;
+  primaryPosition?: string;
+  createdAt: string;
+  isActive: boolean;
 }

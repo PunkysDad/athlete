@@ -19,6 +19,7 @@ import FormattedMessage from '../components/FormattedMessage';
 import TrialLimitModal from '../components/TrialLimitModal';
 import { apiService, TrialLimitError } from '../services/apiService';
 import { TagResponse } from '../interfaces/interfaces';
+import { useUpgrade } from '../context/UpgradeContext';
 
 const NAVY   = '#1a2744';
 const SILVER = '#b0bec5';
@@ -87,6 +88,7 @@ export default function CoachingScreen() {
 
   // Trial limit modal
   const [trialLimitVisible, setTrialLimitVisible] = useState(false);
+  const { onUpgradePress } = useUpgrade();
 
   const backendUrl = 'http://192.168.254.5:8080';
 
@@ -262,8 +264,7 @@ export default function CoachingScreen() {
           onDismiss={() => setTrialLimitVisible(false)}
           onUpgrade={() => {
             setTrialLimitVisible(false);
-            // TODO: navigate to subscription/paywall screen when built
-            Alert.alert('Subscribe', 'Subscription screen coming soon.');
+            onUpgradePress();
           }}
         />
 

@@ -235,7 +235,7 @@ export default function WorkoutDisplayScreen() {
 
       <TouchableOpacity
         style={[styles.tabItem, styles.activeTab]}
-        onPress={() => navigation.navigate('WorkoutRequest')}
+        onPress={() => navigation.navigate('MainTabs', { screen: 'Workouts' })}
       >
         <Icon name="fitness-center" size={24} color="#fff" />
         <Text style={[styles.tabLabel, styles.activeTabLabel]}>Workouts</Text>

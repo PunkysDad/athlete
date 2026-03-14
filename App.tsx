@@ -7,6 +7,7 @@ import { PaperProvider } from 'react-native-paper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { getApps, initializeApp } from 'firebase/app';
+// @ts-ignore: getReactNativePersistence exists in the React Native bundle
 import { initializeAuth, getReactNativePersistence, getAuth, onAuthStateChanged, signOut, signInWithCredential, OAuthProvider } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { revenueCatService } from './src/services/revenueCatService';
@@ -23,6 +24,7 @@ import { OnboardingFlow } from './src/components/onboarding/OnboardingFlow';
 import { UserService } from './src/services/userService';
 import { RootStackParamList } from './src/types/types';
 import { appTheme } from './src/theme/appTheme';
+import { UpgradeProvider } from './src/context/UpgradeContext';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -181,7 +183,6 @@ function MainTabs() {
           headerTintColor: appTheme.white,
           headerTitleStyle: { fontWeight: '700' },
           headerTitle: 'Generate Workout',
-          headerBackVisible: false,
         }}
       />
       <Tab.Screen name="Coaching" component={CoachingScreen} />
@@ -211,6 +212,32 @@ export default function App() {
   const [initializing, setInitializing] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
+  const [showSubscription, setShowSubscription] = useState(false);
+  const handleUpgradeSubscription = () => setShowSubscription(true);
+
+  const handleSubscriptionComplete = async (onboardingData: {
+    sport: string | null;
+    position: string | null;
+    subscriptionTier: string | null;
+    billingCycle: 'monthly';
+  }) => {
+    setShowSubscription(false);
+    if (userProfile && onboardingData.subscriptionTier) {
+      try {
+        await fetch(
+          `${process.env.EXPO_PUBLIC_API_URL}/api/v1/users/${userProfile.id}/subscription`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscriptionTier: onboardingData.subscriptionTier }),
+          }
+        );
+        setUserProfile((prev: any) => ({ ...prev, subscriptionTier: onboardingData.subscriptionTier }));
+      } catch (err) {
+        console.error('Failed to update subscription:', err);
+      }
+    }
+  };
 
   const testRevenueCat = async () => {
     if (!user?.uid) return;
@@ -263,10 +290,10 @@ export default function App() {
       const userData = {
         email: user.email || '',
         firebaseUid: user.uid,
-        displayName: user.displayName || user.email?.split('@')[0] || 'GameIQ Athlete',
+        displayName: user.displayName || user.email?.split('@')[0] || 'SportsIQ Athlete',
         primarySport: onboardingData.sport?.toUpperCase(),
         primaryPosition: onboardingData.position?.toUpperCase(),
-        subscriptionTier: onboardingData.subscriptionTier,
+        subscriptionTier: onboardingData.subscriptionTier ?? 'TRIAL',
         billingCycle: onboardingData.billingCycle,
         age: null,
       };
@@ -285,12 +312,25 @@ export default function App() {
   if (initializing) return <PaperProvider><LoadingScreen /></PaperProvider>;
   if (!user) return <PaperProvider><AuthScreen onAuthSuccess={handleAuthSuccess} /></PaperProvider>;
   if (showOnboarding) return <PaperProvider><OnboardingFlow user={user} onComplete={handleOnboardingComplete} /></PaperProvider>;
+  if (showSubscription) {
+    return (
+      <PaperProvider>
+        <OnboardingFlow
+          user={user}
+          onComplete={handleSubscriptionComplete}
+          startAtStep={3}
+        />
+      </PaperProvider>
+    );
+  }
 
   return (
     <PaperProvider>
+      <UpgradeProvider onUpgradePress={handleUpgradeSubscription}>
       <NavigationContainer>
         <RootStack />
       </NavigationContainer>
+    </UpgradeProvider>
     </PaperProvider>
   );
 }

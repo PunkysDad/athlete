@@ -1,8 +1,7 @@
 import { WorkoutData } from "../interfaces/interfaces";
 
 export type RootStackParamList = {
-  MainTabs: undefined;
+  MainTabs: { screen: string } | undefined;
   EditProfile: { userId: string };
-  WorkoutRequest: undefined;
   WorkoutDisplay: { workoutData: WorkoutData };
 };
