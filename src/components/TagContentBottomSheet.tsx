@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { appTheme } from '../theme/appTheme';
-import { theme, commonStyles } from '../theme';
+import { theme } from '../theme';
 import { TaggedItem } from '../interfaces/interfaces';
 import { apiService } from '../services/apiService';
 import FormattedMessage from './FormattedMessage';
@@ -89,14 +89,14 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
           <Icon
             name={item?.type === 'chat' ? 'chat' : 'fitness-center'}
             size={18}
-            color="#0066FF"
+            color={appTheme.neonGreen}
           />
           <Text style={styles.headerType}>
             {item?.type === 'chat' ? 'Coaching Chat' : 'Workout Plan'}
           </Text>
         </View>
         <TouchableOpacity onPress={handleClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Icon name="close" size={22} color={appTheme.textLight} />
+          <Icon name="close" size={22} color={appTheme.textMuted} />
         </TouchableOpacity>
       </View>
       <Text style={styles.headerTitle} numberOfLines={2}>{item?.title}</Text>
@@ -114,13 +114,11 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
 
     return (
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* User question — highlight block matching site style */}
         <View style={styles.questionBubble}>
           <Text style={styles.questionLabel}>Your question</Text>
           <Text style={styles.questionText}>{question}</Text>
         </View>
 
-        {/* Coach response */}
         <View style={styles.responseContainer}>
           <Text style={styles.responseLabel}>Coach response</Text>
           <FormattedMessage text={content.claudeResponse} isUser={false} />
@@ -138,7 +136,6 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
     if (!content) return null;
     return (
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Sport / position chips */}
         <View style={styles.chipRow}>
           {[content.sport, content.position, content.difficultyLevel].filter(Boolean).map((val) => (
             <View key={val} style={styles.chip}>
@@ -150,7 +147,7 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
         {content.generatedContent ? (
           <FormattedMessage text={content.generatedContent} isUser={false} />
         ) : (
-          <Text style={{ color: appTheme.textLight }}>No workout content available.</Text>
+          <Text style={{ color: appTheme.textMuted }}>No workout content available.</Text>
         )}
         <View style={styles.bottomPadding} />
       </ScrollView>
@@ -173,14 +170,14 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
 
         {loading ? (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={appTheme.navy} />
+            <ActivityIndicator size="large" color={appTheme.red} />
             <Text style={[styles.metadata, { marginTop: theme.spacing.sm }]}>
               Loading content...
             </Text>
           </View>
         ) : error ? (
           <View style={styles.centered}>
-            <Icon name="error-outline" size={36} color={appTheme.silver} />
+            <Icon name="error-outline" size={36} color={appTheme.textMuted} />
             <Text style={[styles.metadata, { marginTop: theme.spacing.sm, color: appTheme.red }]}>
               {error}
             </Text>
@@ -196,7 +193,7 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
   },
   sheet: {
     position: 'absolute',
@@ -204,24 +201,24 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: SHEET_HEIGHT,
-    backgroundColor: appTheme.white,
+    backgroundColor: appTheme.bgCard,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    ...theme.shadows.sm,
+    borderTopWidth: 1,
+    borderColor: appTheme.border,
   },
 
-  // Header — white with navy text, matching site card style
   header: {
     paddingHorizontal: theme.spacing.base,
     paddingBottom: theme.spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: appTheme.gray,
+    borderBottomColor: appTheme.border,
   },
   dragHandle: {
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: appTheme.silver,
+    backgroundColor: appTheme.border,
     alignSelf: 'center',
     marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.base,
@@ -239,41 +236,42 @@ const styles = StyleSheet.create({
   },
   headerType: {
     fontSize: 13,
-    color: '#0066FF',
+    color: appTheme.neonGreen,
     fontWeight: '600',
     marginLeft: theme.spacing.xs,
   },
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: appTheme.navy,
+    color: appTheme.white,
     marginBottom: theme.spacing.xs,
   },
   headerDate: {
     fontSize: 12,
-    color: appTheme.textLight,
+    color: appTheme.textMuted,
   },
 
   scrollContent: {
     flex: 1,
     paddingHorizontal: theme.spacing.base,
     paddingTop: theme.spacing.base,
-    backgroundColor: appTheme.gray,
+    backgroundColor: appTheme.bg,
   },
 
-  // Question bubble — mirrors site .highlight block
   questionBubble: {
-    backgroundColor: appTheme.white,
+    backgroundColor: appTheme.bgCard,
     borderRadius: theme.borderRadius.base,
     padding: theme.spacing.base,
     marginBottom: theme.spacing.base,
     borderLeftWidth: 4,
-    borderLeftColor: appTheme.navy,
+    borderLeftColor: appTheme.red,
+    borderWidth: 1,
+    borderColor: appTheme.border,
   },
   questionLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: appTheme.navy,
+    color: appTheme.red,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: theme.spacing.xs,
@@ -290,7 +288,7 @@ const styles = StyleSheet.create({
   responseLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: appTheme.textLight,
+    color: appTheme.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: theme.spacing.sm,
@@ -298,12 +296,11 @@ const styles = StyleSheet.create({
 
   metadata: {
     fontSize: 11,
-    color: appTheme.textLight,
+    color: appTheme.textMuted,
     textAlign: 'center',
     marginTop: theme.spacing.base,
   },
 
-  // Chips — navy tint background matching site palette
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -311,16 +308,16 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.base,
   },
   chip: {
-    backgroundColor: appTheme.navy + '18',
+    backgroundColor: appTheme.red + '20',
     borderRadius: 12,
     paddingHorizontal: theme.spacing.base,
     paddingVertical: theme.spacing.xs,
     borderWidth: 1,
-    borderColor: appTheme.navy + '30',
+    borderColor: appTheme.red + '50',
   },
   chipText: {
     fontSize: 13,
-    color: appTheme.navy,
+    color: appTheme.red,
     fontWeight: '600',
   },
 

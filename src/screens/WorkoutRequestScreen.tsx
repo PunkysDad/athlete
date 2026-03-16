@@ -33,14 +33,11 @@ import { useUpgrade } from '../context/UpgradeContext';
 
 type WorkoutRequestNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const NAVY   = '#1a2744';
-const SILVER = '#b0bec5';
-
 const EQUIPMENT_OPTIONS = {
-  'Basic':         ['Body weight only', 'Resistance bands', 'Dumbbells'],
-  'Gym Access':    ['Full gym', 'Barbells', 'Cable machine', 'Leg press'],
-  'Sport Specific':['Agility ladder', 'Cones', 'Medicine ball', 'Plyometric box'],
-  'Field/Court':   ['Track access', 'Field access', 'Court access'],
+  'Basic':          ['Body weight only', 'Resistance bands', 'Dumbbells'],
+  'Gym Access':     ['Full gym', 'Barbells', 'Cable machine', 'Leg press'],
+  'Sport Specific': ['Agility ladder', 'Cones', 'Medicine ball', 'Plyometric box'],
+  'Field/Court':    ['Track access', 'Field access', 'Court access'],
 };
 
 const FOCUS_OPTIONS = {
@@ -85,6 +82,7 @@ export default function WorkoutRequestScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [trialLimitVisible, setTrialLimitVisible] = useState(false);
+  const { onUpgradePress } = useUpgrade();
 
   useFocusEffect(
     useCallback(() => {
@@ -140,10 +138,8 @@ export default function WorkoutRequestScreen() {
       } catch (error) {
         const message = error instanceof Error ? error.message : '';
         if (
-          message.includes('Trial') ||
-          message.includes('trial') ||
-          message.includes('limit reached') ||
-          message.includes('budget reached') ||
+          message.includes('Trial') || message.includes('trial') ||
+          message.includes('limit reached') || message.includes('budget reached') ||
           message.includes('subscription')
         ) {
           setTrialLimitVisible(true);
@@ -174,12 +170,9 @@ export default function WorkoutRequestScreen() {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
-      console.log('Caught error message:', message);
       if (
-        message.includes('Trial') ||
-        message.includes('trial') ||
-        message.includes('limit reached') ||
-        message.includes('budget reached') ||
+        message.includes('Trial') || message.includes('trial') ||
+        message.includes('limit reached') || message.includes('budget reached') ||
         message.includes('subscription')
       ) {
         setTrialLimitVisible(true);
@@ -189,22 +182,6 @@ export default function WorkoutRequestScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleMockWorkout = () => {
-    const mockWorkoutData: WorkoutData = {
-      id: 'mock-18',
-      title: '60-MINUTE PRE-SEASON WR WORKOUT',
-      description: 'Position-specific training for Wide Receiver in Football',
-      estimatedDuration: 60,
-      exercises: [],
-      focusAreas: ['Core stability', 'Reaction time', 'Aerobic base'],
-      createdAt: new Date().toISOString(),
-      sport: formData.sport,
-      position: formData.position,
-      generatedContent: `# 60-MINUTE PRE-SEASON WR WORKOUT\n**Focus: Core Stability, Reaction Time & Aerobic Base**`,
-    };
-    navigation.navigate('WorkoutDisplay', { workoutData: mockWorkoutData });
   };
 
   const toggleEquipment = (item: string) => {
@@ -241,7 +218,7 @@ export default function WorkoutRequestScreen() {
                 <Checkbox
                   status={formData.equipment.includes(item) ? 'checked' : 'unchecked'}
                   onPress={() => toggleEquipment(item)}
-                  color={NAVY}
+                  color={appTheme.red}
                 />
                 <Text style={styles.optionLabel}>{item}</Text>
               </TouchableOpacity>
@@ -268,8 +245,8 @@ export default function WorkoutRequestScreen() {
                   selected={formData.trainingFocus.includes(item)}
                   onPress={() => toggleFocus(item)}
                   style={[styles.chip, formData.trainingFocus.includes(item) && styles.chipSelected]}
-                  selectedColor={NAVY}
-                  textStyle={{ fontSize: 12, color: formData.trainingFocus.includes(item) ? NAVY : appTheme.textLight }}
+                  selectedColor={appTheme.red}
+                  textStyle={{ fontSize: 12, color: formData.trainingFocus.includes(item) ? appTheme.white : appTheme.textMuted }}
                 >
                   {item}
                 </Chip>
@@ -280,8 +257,6 @@ export default function WorkoutRequestScreen() {
       </Card.Content>
     </Card>
   );
-
-  const { onUpgradePress } = useUpgrade();
 
   return (
     <View style={commonStyles.container}>
@@ -294,9 +269,9 @@ export default function WorkoutRequestScreen() {
           onUpgradePress();
         }}
       />
-      {/* Navy header */}
+
       <View style={styles.header}>
-        <Icon name="fitness-center" size={22} color="#fff" />
+        <Icon name="fitness-center" size={22} color={appTheme.neonGreen} />
         <Text style={styles.headerTitle}>Generate Workout</Text>
       </View>
 
@@ -308,14 +283,14 @@ export default function WorkoutRequestScreen() {
               <View>
                 <Text style={styles.sectionTitle}>Training For</Text>
                 {profileLoading ? (
-                  <ActivityIndicator size="small" color={NAVY} style={{ marginTop: 4 }} />
+                  <ActivityIndicator size="small" color={appTheme.red} style={{ marginTop: 4 }} />
                 ) : (
                   <Text style={styles.trainingForText}>
                     {userSport || '—'} • {userPosition || '—'}
                   </Text>
                 )}
               </View>
-              <Icon name="sports" size={32} color={NAVY} />
+              <Icon name="sports" size={32} color={appTheme.neonGreen} />
             </View>
           </Card.Content>
         </Card>
@@ -338,7 +313,7 @@ export default function WorkoutRequestScreen() {
                   onPress={() => setFormData({ ...formData, experienceLevel: opt.value as any })}
                   activeOpacity={0.7}
                 >
-                  <RadioButton value={opt.value} color={NAVY} />
+                  <RadioButton value={opt.value} color={appTheme.red} />
                   <Text style={styles.optionLabel}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -363,7 +338,7 @@ export default function WorkoutRequestScreen() {
                   onPress={() => setFormData({ ...formData, trainingPhase: opt.value as any })}
                   activeOpacity={0.7}
                 >
-                  <RadioButton value={opt.value} color={NAVY} />
+                  <RadioButton value={opt.value} color={appTheme.red} />
                   <Text style={styles.optionLabel}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -386,8 +361,10 @@ export default function WorkoutRequestScreen() {
               keyboardType="numeric"
               placeholder="e.g., 60"
               style={styles.textInput}
-              outlineColor={appTheme.silver}
-              activeOutlineColor={NAVY}
+              outlineColor={appTheme.border}
+              activeOutlineColor={appTheme.red}
+              textColor={appTheme.text}
+              placeholderTextColor={appTheme.textMuted}
             />
             <View style={styles.chipContainer}>
               {[30, 45, 60, 90].map(t => (
@@ -396,8 +373,8 @@ export default function WorkoutRequestScreen() {
                   mode={formData.timeAvailable === t ? 'flat' : 'outlined'}
                   onPress={() => setFormData({ ...formData, timeAvailable: t })}
                   style={[styles.chip, formData.timeAvailable === t && styles.chipSelected]}
-                  selectedColor={NAVY}
-                  textStyle={{ fontSize: 12, color: formData.timeAvailable === t ? NAVY : appTheme.textLight }}
+                  selectedColor={appTheme.red}
+                  textStyle={{ fontSize: 12, color: formData.timeAvailable === t ? appTheme.white : appTheme.textMuted }}
                 >
                   {t}min
                 </Chip>
@@ -420,8 +397,10 @@ export default function WorkoutRequestScreen() {
               multiline
               numberOfLines={3}
               style={styles.textInput}
-              outlineColor={appTheme.silver}
-              activeOutlineColor={NAVY}
+              outlineColor={appTheme.border}
+              activeOutlineColor={appTheme.red}
+              textColor={appTheme.text}
+              placeholderTextColor={appTheme.textMuted}
             />
           </Card.Content>
         </Card>
@@ -432,26 +411,16 @@ export default function WorkoutRequestScreen() {
           loading={isLoading}
           disabled={isLoading}
           style={styles.generateButton}
-          buttonColor={NAVY}
+          buttonColor={appTheme.red}
           contentStyle={styles.buttonContent}
         >
           {isLoading ? 'Generating workout...' : 'Generate My Workout'}
         </Button>
 
-        <Button
-          mode="outlined"
-          onPress={handleMockWorkout}
-          style={styles.mockButton}
-          textColor={NAVY}
-          contentStyle={styles.buttonContent}
-        >
-          Use Mock Data (Testing)
-        </Button>
-
         <Card style={styles.costCard}>
           <Card.Content>
             <View style={styles.costRow}>
-              <Icon name="info" size={16} color={NAVY} />
+              <Icon name="info" size={16} color={appTheme.red} />
               <Text style={styles.costText}>
                 AI-generated workouts are personalised for your position and goals.
                 This will use ~$0.07 of your monthly AI quota.
@@ -461,8 +430,6 @@ export default function WorkoutRequestScreen() {
         </Card>
 
       </ScrollView>
-
-
     </View>
   );
 }
@@ -472,24 +439,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: theme.spacing.base,
-    backgroundColor: NAVY,
-    borderBottomWidth: 0,
+    backgroundColor: appTheme.navyDark,
+    borderBottomWidth: 1,
+    borderBottomColor: appTheme.border,
   },
   headerTitle: {
     marginLeft: theme.spacing.sm,
     fontSize: 17,
     fontWeight: '700',
-    color: '#fff',
+    color: appTheme.white,
   },
   content: {
     flex: 1,
     padding: theme.spacing.base,
-    backgroundColor: appTheme.gray,
+    backgroundColor: appTheme.bg,
   },
   card: {
-    backgroundColor: appTheme.white,
+    backgroundColor: appTheme.bgCard,
     borderRadius: theme.borderRadius.base,
     marginBottom: theme.spacing.base,
+    borderWidth: 1,
+    borderColor: appTheme.border,
     ...theme.shadows.sm,
   },
   errorCard: {
@@ -499,18 +469,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: NAVY,
+    color: appTheme.white,
     marginBottom: theme.spacing.base,
   },
   trainingForText: {
     fontSize: 15,
-    color: appTheme.text,
+    color: appTheme.textMuted,
     marginTop: 4,
   },
   categoryLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: appTheme.textLight,
+    color: appTheme.textMuted,
     marginBottom: theme.spacing.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
@@ -536,12 +506,12 @@ const styles = StyleSheet.create({
   },
   divider: {
     marginVertical: theme.spacing.md,
-    backgroundColor: appTheme.gray,
+    backgroundColor: appTheme.border,
   },
   textInput: {
     marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.sm,
-    backgroundColor: appTheme.white,
+    backgroundColor: appTheme.bgElevated,
   },
   chipContainer: {
     flexDirection: 'row',
@@ -551,11 +521,11 @@ const styles = StyleSheet.create({
   },
   chip: {
     marginBottom: theme.spacing.xs,
-    borderColor: appTheme.silver,
+    borderColor: appTheme.border,
   },
   chipSelected: {
-    backgroundColor: NAVY + '15',
-    borderColor: NAVY,
+    backgroundColor: appTheme.red + '25',
+    borderColor: appTheme.red,
   },
   errorText: {
     color: appTheme.red,
@@ -567,20 +537,17 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.sm,
     borderRadius: theme.borderRadius.base,
   },
-  mockButton: {
-    marginBottom: theme.spacing.lg,
-    borderRadius: theme.borderRadius.base,
-    borderColor: NAVY,
-  },
   buttonContent: {
     paddingVertical: theme.spacing.sm,
   },
   costCard: {
-    backgroundColor: appTheme.white,
+    backgroundColor: appTheme.bgCard,
     borderRadius: theme.borderRadius.base,
     borderLeftWidth: 4,
-    borderLeftColor: NAVY,
+    borderLeftColor: appTheme.red,
     marginBottom: theme.spacing.xl,
+    borderWidth: 1,
+    borderColor: appTheme.border,
     ...theme.shadows.sm,
   },
   costRow: {
@@ -591,9 +558,7 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
     flex: 1,
     fontSize: 12,
-    color: appTheme.textLight,
+    color: appTheme.textMuted,
     lineHeight: 18,
   },
-
-
 });

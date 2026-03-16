@@ -21,6 +21,7 @@ import {
   TaggedItem,
 } from '../interfaces/interfaces';
 import TagContentBottomSheet from '../components/TagContentBottomSheet';
+import HistoryListModal from '../components/HistoryListModal';
 
 export default function HomeScreen() {
   const auth = getAuth();
@@ -47,6 +48,8 @@ export default function HomeScreen() {
   const [selectedItem, setSelectedItem] = useState<TaggedItem | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [focusCount, setFocusCount] = useState(0);
+  const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  const [historyModalType, setHistoryModalType] = useState<'chat' | 'workout'>('chat');
 
   // -------------------------------------------------------------------------
   // User resolution
@@ -212,13 +215,18 @@ export default function HomeScreen() {
   // Render helpers
   // -------------------------------------------------------------------------
 
-  const renderStatCard = (label: string, value: number, icon: string, subtitle: string) => (
-    <View style={styles.statCard}>
-      <Icon name={icon as any} size={22} color="#0066FF" />
+  const renderStatCard = (label: string, value: number, icon: string, subtitle: string, onPress?: () => void) => (
+    <TouchableOpacity
+      style={styles.statCard}
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+    >
+      <Icon name={icon as any} size={22} color={appTheme.neonGreen} />
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
       <Text style={styles.statSubtitle}>{subtitle}</Text>
-    </View>
+    </TouchableOpacity>
   );
 
   const renderOverviewTab = () => (
@@ -295,8 +303,10 @@ export default function HomeScreen() {
             </View>
           ) : (
             <View style={styles.statsGrid}>
-              {renderStatCard('AI Chats', activityStats.totalChats, 'chat', 'Coaching conversations')}
-              {renderStatCard('Workouts', activityStats.totalWorkouts, 'fitness-center', 'Generated plans')}
+              {renderStatCard('AI Chats', activityStats.totalChats, 'chat', 'Coaching conversations',
+                () => { setHistoryModalType('chat'); setHistoryModalVisible(true); })}
+              {renderStatCard('Workouts', activityStats.totalWorkouts, 'fitness-center', 'Generated plans',
+                () => { setHistoryModalType('workout'); setHistoryModalVisible(true); })}
               {renderStatCard('Days Ago', activityStats.recentActivity, 'access-time', 'Last activity')}
               {renderStatCard('Total', activityStats.totalChats + activityStats.totalWorkouts, 'trending-up', 'AI interactions')}
             </View>
@@ -372,7 +382,7 @@ export default function HomeScreen() {
                     <Icon
                       name={item.type === 'chat' ? 'chat' : 'fitness-center'}
                       size={18}
-                      color="#0066FF"
+                      color={appTheme.neonGreen}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -434,35 +444,45 @@ export default function HomeScreen() {
         visible={sheetVisible}
         onClose={() => setSheetVisible(false)}
       />
+
+      <HistoryListModal
+        visible={historyModalVisible}
+        type={historyModalType}
+        userId={currentUserId!}
+        onClose={() => setHistoryModalVisible(false)}
+        onSelectItem={(item) => {
+          setHistoryModalVisible(false);
+          setSelectedItem(item);
+          setSheetVisible(true);
+        }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  // Header — navy background matching site nav/hero
   header: {
-    backgroundColor: appTheme.navy,
+    backgroundColor: appTheme.navyDark,
     paddingHorizontal: theme.spacing.base,
     paddingVertical: theme.spacing.lg,
-    borderBottomWidth: 0,
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#ffffff',
+    color: appTheme.white,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
+    color: appTheme.textMuted,
     marginTop: 2,
   },
 
-  // Tabs — active tab uses navy underline
+  // Tabs
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
+    backgroundColor: appTheme.bgCard,
     borderBottomWidth: 1,
-    borderBottomColor: appTheme.gray,
+    borderBottomColor: appTheme.border,
   },
   tab: {
     flex: 1,
@@ -472,57 +492,59 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomColor: appTheme.navy,
+    borderBottomColor: appTheme.red,
   },
   tabText: {
     fontSize: 15,
-    color: appTheme.textLight,
+    color: appTheme.textMuted,
   },
   tabTextActive: {
-    color: appTheme.navy,
+    color: appTheme.white,
     fontWeight: '700',
   },
 
   content: {
     flex: 1,
     padding: theme.spacing.base,
-    backgroundColor: appTheme.gray,
+    backgroundColor: appTheme.bg,
   },
 
-  // Cards — white surface on gray background matching site .content area
+  // Cards
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: appTheme.bgCard,
     borderRadius: theme.borderRadius.base,
     marginBottom: theme.spacing.base,
+    borderWidth: 6,
+    borderColor: appTheme.border,
     ...theme.shadows.sm,
   },
   cardHeading: {
     fontSize: 16,
     fontWeight: '700',
-    color: appTheme.navy,
+    color: appTheme.white,
   },
   cardBody: {
     fontSize: 14,
-    color: appTheme.text,
+    color: appTheme.textMuted,
     marginTop: theme.spacing.xs,
     lineHeight: 20,
   },
   cardCaption: {
     fontSize: 12,
-    color: appTheme.textLight,
+    color: appTheme.textMuted,
     lineHeight: 16,
   },
 
-  // Tier badge — red accent matching site's red variable
+  // Tier badge
   tierBadge: {
     marginTop: theme.spacing.sm,
     alignSelf: 'flex-start',
-    backgroundColor: appTheme.red + '18',
+    backgroundColor: appTheme.red + '25',
     borderRadius: 4,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderWidth: 1,
-    borderColor: appTheme.red + '40',
+    borderColor: appTheme.red + '60',
   },
   tierBadgeText: {
     fontSize: 11,
@@ -532,7 +554,7 @@ const styles = StyleSheet.create({
   },
 
   avatar: {
-    backgroundColor: appTheme.navy + '18',
+    backgroundColor: appTheme.navyLight,
   },
 
   // Stats grid
@@ -548,14 +570,16 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.base,
     marginBottom: theme.spacing.md,
     alignItems: 'center',
-    backgroundColor: appTheme.gray,
-    borderLeftWidth: 4,
+    backgroundColor: appTheme.bgElevated,
+    borderWidth: 1,
+    borderColor: appTheme.border,
+    borderLeftWidth: 3,
     borderLeftColor: appTheme.red,
   },
   statValue: {
     fontSize: 28,
     fontWeight: '800',
-    color: appTheme.navy,
+    color: appTheme.white,
     marginTop: theme.spacing.sm,
   },
   statLabel: {
@@ -569,7 +593,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: 'center',
     fontSize: 10,
-    color: appTheme.textLight,
+    color: appTheme.textMuted,
   },
 
   centered: {
@@ -609,25 +633,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   tagCountText: {
-    color: '#fff',
+    color: appTheme.white,
     fontSize: 12,
     fontWeight: '700',
   },
   taggedItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: appTheme.bgElevated,
     borderRadius: theme.borderRadius.base,
     paddingHorizontal: theme.spacing.base,
     paddingVertical: theme.spacing.base,
     marginBottom: theme.spacing.sm,
-    ...theme.shadows.sm,
+    borderWidth: 1,
+    borderColor: appTheme.border,
   },
   taggedItemIcon: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: appTheme.gray,
+    backgroundColor: appTheme.neonGreen + '20',  // ← change this line
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: theme.spacing.base,

@@ -20,10 +20,8 @@ import TrialLimitModal from '../components/TrialLimitModal';
 import { apiService, TrialLimitError } from '../services/apiService';
 import { TagResponse } from '../interfaces/interfaces';
 import { useUpgrade } from '../context/UpgradeContext';
+import { appTheme } from '../theme/appTheme';
 
-const NAVY   = '#1a2744';
-const SILVER = '#b0bec5';
-const BG     = '#f5f7fa';
 const TAG_COLORS = ['#007AFF', '#FF3B30', '#34C759', '#FF9500', '#AF52DE', '#FF2D55', '#5AC8FA'];
 
 interface Message {
@@ -86,7 +84,6 @@ export default function CoachingScreen() {
   const [showNewTagInput, setShowNewTagInput] = useState(false);
   const [savingTag, setSavingTag]             = useState(false);
 
-  // Trial limit modal
   const [trialLimitVisible, setTrialLimitVisible] = useState(false);
   const { onUpgradePress } = useUpgrade();
 
@@ -152,7 +149,6 @@ export default function CoachingScreen() {
         try { backendMessage = JSON.parse(errText)?.message ?? null; } catch { /* not JSON */ }
         const msg = backendMessage ?? `HTTP ${res.status}: ${errText}`;
 
-        // Trial / subscription limit — show paywall instead of generic alert
         if (
           backendMessage &&
           (backendMessage.includes('Trial') ||
@@ -283,12 +279,12 @@ export default function CoachingScreen() {
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>Add Tags</Text>
                   <TouchableOpacity onPress={() => setTagModalVisible(false)} style={{ padding: 8 }}>
-                    <Icon name="close" size={20} color={NAVY} />
+                    <Icon name="close" size={20} color={appTheme.white} />
                   </TouchableOpacity>
                 </View>
 
                 {tagsLoading ? (
-                  <PaperIndicator style={{ marginVertical: 20 }} color={NAVY} />
+                  <PaperIndicator style={{ marginVertical: 20 }} color={appTheme.red} />
                 ) : (
                   <>
                     {existingTags.length > 0 && (
@@ -310,13 +306,14 @@ export default function CoachingScreen() {
                       </View>
                     )}
 
-                    <Divider style={{ marginVertical: 12 }} />
+                    <Divider style={{ marginVertical: 12, backgroundColor: appTheme.border }} />
 
                     {showNewTagInput ? (
                       <View style={styles.newTagForm}>
                         <TextInput
                           style={styles.newTagInput}
                           placeholder="Tag name"
+                          placeholderTextColor={appTheme.textMuted}
                           value={newTagName}
                           onChangeText={setNewTagName}
                           maxLength={100}
@@ -343,7 +340,7 @@ export default function CoachingScreen() {
                             disabled={!newTagName.trim() || savingTag}
                           >
                             {savingTag
-                              ? <ActivityIndicator size="small" color="#fff" />
+                              ? <ActivityIndicator size="small" color={appTheme.white} />
                               : <Text style={styles.createButtonText}>Create & Add</Text>
                             }
                           </TouchableOpacity>
@@ -351,7 +348,7 @@ export default function CoachingScreen() {
                       </View>
                     ) : (
                       <TouchableOpacity style={styles.createTagButton} onPress={() => setShowNewTagInput(true)}>
-                        <Icon name="add" size={18} color={NAVY} />
+                        <Icon name="add" size={18} color={appTheme.red} />
                         <Text style={styles.createTagText}>Create new tag</Text>
                       </TouchableOpacity>
                     )}
@@ -376,7 +373,7 @@ export default function CoachingScreen() {
         >
           <View style={styles.chatHeader}>
             <TouchableOpacity onPress={endChatSession} style={styles.backButton}>
-              <Icon name="arrow-back" size={24} color="#fff" />
+              <Icon name="arrow-back" size={24} color={appTheme.white} />
             </TouchableOpacity>
             <View style={styles.chatHeaderContent}>
               <Text style={styles.chatHeaderTitle}>AI Coach</Text>
@@ -385,7 +382,7 @@ export default function CoachingScreen() {
               </Text>
             </View>
             <View style={styles.statusIndicator}>
-              <Icon name="circle" size={8} color="#4CAF50" />
+              <Icon name="circle" size={8} color={appTheme.neonGreen} />
               <Text style={styles.statusText}>Online</Text>
             </View>
           </View>
@@ -408,7 +405,7 @@ export default function CoachingScreen() {
             ))}
             {isLoading && (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={NAVY} />
+                <ActivityIndicator size="small" color={appTheme.red} />
                 <Text style={styles.loadingText}>Coach is thinking...</Text>
               </View>
             )}
@@ -417,7 +414,7 @@ export default function CoachingScreen() {
           {conversationId !== null && (
             <View style={styles.tagBar}>
               <TouchableOpacity style={styles.tagBarButton} onPress={openTagModal}>
-                <Icon name="label" size={16} color={NAVY} />
+                <Icon name="label" size={16} color={appTheme.red} />
                 <Text style={styles.tagBarButtonText}>
                   {assignedTagIds.size > 0 ? `Tags (${assignedTagIds.size})` : 'Add Tag'}
                 </Text>
@@ -442,6 +439,7 @@ export default function CoachingScreen() {
               value={inputText}
               onChangeText={setInputText}
               placeholder="Ask about your position, training, strategy..."
+              placeholderTextColor={appTheme.textMuted}
               multiline
               maxLength={500}
               editable={!isLoading}
@@ -453,7 +451,7 @@ export default function CoachingScreen() {
               onPress={sendMessage}
               disabled={!inputText.trim() || isLoading}
             >
-              <Icon name="send" size={20} color={(!inputText.trim() || isLoading) ? '#ccc' : '#fff'} />
+              <Icon name="send" size={20} color={(!inputText.trim() || isLoading) ? appTheme.textMuted : appTheme.white} />
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -465,7 +463,7 @@ export default function CoachingScreen() {
     <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Icon name="psychology" size={22} color={NAVY} />
+          <Icon name="psychology" size={22} color={appTheme.neonGreen} />
           <Text style={styles.cardTitle}>Start New Conversation</Text>
         </View>
         <Text style={styles.cardBody}>
@@ -482,7 +480,7 @@ export default function CoachingScreen() {
 
       <View style={styles.tipsCard}>
         <View style={styles.cardHeader}>
-          <Icon name="lightbulb" size={22} color={NAVY} />
+          <Icon name="lightbulb" size={22} color={appTheme.neonGreen} />
           <Text style={styles.cardTitle}>Tips for Better Coaching Questions</Text>
         </View>
         <Text style={styles.tipsIntro}>
@@ -493,14 +491,14 @@ export default function CoachingScreen() {
             <Text style={styles.tipSport}>{tip.sport}</Text>
             <View style={styles.tipBad}>
               <View style={styles.tipBadge}>
-                <Icon name="close" size={12} color="#fff" />
+                <Icon name="close" size={12} color={appTheme.white} />
               </View>
               <Text style={styles.tipBadText}>{tip.bad}</Text>
             </View>
-            <Icon name="arrow-downward" size={16} color={SILVER} style={styles.tipArrow} />
+            <Icon name="arrow-downward" size={16} color={appTheme.textMuted} style={styles.tipArrow} />
             <View style={styles.tipGood}>
               <View style={[styles.tipBadge, styles.tipBadgeGood]}>
-                <Icon name="check" size={12} color="#fff" />
+                <Icon name="check" size={12} color={appTheme.white} />
               </View>
               <Text style={styles.tipGoodText}>{tip.good}</Text>
             </View>
@@ -508,7 +506,7 @@ export default function CoachingScreen() {
           </View>
         ))}
         <View style={styles.tipsHighlight}>
-          <Icon name="info" size={14} color={NAVY} style={{ marginTop: 1 }} />
+          <Icon name="info" size={14} color={appTheme.red} style={{ marginTop: 1 }} />
           <Text style={styles.tipsHighlightText}>
             Focus on specific game situations, formations, reads, or decisions — the more precise your question, the more actionable the answer.
           </Text>
@@ -519,78 +517,78 @@ export default function CoachingScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: BG, padding: 16 },
+  screen: { flex: 1, backgroundColor: appTheme.bg, padding: 16 },
 
-  card: { backgroundColor: '#fff', borderRadius: 8, marginBottom: 16, elevation: 1, padding: 16 },
-  tipsCard: { backgroundColor: '#fff', borderRadius: 8, borderLeftWidth: 4, borderLeftColor: NAVY, marginBottom: 32, elevation: 1, padding: 16 },
+  card: { backgroundColor: appTheme.bgCard, borderRadius: 8, marginBottom: 16, borderWidth: 1, borderColor: appTheme.border, padding: 16 },
+  tipsCard: { backgroundColor: appTheme.bgCard, borderRadius: 8, borderLeftWidth: 4, borderLeftColor: appTheme.red, marginBottom: 32, borderWidth: 1, borderColor: appTheme.border, padding: 16 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: NAVY },
-  cardBody: { fontSize: 14, color: '#607d8b', lineHeight: 20, marginBottom: 4 },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: appTheme.white },
+  cardBody: { fontSize: 14, color: appTheme.textMuted, lineHeight: 20, marginBottom: 4 },
 
-  tipsIntro: { fontSize: 13, color: '#607d8b', lineHeight: 19, marginBottom: 16 },
-  tipSport: { fontSize: 11, fontWeight: '700', color: NAVY, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 },
+  tipsIntro: { fontSize: 13, color: appTheme.textMuted, lineHeight: 19, marginBottom: 16 },
+  tipSport: { fontSize: 11, fontWeight: '700', color: appTheme.red, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 },
   tipRow: { marginBottom: 4 },
   tipBad: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 4 },
   tipGood: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   tipBadge: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#e53935', alignItems: 'center', justifyContent: 'center', marginTop: 1, flexShrink: 0 },
-  tipBadgeGood: { backgroundColor: '#2e7d32' },
-  tipBadText: { flex: 1, fontSize: 13, color: '#9e9e9e', fontStyle: 'italic', lineHeight: 18 },
-  tipGoodText: { flex: 1, fontSize: 13, color: '#2c3e50', fontWeight: '500', lineHeight: 18 },
+  tipBadgeGood: { backgroundColor: '#22c55e' },
+  tipBadText: { flex: 1, fontSize: 13, color: appTheme.textMuted, fontStyle: 'italic', lineHeight: 18 },
+  tipGoodText: { flex: 1, fontSize: 13, color: appTheme.text, fontWeight: '500', lineHeight: 18 },
   tipArrow: { marginLeft: 4, marginVertical: 2 },
-  tipDivider: { height: 1, backgroundColor: BG, marginVertical: 12 },
-  tipsHighlight: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: BG, borderRadius: 6, padding: 10, marginTop: 16, gap: 6 },
-  tipsHighlightText: { flex: 1, fontSize: 12, color: NAVY, fontWeight: '500', lineHeight: 17 },
+  tipDivider: { height: 1, backgroundColor: appTheme.border, marginVertical: 12 },
+  tipsHighlight: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: appTheme.bgElevated, borderRadius: 6, padding: 10, marginTop: 16, gap: 6 },
+  tipsHighlightText: { flex: 1, fontSize: 12, color: appTheme.textMuted, fontWeight: '500', lineHeight: 17 },
 
-  chatContainer: { flex: 1, backgroundColor: '#fff' },
-  chatHeader: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: NAVY },
+  chatContainer: { flex: 1, backgroundColor: appTheme.bg },
+  chatHeader: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: appTheme.navyDark },
   backButton: { marginRight: 12 },
   chatHeaderContent: { flex: 1 },
-  chatHeaderTitle: { fontSize: 17, fontWeight: '700', color: '#fff' },
-  chatHeaderSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 1 },
+  chatHeaderTitle: { fontSize: 17, fontWeight: '700', color: appTheme.white },
+  chatHeaderSubtitle: { fontSize: 13, color: appTheme.textMuted, marginTop: 1 },
   statusIndicator: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statusText: { fontSize: 12, color: '#4CAF50' },
+  statusText: { fontSize: 12, color: appTheme.neonGreen },
 
-  messagesContainer: { flex: 1, backgroundColor: BG },
+  messagesContainer: { flex: 1, backgroundColor: appTheme.bg },
   messagesContent: { padding: 16 },
   messageWrapper: { marginBottom: 12 },
   userMessageWrapper: { alignItems: 'flex-end' },
   aiMessageWrapper: { alignItems: 'flex-start' },
   messageBubble: { maxWidth: '85%', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
-  userMessage: { backgroundColor: NAVY, borderBottomRightRadius: 4 },
-  aiMessage: { backgroundColor: '#fff', borderBottomLeftRadius: 4, elevation: 1 },
+  userMessage: { backgroundColor: appTheme.red, borderBottomRightRadius: 4 },
+  aiMessage: { backgroundColor: appTheme.bgCard, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: appTheme.border },
   loadingContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 8 },
-  loadingText: { fontSize: 14, color: '#607d8b', fontStyle: 'italic' },
+  loadingText: { fontSize: 14, color: appTheme.textMuted, fontStyle: 'italic' },
 
-  tagBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e9ecef', gap: 10 },
-  tagBarButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: NAVY, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  tagBarButtonText: { color: NAVY, fontSize: 13, fontWeight: '600' },
+  tagBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, backgroundColor: appTheme.bgCard, borderTopWidth: 1, borderTopColor: appTheme.border, gap: 10 },
+  tagBarButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: appTheme.red, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  tagBarButtonText: { color: appTheme.red, fontSize: 13, fontWeight: '600' },
   tagChipScroll: { flex: 1 },
   tagChip: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginRight: 6 },
   tagChipText: { fontSize: 12, fontWeight: '500' },
 
-  inputContainer: { flexDirection: 'row', alignItems: 'flex-end', padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e9ecef' },
-  textInput: { flex: 1, borderWidth: 1, borderColor: '#dde2e8', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, marginRight: 12, maxHeight: 100, fontSize: 15, backgroundColor: BG },
-  sendButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: NAVY, alignItems: 'center', justifyContent: 'center' },
-  sendButtonDisabled: { backgroundColor: '#ccc' },
+  inputContainer: { flexDirection: 'row', alignItems: 'flex-end', padding: 16, backgroundColor: appTheme.bgCard, borderTopWidth: 1, borderTopColor: appTheme.border },
+  textInput: { flex: 1, borderWidth: 1, borderColor: appTheme.border, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, marginRight: 12, maxHeight: 100, fontSize: 15, backgroundColor: appTheme.bgElevated, color: appTheme.text },
+  sendButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: appTheme.red, alignItems: 'center', justifyContent: 'center' },
+  sendButtonDisabled: { backgroundColor: appTheme.border },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalContainer: { backgroundColor: appTheme.bgCard, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderColor: appTheme.border, padding: 24 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: NAVY },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: appTheme.white },
   tagList: { gap: 4 },
   tagRow: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 8 },
   tagDot: { width: 12, height: 12, borderRadius: 6, marginRight: 10 },
-  tagRowName: { flex: 1, fontSize: 15, color: '#2c3e50' },
+  tagRowName: { flex: 1, fontSize: 15, color: appTheme.text },
   createTagButton: { flexDirection: 'row', alignItems: 'center', padding: 10, gap: 6 },
-  createTagText: { color: NAVY, fontSize: 15, fontWeight: '500' },
+  createTagText: { color: appTheme.red, fontSize: 15, fontWeight: '500' },
   newTagForm: { gap: 12 },
-  newTagInput: { borderWidth: 1, borderColor: '#dde2e8', borderRadius: 8, padding: 10, fontSize: 15 },
+  newTagInput: { borderWidth: 1, borderColor: appTheme.border, borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: appTheme.bgElevated, color: appTheme.text },
   colorRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   colorSwatch: { width: 28, height: 28, borderRadius: 14 },
-  colorSwatchSelected: { borderWidth: 3, borderColor: NAVY },
+  colorSwatchSelected: { borderWidth: 3, borderColor: appTheme.white },
   newTagActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
   cancelButton: { paddingHorizontal: 16, paddingVertical: 10, justifyContent: 'center' },
-  cancelButtonText: { color: NAVY, fontSize: 15 },
-  createButton: { backgroundColor: NAVY, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
-  createButtonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  cancelButtonText: { color: appTheme.textMuted, fontSize: 15 },
+  createButton: { backgroundColor: appTheme.red, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  createButtonText: { color: appTheme.white, fontSize: 15, fontWeight: '600' },
 });

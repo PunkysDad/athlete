@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   View,
@@ -9,7 +9,6 @@ import {
   Alert,
   Modal,
   TextInput,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -23,19 +22,13 @@ import {
 } from 'react-native-paper';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
-import { theme, commonStyles } from '../theme';
+import { theme } from '../theme';
+import { appTheme } from '../theme/appTheme';
 import { Exercise, WorkoutData, TagResponse } from '../interfaces/interfaces';
 import FormattedMessage from '../components/FormattedMessage';
 import { RootStackParamList } from '../types/types';
 import { apiService } from '../services/apiService';
 import { getAuth } from 'firebase/auth';
-
-// ─── Brand tokens ────────────────────────────────────────────────────────────
-const NAVY   = '#1a2744';
-const RED    = '#c0392b';
-const SILVER = '#b0bec5';
-const BG     = '#f5f7fa';
-// ─────────────────────────────────────────────────────────────────────────────
 
 export default function WorkoutDisplayScreen() {
   type WorkoutRequestNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -46,7 +39,6 @@ export default function WorkoutDisplayScreen() {
   const [savedToLibrary, setSavedToLibrary] = useState(false);
   const [expandedExercise, setExpandedExercise] = useState<number | null>(null);
 
-  // Tag state
   const [tagModalVisible, setTagModalVisible] = useState(false);
   const [existingTags, setExistingTags] = useState<TagResponse[]>([]);
   const [assignedTagIds, setAssignedTagIds] = useState<Set<number>>(new Set());
@@ -110,8 +102,6 @@ export default function WorkoutDisplayScreen() {
       if (!result.success) { Alert.alert('Error', result.error || 'Failed to create tag.'); return; }
       const newTag = result.data;
       setExistingTags(prev => [...prev, newTag]);
-      // Call the API directly instead of toggleTagAssignment to avoid the stale
-      // assignedTagIds state causing the toggle to go the wrong direction.
       await apiService.addTagToWorkout(userId, Number(workoutData.id), newTag.id);
       setAssignedTagIds(prev => new Set(prev).add(newTag.id));
       setNewTagName('');
@@ -136,11 +126,11 @@ export default function WorkoutDisplayScreen() {
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Add Tags</Text>
-            <IconButton icon="close" size={20} onPress={() => setTagModalVisible(false)} />
+            <IconButton icon="close" size={20} iconColor={appTheme.white} onPress={() => setTagModalVisible(false)} />
           </View>
 
           {tagsLoading ? (
-            <ActivityIndicator style={{ marginVertical: 20 }} color={NAVY} />
+            <ActivityIndicator style={{ marginVertical: 20 }} color={appTheme.red} />
           ) : (
             <>
               {existingTags.length > 0 && (
@@ -162,13 +152,14 @@ export default function WorkoutDisplayScreen() {
                 </View>
               )}
 
-              <Divider style={{ marginVertical: 12 }} />
+              <Divider style={{ marginVertical: 12, backgroundColor: appTheme.border }} />
 
               {showNewTagInput ? (
                 <View style={styles.newTagForm}>
                   <TextInput
                     style={styles.newTagInput}
                     placeholder="Tag name"
+                    placeholderTextColor={appTheme.textMuted}
                     value={newTagName}
                     onChangeText={setNewTagName}
                     maxLength={100}
@@ -184,12 +175,12 @@ export default function WorkoutDisplayScreen() {
                     ))}
                   </View>
                   <View style={styles.newTagActions}>
-                    <Button mode="text" textColor={NAVY} onPress={() => { setShowNewTagInput(false); setNewTagName(''); }}>
+                    <Button mode="text" textColor={appTheme.textMuted} onPress={() => { setShowNewTagInput(false); setNewTagName(''); }}>
                       Cancel
                     </Button>
                     <Button
                       mode="contained"
-                      buttonColor={NAVY}
+                      buttonColor={appTheme.red}
                       onPress={handleCreateAndAssignTag}
                       loading={savingTag}
                       disabled={!newTagName.trim() || savingTag}
@@ -200,14 +191,14 @@ export default function WorkoutDisplayScreen() {
                 </View>
               ) : (
                 <TouchableOpacity style={styles.createTagButton} onPress={() => setShowNewTagInput(true)}>
-                  <Icon name="add" size={18} color={NAVY} />
+                  <Icon name="add" size={18} color={appTheme.red} />
                   <Text style={styles.createTagText}>Create new tag</Text>
                 </TouchableOpacity>
               )}
             </>
           )}
 
-          <Button mode="contained" buttonColor={NAVY} onPress={() => setTagModalVisible(false)} style={{ marginTop: 16 }}>
+          <Button mode="contained" buttonColor={appTheme.red} textColor={appTheme.white} onPress={() => setTagModalVisible(false)} style={{ marginTop: 16 }}>
             Done
           </Button>
         </View>
@@ -221,7 +212,7 @@ export default function WorkoutDisplayScreen() {
         style={styles.tabItem}
         onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'Home' }], index: 0 } }] })}
       >
-        <Icon name="home" size={24} color={SILVER} />
+        <Icon name="home" size={24} color={appTheme.silver} />
         <Text style={styles.tabLabel}>Home</Text>
       </TouchableOpacity>
 
@@ -229,7 +220,7 @@ export default function WorkoutDisplayScreen() {
         style={styles.tabItem}
         onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'Home' }, { name: 'Profile' }], index: 1 } }] })}
       >
-        <Icon name="person" size={24} color={SILVER} />
+        <Icon name="person" size={24} color={appTheme.silver} />
         <Text style={styles.tabLabel}>Profile</Text>
       </TouchableOpacity>
 
@@ -237,7 +228,7 @@ export default function WorkoutDisplayScreen() {
         style={[styles.tabItem, styles.activeTab]}
         onPress={() => navigation.navigate('MainTabs', { screen: 'Workouts' })}
       >
-        <Icon name="fitness-center" size={24} color="#fff" />
+        <Icon name="fitness-center" size={24} color={appTheme.neonGreen} />
         <Text style={[styles.tabLabel, styles.activeTabLabel]}>Workouts</Text>
       </TouchableOpacity>
 
@@ -245,7 +236,7 @@ export default function WorkoutDisplayScreen() {
         style={styles.tabItem}
         onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'Home' }, { name: 'Profile' }, { name: 'Workouts' }, { name: 'Coaching' }], index: 3 } }] })}
       >
-        <Icon name="psychology" size={24} color={SILVER} />
+        <Icon name="psychology" size={24} color={appTheme.silver} />
         <Text style={styles.tabLabel}>Coaching</Text>
       </TouchableOpacity>
     </View>
@@ -291,12 +282,12 @@ export default function WorkoutDisplayScreen() {
                   {exercise.restSeconds && ` • ${Math.floor(exercise.restSeconds / 60)}:${(exercise.restSeconds % 60).toString().padStart(2, '0')} rest`}
                 </Text>
               </View>
-              <Icon name={isExpanded ? 'expand-less' : 'expand-more'} size={24} color={NAVY} />
+              <Icon name={isExpanded ? 'expand-less' : 'expand-more'} size={24} color={appTheme.silver} />
             </View>
             <Text style={styles.exerciseDescription}>{exercise.description}</Text>
             {isExpanded && (
               <View style={styles.expandedContent}>
-                <Divider style={styles.sectionDivider} />
+                <Divider style={[styles.sectionDivider, { backgroundColor: appTheme.border }]} />
                 {exercise.positionBenefit && (
                   <View style={styles.detailSection}>
                     <Text style={styles.detailLabel}>🎯 Position Benefit</Text>
@@ -333,9 +324,8 @@ export default function WorkoutDisplayScreen() {
     <View style={styles.screen}>
       {renderTagModal()}
 
-      {/* Navy header bar */}
       <View style={styles.header}>
-        <IconButton icon="arrow-left" size={24} iconColor="#fff" onPress={() => navigation.goBack()} />
+        <IconButton icon="arrow-left" size={24} iconColor={appTheme.white} onPress={() => navigation.goBack()} />
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle} numberOfLines={1}>{workoutTitle}</Text>
           <Text style={styles.headerSubtitle}>{workoutData.sport} • {workoutData.position}</Text>
@@ -343,18 +333,17 @@ export default function WorkoutDisplayScreen() {
         <IconButton
           icon={savedToLibrary ? 'bookmark' : 'bookmark-outline'}
           size={24}
-          iconColor={savedToLibrary ? RED : 'rgba(255,255,255,0.6)'}
+          iconColor={savedToLibrary ? appTheme.red : 'rgba(255,255,255,0.5)'}
           onPress={handleSaveWorkout}
         />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* Workout Overview */}
         <Card style={styles.overviewCard}>
           <Card.Content>
             <View style={styles.overviewHeader}>
-              <Icon name="fitness-center" size={20} color={NAVY} />
+              <Icon name="fitness-center" size={20} color={appTheme.neonGreen} />
               <Text style={styles.overviewTitle}>Workout Overview</Text>
             </View>
             <Text style={styles.overviewDescription}>{workoutDescription}</Text>
@@ -392,7 +381,6 @@ export default function WorkoutDisplayScreen() {
           </Card.Content>
         </Card>
 
-        {/* Workout Details */}
         <View style={styles.exercisesSection}>
           <Text style={styles.sectionTitle}>Workout Details</Text>
           {workoutData.generatedContent ? (
@@ -400,38 +388,25 @@ export default function WorkoutDisplayScreen() {
           ) : (
             <Card style={styles.placeholderCard}>
               <Card.Content>
-                <Text style={{ textAlign: 'center', color: SILVER }}>Loading workout details...</Text>
+                <Text style={{ textAlign: 'center', color: appTheme.textMuted }}>Loading workout details...</Text>
               </Card.Content>
             </Card>
           )}
         </View>
 
-        {/* Action Buttons */}
         <View style={styles.actionButtons}>
           <Button
             mode="outlined"
             onPress={openTagModal}
             style={styles.outlineButton}
-            textColor={NAVY}
+            textColor={appTheme.red}
             contentStyle={styles.buttonContent}
             icon="tag"
           >
             {assignedTagIds.size > 0 ? `Tags (${assignedTagIds.size})` : 'Add Tag'}
           </Button>
-          <Button
-            mode="contained"
-            onPress={handleSaveWorkout}
-            disabled={savedToLibrary}
-            buttonColor={savedToLibrary ? SILVER : NAVY}
-            style={styles.solidButton}
-            contentStyle={styles.buttonContent}
-            icon={savedToLibrary ? 'check' : 'bookmark-outline'}
-          >
-            {savedToLibrary ? 'Saved to Library' : 'Save to Library'}
-          </Button>
         </View>
 
-        {/* Assigned tags */}
         {assignedTagIds.size > 0 && (
           <View style={styles.assignedTagsRow}>
             {existingTags
@@ -449,7 +424,6 @@ export default function WorkoutDisplayScreen() {
           </View>
         )}
 
-        {/* Metadata */}
         <View style={styles.metadataCard}>
           <Text style={styles.metadataText}>
             Generated on {new Date(workoutData.createdAt).toLocaleDateString()}
@@ -464,120 +438,118 @@ export default function WorkoutDisplayScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: BG },
+  screen: { flex: 1, backgroundColor: appTheme.bg },
 
-  // ── Header ──────────────────────────────────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: NAVY,
+    backgroundColor: appTheme.navyDark,
     paddingTop: 8,
     paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: appTheme.border,
   },
   headerContent: { flex: 1, marginHorizontal: 4 },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: '#fff' },
-  headerSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+  headerTitle: { fontSize: 17, fontWeight: '800', color: appTheme.white },
+  headerSubtitle: { fontSize: 12, color: appTheme.textMuted, marginTop: 2 },
 
-  // ── Content ─────────────────────────────────────────────────────────────────
   content: { flex: 1, padding: 16 },
 
-  // ── Overview card ────────────────────────────────────────────────────────────
   overviewCard: {
-    backgroundColor: '#fff',
+    backgroundColor: appTheme.bgCard,
     borderLeftWidth: 4,
-    borderLeftColor: NAVY,
+    borderLeftColor: appTheme.red,
     borderRadius: 8,
     marginBottom: 16,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: appTheme.border,
   },
   overviewHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  overviewTitle: { marginLeft: 8, fontWeight: '700', fontSize: 15, color: NAVY },
-  overviewDescription: { fontSize: 14, lineHeight: 20, color: '#607d8b', marginBottom: 16 },
+  overviewTitle: { marginLeft: 8, fontWeight: '700', fontSize: 15, color: appTheme.white },
+  overviewDescription: { fontSize: 14, lineHeight: 20, color: appTheme.textMuted, marginBottom: 16 },
 
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: BG,
+    backgroundColor: appTheme.bgElevated,
     borderRadius: 8,
     paddingVertical: 12,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: appTheme.border,
   },
   statItem: { flex: 1, alignItems: 'center' },
-  statDivider: { width: 1, height: 32, backgroundColor: '#dde2e8' },
-  statValue: { fontSize: 22, fontWeight: '800', color: NAVY },
-  statLabel: { fontSize: 12, color: '#607d8b', marginTop: 2 },
+  statDivider: { width: 1, height: 32, backgroundColor: appTheme.border },
+  statValue: { fontSize: 22, fontWeight: '800', color: appTheme.white },
+  statLabel: { fontSize: 12, color: appTheme.textMuted, marginTop: 2 },
 
   focusAreasContainer: { marginTop: 4 },
-  focusAreasLabel: { fontSize: 13, fontWeight: '600', color: NAVY, marginBottom: 6 },
+  focusAreasLabel: { fontSize: 13, fontWeight: '600', color: appTheme.textMuted, marginBottom: 6 },
   focusAreasChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  focusChip: { borderColor: NAVY, backgroundColor: 'transparent', marginBottom: 4 },
-  chipText: { fontSize: 12, color: NAVY },
+  focusChip: { borderColor: appTheme.border, backgroundColor: appTheme.bgElevated, marginBottom: 4 },
+  chipText: { fontSize: 12, color: appTheme.textMuted },
 
-  // ── Exercises ────────────────────────────────────────────────────────────────
   exercisesSection: { marginBottom: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: NAVY, marginBottom: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: appTheme.white, marginBottom: 10 },
   exerciseCard: {
     marginBottom: 8,
-    backgroundColor: '#fff',
+    backgroundColor: appTheme.bgCard,
     borderRadius: 8,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: appTheme.border,
   },
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
   exerciseInfo: { flex: 1 },
-  exerciseName: { fontSize: 15, fontWeight: '600', color: '#2c3e50' },
-  exerciseStats: { fontSize: 13, color: NAVY, marginTop: 2, fontWeight: '500' },
-  exerciseDescription: { fontSize: 13, lineHeight: 18, color: '#607d8b' },
+  exerciseName: { fontSize: 15, fontWeight: '600', color: appTheme.white },
+  exerciseStats: { fontSize: 13, color: appTheme.red, marginTop: 2, fontWeight: '500' },
+  exerciseDescription: { fontSize: 13, lineHeight: 18, color: appTheme.textMuted },
   expandedContent: { marginTop: 8 },
   sectionDivider: { marginBottom: 8 },
   detailSection: { marginBottom: 8 },
-  detailLabel: { fontSize: 13, fontWeight: '600', color: '#2c3e50', marginBottom: 4 },
-  detailText: { fontSize: 13, lineHeight: 18, color: '#607d8b' },
-  coachingCue: { fontStyle: 'italic', color: NAVY },
-  placeholderCard: { backgroundColor: '#fff', borderStyle: 'dashed', borderWidth: 1, borderColor: '#dde2e8' },
+  detailLabel: { fontSize: 13, fontWeight: '600', color: appTheme.text, marginBottom: 4 },
+  detailText: { fontSize: 13, lineHeight: 18, color: appTheme.textMuted },
+  coachingCue: { fontStyle: 'italic', color: appTheme.red },
+  placeholderCard: { backgroundColor: appTheme.bgCard, borderWidth: 1, borderColor: appTheme.border },
 
-  // ── Action buttons ───────────────────────────────────────────────────────────
   actionButtons: { marginTop: 20, gap: 10 },
-  outlineButton: { borderColor: NAVY, borderRadius: 8 },
+  outlineButton: { borderColor: appTheme.red, borderRadius: 8 },
   solidButton: { borderRadius: 8 },
   buttonContent: { paddingVertical: 6 },
 
-  // ── Assigned tags ────────────────────────────────────────────────────────────
   assignedTagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10, paddingHorizontal: 2 },
   assignedTagChip: { marginBottom: 4 },
 
-  // ── Metadata ─────────────────────────────────────────────────────────────────
   metadataCard: { marginTop: 16, marginBottom: 32, paddingHorizontal: 4 },
-  metadataText: { fontSize: 12, color: SILVER, marginBottom: 2 },
+  metadataText: { fontSize: 12, color: appTheme.textMuted, marginBottom: 2 },
 
-  // ── Tab bar ──────────────────────────────────────────────────────────────────
   customTabBar: {
     flexDirection: 'row',
-    backgroundColor: NAVY,
-    borderTopWidth: 0,
+    backgroundColor: appTheme.navyDark,
+    borderTopWidth: 1,
+    borderTopColor: appTheme.border,
     paddingVertical: 8,
     paddingHorizontal: 4,
   },
   tabItem: { flex: 1, alignItems: 'center', paddingVertical: 6 },
   activeTab: {},
-  tabLabel: { fontSize: 12, color: SILVER, marginTop: 4 },
-  activeTabLabel: { color: '#fff', fontWeight: '600' },
+  tabLabel: { fontSize: 12, color: appTheme.silver, marginTop: 4 },
+  activeTabLabel: { color: appTheme.white, fontWeight: '600' },
 
-  // ── Tag modal ────────────────────────────────────────────────────────────────
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContainer: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, maxHeight: '70%' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalContainer: { backgroundColor: appTheme.bgCard, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderColor: appTheme.border, padding: 24, maxHeight: '70%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: NAVY },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: appTheme.white },
   tagList: { gap: 4 },
   tagRow: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 8 },
   tagDot: { width: 12, height: 12, borderRadius: 6, marginRight: 10 },
-  tagRowName: { flex: 1, fontSize: 15, color: '#2c3e50' },
+  tagRowName: { flex: 1, fontSize: 15, color: appTheme.text },
   tagCheck: { marginLeft: 'auto' },
   createTagButton: { flexDirection: 'row', alignItems: 'center', padding: 10, gap: 6 },
-  createTagText: { color: NAVY, fontSize: 15, fontWeight: '500' },
+  createTagText: { color: appTheme.red, fontSize: 15, fontWeight: '500' },
   newTagForm: { gap: 12 },
-  newTagInput: { borderWidth: 1, borderColor: '#dde2e8', borderRadius: 8, padding: 10, fontSize: 15 },
+  newTagInput: { borderWidth: 1, borderColor: appTheme.border, borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: appTheme.bgElevated, color: appTheme.text },
   colorRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
   colorSwatch: { width: 28, height: 28, borderRadius: 14 },
-  colorSwatchSelected: { borderWidth: 3, borderColor: NAVY },
+  colorSwatchSelected: { borderWidth: 3, borderColor: appTheme.white },
   newTagActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
 });

@@ -189,7 +189,7 @@ export default function ProfileEditScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
-            <Icon name="close" size={24} color={appTheme.navy} />
+            <Icon name="close" size={24} color={appTheme.white} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Profile</Text>
           <TouchableOpacity
@@ -261,16 +261,15 @@ export default function ProfileEditScreen() {
 }
 
 const styles = StyleSheet.create({
-  // Header — white surface with navy text, matching site nav pattern
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: theme.spacing.base,
     paddingHorizontal: theme.spacing.base,
-    backgroundColor: appTheme.white,
+    backgroundColor: appTheme.navyDark,
     borderBottomWidth: 1,
-    borderBottomColor: appTheme.gray,
+    borderBottomColor: appTheme.border,
   },
   headerButton: {
     padding: theme.spacing.sm,
@@ -280,43 +279,44 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: appTheme.navy,
+    color: appTheme.white,
   },
   headerAction: {
     fontSize: 15,
     fontWeight: '700',
-    color: appTheme.navy,
+    color: appTheme.red,
   },
 
   content: {
     flex: 1,
     padding: theme.spacing.base,
-    backgroundColor: appTheme.gray,
+    backgroundColor: appTheme.bg,
   },
 
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: appTheme.gray,
+    backgroundColor: appTheme.bg,
   },
   loadingText: {
     marginTop: theme.spacing.sm,
     fontSize: 13,
-    color: appTheme.textLight,
+    color: appTheme.textMuted,
   },
 
-  // Card — white surface on gray background
   card: {
-    backgroundColor: appTheme.white,
+    backgroundColor: appTheme.bgCard,
     borderRadius: theme.borderRadius.base,
     marginBottom: theme.spacing.base,
+    borderWidth: 1,
+    borderColor: appTheme.border,
     ...theme.shadows.sm,
   },
   sectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: appTheme.navy,
+    color: appTheme.white,
     marginBottom: theme.spacing.base,
   },
 
@@ -328,14 +328,14 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.base,
     paddingHorizontal: theme.spacing.sm,
     borderWidth: 1,
-    borderColor: appTheme.silver,
+    borderColor: appTheme.border,
     borderRadius: theme.borderRadius.sm,
     marginBottom: theme.spacing.base,
-    backgroundColor: appTheme.white,
+    backgroundColor: appTheme.bgElevated,
   },
   menuLabel: {
     fontSize: 15,
-    color: appTheme.text,
+    color: appTheme.textMuted,
   },
   menuButtonRight: {
     flexDirection: 'row',
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   },
   menuValue: {
     fontSize: 15,
-    color: appTheme.navy,
+    color: appTheme.white,
     fontWeight: '600',
     marginRight: 2,
   },
@@ -351,13 +351,15 @@ const styles = StyleSheet.create({
   // Modal sheet
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: appTheme.white,
+    backgroundColor: appTheme.bgCard,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
+    borderTopWidth: 1,
+    borderColor: appTheme.border,
     paddingTop: theme.spacing.base,
     paddingBottom: theme.spacing.xl,
     maxHeight: '60%',
@@ -365,11 +367,11 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: appTheme.navy,
+    color: appTheme.white,
     paddingHorizontal: theme.spacing.base,
     paddingBottom: theme.spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: appTheme.gray,
+    borderBottomColor: appTheme.border,
     marginBottom: theme.spacing.sm,
   },
   modalItem: {
@@ -380,29 +382,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.base,
   },
   modalItemSelected: {
-    backgroundColor: appTheme.navy + '10',
+    backgroundColor: appTheme.red + '20',
   },
   modalItemText: {
     fontSize: 15,
     color: appTheme.text,
   },
   modalItemTextSelected: {
-    color: appTheme.navy,
+    color: appTheme.red,
     fontWeight: '700',
   },
 
-  // Danger zone — red left border matching site .warning block style
+  // Danger zone
   dangerCard: {
-    backgroundColor: appTheme.white,
+    backgroundColor: appTheme.bgCard,
     borderRadius: theme.borderRadius.base,
     borderLeftWidth: 4,
     borderLeftColor: appTheme.red,
     marginBottom: theme.spacing.xl,
+    borderWidth: 1,
+    borderColor: appTheme.border,
     ...theme.shadows.sm,
   },
   dangerBody: {
     fontSize: 14,
-    color: appTheme.textLight,
+    color: appTheme.textMuted,
     marginBottom: theme.spacing.base,
     lineHeight: 20,
   },

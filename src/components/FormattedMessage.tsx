@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View, StyleSheet } from 'react-native';
-import { theme } from '../theme';
+import { appTheme } from '../theme/appTheme';
 
 interface FormattedMessageProps {
   text: string;
@@ -11,8 +11,8 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
   const cleanText = (text: string): string => {
     return text
       .trim()
-      .replace(/\n{3,}/g, '\n\n') // Replace 3+ newlines with just 2
-      .replace(/[ \t]+$/gm, '') // Remove trailing spaces/tabs from lines
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/[ \t]+$/gm, '');
   };
 
   const parseMarkdown = (text: string) => {
@@ -23,13 +23,11 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
     lines.forEach((line, lineIndex) => {
       const trimmedLine = line.trim();
 
-      // Handle empty lines
       if (trimmedLine === '') {
         if (elements.length > 0) {
           const lastElement = elements[elements.length - 1];
           const isLastElementLineBreak = React.isValidElement(lastElement) &&
             lastElement.key?.toString().startsWith('space-');
-
           if (!isLastElementLineBreak) {
             elements.push(<View key={`space-${lineIndex}`} style={styles.lineBreak} />);
           }
@@ -37,13 +35,11 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
         return;
       }
 
-      // Horizontal rules (---)
       if (trimmedLine === '---') {
         elements.push(<View key={lineIndex} style={styles.horizontalRule} />);
         return;
       }
 
-      // Headers - check for # at start with space
       if (trimmedLine.match(/^###\s+/)) {
         elements.push(
           <Text key={lineIndex} style={[styles.header3, isUser && styles.userText]}>
@@ -71,7 +67,6 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
         return;
       }
 
-      // Italic text - full line surrounded by single asterisks
       if (trimmedLine.match(/^\*[^*]+\*$/)) {
         const content = trimmedLine.replace(/^\*([^*]+)\*$/, '$1');
         elements.push(
@@ -82,7 +77,6 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
         return;
       }
 
-      // Numbered lists (1. 2. etc.)
       if (trimmedLine.match(/^\d+\.\s/)) {
         const numberMatch = trimmedLine.match(/^(\d+\.)/);
         const content = trimmedLine.replace(/^\d+\.\s+/, '');
@@ -101,7 +95,6 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
         return;
       }
 
-      // Bullet points (- • *)
       if (trimmedLine.match(/^[-•*]\s/)) {
         const content = trimmedLine.replace(/^[-•*]\s+/, '');
         elements.push(
@@ -117,7 +110,6 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
         return;
       }
 
-      // Regular paragraphs with potential bold formatting
       elements.push(
         <View key={lineIndex} style={styles.paragraphContainer}>
           <Text style={[styles.paragraph, isUser && styles.userText]}>
@@ -130,24 +122,17 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
     return elements;
   };
 
-  // New simplified inline text renderer
   const renderInlineText = (text: string): React.ReactNode => {
-    if (!text || typeof text !== 'string') {
-      return text;
-    }
+    if (!text || typeof text !== 'string') return text;
 
-    // Split by ** for bold formatting
     const parts = text.split('**');
     const elements: React.ReactNode[] = [];
 
     parts.forEach((part, index) => {
       if (part === '') return;
-
       if (index % 2 === 0) {
-        // Even indices are regular text
         elements.push(<Text key={index}>{part}</Text>);
       } else {
-        // Odd indices are bold text
         elements.push(
           <Text key={index} style={[styles.bold, isUser && styles.userText]}>
             {part}
@@ -159,65 +144,6 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
     return elements.length > 0 ? elements : text;
   };
 
-  const parseInlineMarkdown = (text: string): React.ReactNode => {
-    if (!text || typeof text !== 'string') {
-      return text;
-    }
-
-    // First handle single asterisks for italic (before bold)
-    let result = text;
-
-    // Handle italic with single asterisks
-    const italicMatches = result.match(/\*([^*]+)\*/g);
-    if (italicMatches) {
-      italicMatches.forEach((match, index) => {
-        const content = match.replace(/\*/g, '');
-        result = result.replace(match, `<ITALIC_${index}>${content}</ITALIC_${index}>`);
-      });
-    }
-
-    // Then handle bold with double asterisks
-    const segments = result.split('**');
-    const parts: React.ReactNode[] = [];
-
-    segments.forEach((segment, index) => {
-      if (segment === '') return;
-
-      // Check for italic markers
-      if (segment.includes('<ITALIC_')) {
-        const italicPattern = /<ITALIC_\d+>(.*?)<\/ITALIC_\d+>/g;
-        const italicSegments = segment.split(italicPattern);
-
-        italicSegments.forEach((italicSeg, italicIndex) => {
-          if (italicIndex % 2 === 0) {
-            parts.push(<Text key={`${index}-${italicIndex}`}>{italicSeg}</Text>);
-          } else {
-            parts.push(
-              <Text key={`${index}-${italicIndex}`} style={[styles.italic, isUser && styles.userText]}>
-                {italicSeg}
-              </Text>
-            );
-          }
-        });
-      } else if (index % 2 === 0) {
-        parts.push(<Text key={index}>{segment}</Text>);
-      } else {
-        parts.push(
-          <Text key={index} style={[styles.bold, isUser && styles.userText]}>
-            {segment}
-          </Text>
-        );
-      }
-    });
-
-    return parts.length > 0 ? parts : text;
-  };
-
-  // Remove the processItalics function since we're simplifying
-  // const processItalics = (text: string, startKey: number) => {
-  //   // Removed for simplicity - focus on bold formatting first
-  // };
-
   return (
     <View style={styles.container}>
       {parseMarkdown(text)}
@@ -226,28 +152,26 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
 };
 
 const styles = StyleSheet.create({
-  container: {
-    // Natural sizing based on content
-  },
+  container: {},
   lineBreak: {
     height: 6,
   },
   header1: {
     fontSize: 18,
-    fontWeight: '700', // Use numeric weight for better cross-platform support
-    color: '#333',
+    fontWeight: '700',
+    color: appTheme.white,
     marginVertical: 6,
   },
   header2: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#333',
+    color: appTheme.white,
     marginVertical: 5,
   },
   header3: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: appTheme.white,
     marginVertical: 4,
   },
   paragraphContainer: {
@@ -255,8 +179,8 @@ const styles = StyleSheet.create({
   },
   paragraph: {
     fontSize: 16,
-    lineHeight: 22, // Better readability
-    color: '#333',
+    lineHeight: 22,
+    color: appTheme.text,
   },
   bulletContainer: {
     flexDirection: 'row',
@@ -265,17 +189,17 @@ const styles = StyleSheet.create({
   },
   bullet: {
     fontSize: 16,
-    color: '#333',
+    color: appTheme.red,
     marginRight: 8,
     marginTop: 2,
     width: 12,
   },
   numberBullet: {
     fontSize: 16,
-    color: '#333',
+    color: appTheme.red,
     marginRight: 8,
     marginTop: 2,
-    minWidth: 24, // Accommodate larger numbers
+    minWidth: 24,
     textAlign: 'left',
   },
   bulletTextContainer: {
@@ -284,20 +208,22 @@ const styles = StyleSheet.create({
   bulletText: {
     fontSize: 16,
     lineHeight: 22,
-    color: '#333',
+    color: appTheme.text,
   },
   bold: {
     fontWeight: '700',
+    color: appTheme.white,
   },
   italic: {
     fontStyle: 'italic',
+    color: appTheme.textMuted,
   },
   userText: {
-    color: '#ffffff',
+    color: appTheme.white,
   },
   horizontalRule: {
     height: 1,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: appTheme.border,
     marginVertical: 12,
     width: '100%',
   },

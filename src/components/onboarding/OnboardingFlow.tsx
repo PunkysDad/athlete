@@ -44,7 +44,7 @@ const SUBSCRIPTION_TIERS = [
       'AI coaching for your position',
       'Position-specific workout plans',
     ],
-    popular: true
+    popular: false
   },
   {
     id: 'PREMIUM',
@@ -57,7 +57,7 @@ const SUBSCRIPTION_TIERS = [
       'SportsIQ tagging system to organize your chats and workouts',
       'Early access to new features'
     ],
-    popular: false
+    popular: true
   }
 ];
 

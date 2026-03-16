@@ -1,41 +1,43 @@
+import { appTheme } from './appTheme';
+
 export const colors = {
-  primary: '#6200EA',
-  primaryDark: '#3700B3',
-  primaryLight: '#BB86FC',
-  secondary: '#03DAC6',
-  secondaryDark: '#018786',
-  
+  primary:      appTheme.red,
+  primaryDark:  appTheme.redDark,
+  primaryLight: '#a78bfa',
+  secondary:    appTheme.silver,
+  secondaryDark: appTheme.textMuted,
+
   // Background colors
-  background: '#f5f5f5',
-  surface: '#FFFFFF',
-  card: '#FFFFFF',
-  
+  background: appTheme.bg,
+  surface:    appTheme.bgCard,
+  card:       appTheme.bgCard,
+
   // Text colors
-  text: '#333333',
-  textSecondary: '#666666',
-  textTertiary: '#888888',
-  textLight: '#FFFFFF',
-  
+  text:          appTheme.text,
+  textSecondary: appTheme.textMuted,
+  textTertiary:  appTheme.textLight,
+  textLight:     appTheme.white,
+
   // Status colors
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  info: '#2196F3',
-  
-  // Performance colors (for stats)
+  success: appTheme.success,
+  warning: appTheme.warning,
+  error:   appTheme.error,
+  info:    '#3b82f6',
+
+  // Performance colors
   performance: {
-    excellent: '#4CAF50',
-    good: '#8BC34A',
-    average: '#FFC107',
-    needsWork: '#FF9800',
-    poor: '#F44336',
+    excellent: '#22c55e',
+    good:      '#84cc16',
+    average:   '#f59e0b',
+    needsWork: '#f97316',
+    poor:      '#e03e2d',
   },
-  
+
   // Border colors
-  border: '#e0e0e0',
-  borderLight: '#f0f0f0',
-  
+  border:      appTheme.border,
+  borderLight: appTheme.borderLight,
+
   // Overlay colors
-  overlay: 'rgba(0, 0, 0, 0.5)',
-  overlayLight: 'rgba(0, 0, 0, 0.2)',
+  overlay:      'rgba(0, 0, 0, 0.7)',
+  overlayLight: 'rgba(0, 0, 0, 0.4)',
 };
