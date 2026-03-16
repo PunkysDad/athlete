@@ -96,9 +96,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
 
         {/* Authentication Section */}
         <View style={styles.authSection}>
-          <Text style={styles.welcomeText}>Welcome to GameIQ</Text>
+          <Text style={styles.welcomeText}>Welcome to SportsIQ</Text>
           <Text style={styles.descriptionText}>
-            Sign in to access AI coaching, position-specific training, and sports IQ challenges.
+            Sign in to access AI coaching and position-specific workout programs.
           </Text>
 
           {/* Apple Sign-In Button */}

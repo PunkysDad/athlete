@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, ActivityIndicator, Text, StyleSheet, TouchableOpacity, Alert, SafeAreaView, StatusBar, Linking } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { PaperProvider } from 'react-native-paper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
-// Using Firebase JS SDK v9+ (current recommended approach)
-import { initializeApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged, signOut, signInWithCredential, OAuthProvider } from 'firebase/auth';
+import { getApps, initializeApp } from 'firebase/app';
+// @ts-ignore: getReactNativePersistence exists in the React Native bundle
+import { initializeAuth, getReactNativePersistence, getAuth, onAuthStateChanged, signOut, signInWithCredential, OAuthProvider } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { revenueCatService } from './src/services/revenueCatService';
 
-// Import screens
 import HomeScreen from './src/screens/HomeScreen';
 import AthleteProfileScreen from './src/screens/AthleteProfileScreen';
 import PerformanceScreen from './src/screens/PerformanceScreen';
@@ -22,251 +22,227 @@ import WorkoutDisplayScreen from './src/screens/WorkoutDisplayScreen';
 
 import { OnboardingFlow } from './src/components/onboarding/OnboardingFlow';
 import { UserService } from './src/services/userService';
-
 import { RootStackParamList } from './src/types/types';
+import { appTheme } from './src/theme/appTheme';
+import { UpgradeProvider } from './src/context/UpgradeContext';
 
-// Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAOuvLI7rp5jPzLVgKk2ckh84UHgO8ZGb8",
-  authDomain: "gameiq-37d8d.firebaseapp.com", 
-  projectId: "gameiq-37d8d",
-  storageBucket: "gameiq-37d8d.firebasestorage.app",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-// Initialize UserService
+let auth: ReturnType<typeof getAuth>;
+try {
+  auth = initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
+} catch {
+  auth = getAuth(app);
+}
+
 const userService = new UserService();
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// Loading screen component
-const LoadingScreen: React.FC = () => {
-  return (
-    <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color="#0066FF" />
-      <Text style={styles.loadingText}>Loading GameIQ...</Text>
-    </View>
-  );
-};
+// ─── Loading Screen ───────────────────────────────────────────────────────────
+const LoadingScreen: React.FC = () => (
+  <View style={styles.loadingContainer}>
+    <ActivityIndicator size="large" color={appTheme.navy} />
+    <Text style={styles.loadingText}>Loading GameIQ...</Text>
+  </View>
+);
 
-// Firebase Apple Sign-In screen using Firebase JS SDK
+// ─── Auth Screen ──────────────────────────────────────────────────────────────
 const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleAppleSignIn = async () => {
     try {
       setIsLoading(true);
-
-      // Check if Apple Authentication is available
       const isAvailable = await AppleAuthentication.isAvailableAsync();
       if (!isAvailable) {
         Alert.alert('Error', 'Apple Sign-In is not available on this device');
         return;
       }
-
-      // Request Apple authentication
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
           AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
           AppleAuthentication.AppleAuthenticationScope.EMAIL,
         ],
       });
-
-      console.log('Apple credential received:', credential.identityToken ? 'Token present' : 'No token');
-
-      // Create Firebase Apple credential using Firebase JS SDK
       const provider = new OAuthProvider('apple.com');
       const firebaseCredential = provider.credential({
         idToken: credential.identityToken!,
         rawNonce: credential.realUserStatus !== undefined ? 'nonce' : undefined,
       });
-
-      // Sign in to Firebase using Firebase JS SDK
       const result = await signInWithCredential(auth, firebaseCredential);
-      console.log('Firebase sign-in successful:', result.user.uid);
-
-      // Call success callback
       onAuthSuccess(result.user);
-
     } catch (error: any) {
-      console.error('Apple Sign-In error:', error);
-      
-      if (error.code === 'ERR_REQUEST_CANCELED') {
-        console.log('User canceled Apple Sign-In');
-        return;
-      }
-      
-      Alert.alert(
-        'Sign-In Error',
-        error.message || 'Failed to sign in with Apple. Please try again.'
-      );
+      if (error.code === 'ERR_REQUEST_CANCELED') return;
+      Alert.alert('Sign-In Error', error.message || 'Failed to sign in with Apple. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDevSignIn = () => {
-    // Keep the mock user option for development
-    const mockUser = {
-      uid: 'dev-user-123',
-      email: 'dev@gameiq.com',
-      displayName: 'Dev User'
-    };
-    onAuthSuccess(mockUser);
+    onAuthSuccess({ uid: 'dev-user-123', email: 'dev@gameiq.com', displayName: 'Dev User' });
   };
 
   return (
-    <View style={styles.signInContainer}>
-      <Text style={styles.appTitle}>GameIQ</Text>
-      <Text style={styles.subtitle}>Master YOUR Position</Text>
-      <Text style={styles.tagline}>Train Smarter with AI</Text>
-      
-      {/* Apple Sign-In Button */}
-      <TouchableOpacity
-        style={styles.appleButton}
-        onPress={handleAppleSignIn}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <ActivityIndicator color="#ffffff" size="small" />
-        ) : (
-          <>
-            <Text style={styles.appleIcon}>🍎</Text>
-            <Text style={styles.appleButtonText}>Continue with Apple</Text>
-          </>
-        )}
-      </TouchableOpacity>
+    <View style={styles.authContainer}>
+      <StatusBar barStyle="light-content" backgroundColor={appTheme.navy} />
+      <SafeAreaView style={styles.authNavSafeArea}>
+        <View style={styles.authNav}>
+          <Text style={styles.authNavLogo}>
+            Sports<Text style={styles.authNavLogoAccent}>IQ</Text>
+          </Text>
+        </View>
+      </SafeAreaView>
 
-      {/* Development Mock Sign-In */}
-      <TouchableOpacity
-        style={styles.devButton}
-        onPress={handleDevSignIn}
-      >
-        <Text style={styles.devButtonText}>Continue as Dev User</Text>
-      </TouchableOpacity>
+      <View style={styles.authHero}>
+        <Text style={styles.authHeroTitle}>Master YOUR Position</Text>
+        <Text style={styles.authHeroSubtitle}>AI-powered sports coaching & IQ training</Text>
+      </View>
 
-      <Text style={styles.termsText}>
-        By continuing, you agree to GameIQ's Terms of Service and Privacy Policy
-      </Text>
+      <View style={styles.authCard}>
+        <TouchableOpacity
+          style={styles.appleButton}
+          onPress={handleAppleSignIn}
+          disabled={isLoading}
+        >
+          {isLoading
+            ? <ActivityIndicator color={appTheme.white} size="small" />
+            : <Text style={styles.appleButtonText}>Continue with Apple</Text>
+          }
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.devButton} onPress={handleDevSignIn}>
+          <Text style={styles.devButtonText}>Continue as Dev User</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.termsText}>
+          By continuing, you agree to GameIQ's{' '}
+          <Text style={styles.termsLink} onPress={() => Linking.openURL('https://sportsiqapp.info/terms.html')}>
+            Terms of Service
+          </Text>
+          {' '}and{' '}
+          <Text style={styles.termsLink} onPress={() => Linking.openURL('https://sportsiqapp.info/privacy.html')}>
+            Privacy Policy
+          </Text>
+        </Text>
+      </View>
+
+      <View style={styles.authFooter}>
+        <Text style={styles.authFooterText}>SportsIQ — Powered by Claude</Text>
+      </View>
     </View>
   );
 };
 
-// Main Tab Navigator (unchanged)
+// ─── Main Tabs ────────────────────────────────────────────────────────────────
 function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: any;
-          
-          switch (route.name) {
-            case 'Home':
-              iconName = 'home';
-              break;
-            case 'Profile':
-              iconName = 'person';
-              break;
-            case 'Workouts':
-              iconName = 'fitness-center';
-              break;
-            case 'Coaching':
-              iconName = 'psychology';
-              break;
-            default:
-              iconName = 'circle';
-          }
-
-          return <Icon name={iconName} size={size} color={color} />;
+        tabBarIcon: ({ color, size }) => {
+          const icons: Record<string, any> = {
+            Home: 'home',
+            Profile: 'person',
+            Workouts: 'fitness-center',
+            Coaching: 'psychology',
+          };
+          return <Icon name={icons[route.name] ?? 'circle'} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#0066FF',
-        tabBarInactiveTintColor: 'gray',
-        headerStyle: { backgroundColor: '#0066FF' },
-        headerTintColor: '#fff',
+        tabBarActiveTintColor: '#ffffff',
+        tabBarInactiveTintColor: '#b0bec5',
+        tabBarStyle: {
+          backgroundColor: '#1a2744',
+          borderTopWidth: 0,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+        headerStyle: { backgroundColor: appTheme.navy },
+        headerTintColor: appTheme.white,
+        headerTitleStyle: { fontWeight: '700' },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Profile" component={AthleteProfileScreen} />
-      <Tab.Screen 
-        name="Workouts" 
-        component={HomeScreen}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            e.preventDefault();
-            navigation.getParent()?.navigate('WorkoutRequest');
-          }
-        })}
+      <Tab.Screen
+        name="Workouts"
+        component={WorkoutRequestScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Icon name="fitness-center" size={size} color={color} />,
+          headerStyle: { backgroundColor: appTheme.navy },
+          headerTintColor: appTheme.white,
+          headerTitleStyle: { fontWeight: '700' },
+          headerTitle: 'Generate Workout',
+        }}
       />
       <Tab.Screen name="Coaching" component={CoachingScreen} />
     </Tab.Navigator>
   );
 }
 
-// Root Stack Navigator (unchanged)
+// ─── Root Stack ───────────────────────────────────────────────────────────────
 function RootStack() {
+  const headerTheme = {
+    headerStyle: { backgroundColor: appTheme.navy },
+    headerTintColor: appTheme.white,
+    headerTitleStyle: { fontWeight: '700' as const },
+  };
   return (
     <Stack.Navigator>
-      <Stack.Screen 
-        name="MainTabs" 
-        component={MainTabs} 
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen 
-        name="EditProfile" 
-        component={EditProfileScreen}
-        options={{
-          title: 'Edit Profile',
-          headerStyle: { backgroundColor: '#0066FF' },
-          headerTintColor: '#fff'
-        }}
-      />
-      <Stack.Screen 
-        name="WorkoutRequest" 
-        component={WorkoutRequestScreen}
-        options={{
-          title: 'Generate Workout',
-          headerStyle: { backgroundColor: '#0066FF' },
-          headerTintColor: '#fff'
-        }}
-      />
-      <Stack.Screen 
-        name="WorkoutDisplay" 
-        component={WorkoutDisplayScreen}
-        options={{
-          title: 'Your Workout',
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile', ...headerTheme }} />
+      <Stack.Screen name="WorkoutDisplay" component={WorkoutDisplayScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
 
+// ─── App Root ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [user, setUser] = useState<any | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
+  const [showSubscription, setShowSubscription] = useState(false);
+  const handleUpgradeSubscription = () => setShowSubscription(true);
 
-  // Move testRevenueCat INSIDE the component so it can access user state
-  const testRevenueCat = async () => {
-    if (!user?.uid) {
-      console.log('❌ No user available for RevenueCat test');
-      return;
+  const handleSubscriptionComplete = async (onboardingData: {
+    sport: string | null;
+    position: string | null;
+    subscriptionTier: string | null;
+    billingCycle: 'monthly';
+  }) => {
+    setShowSubscription(false);
+    if (userProfile && onboardingData.subscriptionTier) {
+      try {
+        await fetch(
+          `${process.env.EXPO_PUBLIC_API_URL}/api/v1/users/${userProfile.id}/subscription`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscriptionTier: onboardingData.subscriptionTier }),
+          }
+        );
+        setUserProfile((prev: any) => ({ ...prev, subscriptionTier: onboardingData.subscriptionTier }));
+      } catch (err) {
+        console.error('Failed to update subscription:', err);
+      }
     }
+  };
 
-    console.log('🔑 Checking environment variables...');
-    console.log('iOS key:', process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS ? 'Present' : 'Missing');
-    console.log('Android key:', process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID ? 'Present' : 'Missing');
-
+  const testRevenueCat = async () => {
+    if (!user?.uid) return;
     try {
-      console.log('🧪 Testing RevenueCat...');
       await revenueCatService.initialize(user.uid);
-      console.log('✅ RevenueCat initialized successfully');
-      
       const packages = await revenueCatService.getAvailablePackages();
       console.log(`📦 Found ${packages.length} packages`);
     } catch (error) {
@@ -274,217 +250,206 @@ export default function App() {
     }
   };
 
-  // Test RevenueCat when user changes
-  useEffect(() => {
-    if (user?.uid) {
-      testRevenueCat();
-    }
-  }, [user]);
+  useEffect(() => { if (user?.uid) testRevenueCat(); }, [user]);
 
   useEffect(() => {
-    // Listen for Firebase authentication state changes
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // User is signed in, check if they exist in our database
         try {
           const existingUser = await userService.checkUserExists(firebaseUser.uid);
-          
-          if (existingUser) {
-            // User exists in database, proceed to main app
-            setUser(firebaseUser);
-            setUserProfile(existingUser);
-            setShowOnboarding(false);
-          } else {
-            // New user, show onboarding
-            setUser(firebaseUser);
-            setUserProfile(null);
-            setShowOnboarding(true);
-          }
-        } catch (error) {
-          console.error('Error checking user:', error);
-          // On error, treat as new user and show onboarding
+          setUser(firebaseUser);
+          setUserProfile(existingUser ?? null);
+          setShowOnboarding(!existingUser);
+        } catch {
+          // Network error — do not treat as new user, do not show onboarding
           setUser(firebaseUser);
           setUserProfile(null);
-          setShowOnboarding(true);
+          setShowOnboarding(false);
         }
       } else {
-        // User is signed out
         setUser(null);
         setUserProfile(null);
         setShowOnboarding(false);
       }
-      
       setInitializing(false);
-      console.log('Auth state changed:', firebaseUser?.uid || 'no user');
     });
-
     return () => unsubscribe();
   }, []);
 
-  // Rest of your component code remains the same...
   const handleAuthSuccess = (authenticatedUser: any) => {
     console.log('Authentication successful for:', authenticatedUser.uid);
   };
 
-  const handleOnboardingComplete = async (onboardingData: { sport: string | null; position: string | null; subscriptionTier: string | null; billingCycle: 'monthly' | 'annual' }) => {
+  const handleOnboardingComplete = async (onboardingData: {
+    sport: string | null;
+    position: string | null;
+    subscriptionTier: string | null;
+    billingCycle: 'monthly' | 'annual';
+  }) => {
     try {
-      console.log('Completing onboarding with data:', onboardingData);
-      
       const userData = {
         email: user.email || '',
         firebaseUid: user.uid,
-        displayName: user.displayName || user.email?.split('@')[0] || 'GameIQ Athlete',
+        displayName: user.displayName || user.email?.split('@')[0] || 'SportsIQ Athlete',
         primarySport: onboardingData.sport?.toUpperCase(),
         primaryPosition: onboardingData.position?.toUpperCase(),
-        subscriptionTier: onboardingData.subscriptionTier,
+        subscriptionTier: onboardingData.subscriptionTier ?? 'TRIAL',
         billingCycle: onboardingData.billingCycle,
-        age: null
+        age: null,
       };
-
-      console.log('Sending user data to backend:', userData);
       const newUser = await userService.createUser(userData);
-      console.log('User created successfully:', newUser);
-      
-      // Update state to exit onboarding
       setUserProfile(newUser);
       setShowOnboarding(false);
-      
-    } catch (error) {
-      console.error('Error completing onboarding:', error);
-      Alert.alert(
-        'Onboarding Error',
-        'Failed to save your profile. Please try again.',
-        [{ text: 'OK' }]
-      );
+    } catch {
+      Alert.alert('Onboarding Error', 'Failed to save your profile. Please try again.', [{ text: 'OK' }]);
     }
   };
 
   const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-      console.log('User signed out');
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
+    try { await signOut(auth); } catch (error) { console.error('Sign out error:', error); }
   };
 
-  // Render logic remains the same
-  if (initializing) {
+  if (initializing) return <PaperProvider><LoadingScreen /></PaperProvider>;
+  if (!user) return <PaperProvider><AuthScreen onAuthSuccess={handleAuthSuccess} /></PaperProvider>;
+  if (showOnboarding) return <PaperProvider><OnboardingFlow user={user} onComplete={handleOnboardingComplete} /></PaperProvider>;
+  if (showSubscription) {
     return (
       <PaperProvider>
-        <LoadingScreen />
-      </PaperProvider>
-    );
-  }
-
-  if (!user) {
-    return (
-      <PaperProvider>
-        <AuthScreen onAuthSuccess={handleAuthSuccess} />
-      </PaperProvider>
-    );
-  }
-
-  if (showOnboarding) {
-    return (
-      <PaperProvider>
-        <OnboardingFlow user={user} onComplete={handleOnboardingComplete} />
+        <OnboardingFlow
+          user={user}
+          onComplete={handleSubscriptionComplete}
+          startAtStep={3}
+        />
       </PaperProvider>
     );
   }
 
   return (
     <PaperProvider>
+      <UpgradeProvider onUpgradePress={handleUpgradeSubscription}>
       <NavigationContainer>
         <RootStack />
       </NavigationContainer>
+    </UpgradeProvider>
     </PaperProvider>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: appTheme.white,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666666',
+    color: appTheme.textLight,
   },
-  signInContainer: {
+  authContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    padding: 24,
+    backgroundColor: appTheme.white,
   },
-  appTitle: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#0066FF',
-    marginBottom: 8,
+  authNavSafeArea: {
+    backgroundColor: appTheme.navy,
   },
-  subtitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  tagline: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 40,
-  },
-  appleButton: {
+  authNav: {
+    backgroundColor: appTheme.navy,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+  },
+  authNavLogo: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: appTheme.white,
+  },
+  authNavLogoAccent: {
+    color: appTheme.silver,
+  },
+  authHero: {
+    backgroundColor: appTheme.navy,
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  authHeroTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: appTheme.white,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  authHeroSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+  },
+  authCard: {
+    flex: 1,
+    paddingHorizontal: 32,
+    paddingTop: 48,
+    alignItems: 'center',
+    backgroundColor: appTheme.gray,
+  },
+  appleButton: {
     backgroundColor: '#000000',
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 24,
     width: '100%',
-    maxWidth: 300,
+    maxWidth: 320,
+    alignItems: 'center',
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.12,
     shadowRadius: 4,
     elevation: 3,
   },
-  appleIcon: {
-    fontSize: 20,
-    marginRight: 12,
-  },
   appleButtonText: {
-    color: '#ffffff',
+    color: appTheme.white,
     fontSize: 16,
     fontWeight: '600',
   },
   devButton: {
     borderWidth: 2,
-    borderColor: '#0066FF',
+    borderColor: appTheme.navy,
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 24,
     width: '100%',
-    maxWidth: 300,
-    marginBottom: 24,
+    maxWidth: 320,
     alignItems: 'center',
+    marginBottom: 24,
   },
   devButtonText: {
-    color: '#0066FF',
+    color: appTheme.navy,
     fontSize: 16,
     fontWeight: '600',
   },
   termsText: {
     fontSize: 12,
-    color: '#999',
+    color: appTheme.textLight,
     textAlign: 'center',
-    lineHeight: 16,
-    paddingHorizontal: 20,
+    lineHeight: 18,
+    paddingHorizontal: 16,
+  },
+  termsLink: {
+    color: appTheme.navy,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  authFooter: {
+    backgroundColor: appTheme.navyDark,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  authFooterText: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.4)',
   },
 });

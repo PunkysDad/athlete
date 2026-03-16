@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { getAuth } from 'firebase/auth';
 import {
   View,
   Text,
@@ -20,86 +22,135 @@ import {
 } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
+import { appTheme } from '../theme/appTheme';
 import { theme, commonStyles } from '../theme';
 import { workoutApiService } from '../services/workoutApiService';
+import { UserService } from '../services/userService';
 import { WorkoutData, WorkoutRequest } from '../interfaces/interfaces';
 import { RootStackParamList } from '../types/types';
-
-// Equipment options by category
-const EQUIPMENT_OPTIONS = {
-  'Basic': ['Body weight only', 'Resistance bands', 'Dumbbells'],
-  'Gym Access': ['Full gym', 'Barbells', 'Cable machine', 'Leg press'],
-  'Sport Specific': ['Agility ladder', 'Cones', 'Medicine ball', 'Plyometric box'],
-  'Field/Court': ['Track access', 'Field access', 'Court access']
-};
-
-// Training focus options by position type
-const FOCUS_OPTIONS = {
-  'Strength': ['Upper body power', 'Lower body power', 'Core stability', 'Functional strength'],
-  'Speed/Agility': ['Linear speed', 'Change of direction', 'First step quickness', 'Reaction time'],
-  'Conditioning': ['Aerobic base', 'Anaerobic power', 'Sport-specific endurance', 'Recovery'],
-  'Injury Prevention': ['Joint mobility', 'Muscle imbalances', 'Movement quality', 'Prehab exercises']
-};
-
-// Mock user data (in production, get from auth context)
-const mockUser = {
-  sport: 'Football',
-  position: 'Wide Receiver'
-};
+import TrialLimitModal from '../components/TrialLimitModal';
+import { useUpgrade } from '../context/UpgradeContext';
 
 type WorkoutRequestNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+const EQUIPMENT_OPTIONS = {
+  'Basic':          ['Body weight only', 'Resistance bands', 'Dumbbells'],
+  'Gym Access':     ['Full gym', 'Barbells', 'Cable machine', 'Leg press'],
+  'Sport Specific': ['Agility ladder', 'Cones', 'Medicine ball', 'Plyometric box'],
+  'Field/Court':    ['Track access', 'Field access', 'Court access'],
+};
+
+const FOCUS_OPTIONS = {
+  'Strength':          ['Upper body power', 'Lower body power', 'Core stability', 'Functional strength'],
+  'Speed/Agility':     ['Linear speed', 'Change of direction', 'First step quickness', 'Reaction time'],
+  'Conditioning':      ['Aerobic base', 'Anaerobic power', 'Sport-specific endurance', 'Recovery'],
+  'Injury Prevention': ['Joint mobility', 'Muscle imbalances', 'Movement quality', 'Prehab exercises'],
+};
+
+const ENUM_SPORT_MAP: Record<string, string> = {
+  FOOTBALL: 'Football', BASKETBALL: 'Basketball', BASEBALL: 'Baseball',
+  SOCCER: 'Soccer', HOCKEY: 'Hockey',
+};
+const ENUM_POSITION_MAP: Record<string, string> = {
+  QB: 'QB', RB: 'RB', WR: 'WR', OL: 'OL', TE: 'TE', LB: 'LB', DB: 'DB', DL: 'DL',
+  PG: 'PG', SG: 'SG', SF: 'SF', PF: 'PF', C: 'C',
+  PITCHER: 'Pitcher', CATCHER: 'Catcher', INFIELD: 'Infield', OUTFIELD: 'Outfield',
+  GOALKEEPER: 'Goalkeeper', DEFENDER: 'Defender', MIDFIELDER: 'Midfielder', FORWARD: 'Forward',
+  CENTER: 'Center', WINGER: 'Winger', DEFENSEMAN: 'Defenseman', GOALIE: 'Goalie',
+};
+
 export default function WorkoutRequestScreen() {
   const navigation = useNavigation<WorkoutRequestNavigationProp>();
+  const userService = new UserService();
 
-  // Form state
+  const [userSport, setUserSport] = useState('');
+  const [userPosition, setUserPosition] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+
   const [formData, setFormData] = useState<WorkoutRequest>({
-    sport: mockUser.sport,
-    position: mockUser.position,
+    sport: '',
+    position: '',
     experienceLevel: 'intermediate',
     trainingPhase: 'off-season',
     equipment: [],
     timeAvailable: 60,
     trainingFocus: [],
-    specialRequests: ''
+    specialRequests: '',
   });
 
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [trialLimitVisible, setTrialLimitVisible] = useState(false);
+  const { onUpgradePress } = useUpgrade();
 
-  // Validation
+  useFocusEffect(
+    useCallback(() => {
+      const loadUserProfile = async () => {
+        setProfileLoading(true);
+        try {
+          const firebaseUser = getAuth().currentUser;
+          if (!firebaseUser) return;
+          const userData = await userService.checkUserExists(firebaseUser.uid);
+          if (userData) {
+            const displaySport = ENUM_SPORT_MAP[userData.primarySport] ?? userData.primarySport ?? '';
+            const displayPosition = ENUM_POSITION_MAP[userData.primaryPosition] ?? userData.primaryPosition ?? '';
+            setCurrentUserId(userData.id);
+            setUserSport(displaySport);
+            setUserPosition(displayPosition);
+            setFormData(prev => ({ ...prev, sport: displaySport, position: displayPosition }));
+          }
+        } catch (err) {
+          console.error('Failed to load user profile:', err);
+        } finally {
+          setProfileLoading(false);
+        }
+      };
+      loadUserProfile();
+    }, [])
+  );
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-
-    if (formData.equipment.length === 0) {
-      newErrors.equipment = 'Please select at least one equipment option';
-    }
-
-    if (formData.trainingFocus.length === 0) {
-      newErrors.trainingFocus = 'Please select at least one training focus';
-    }
-
-    if (formData.timeAvailable < 15) {
-      newErrors.timeAvailable = 'Minimum workout time is 15 minutes';
-    }
-
+    if (formData.equipment.length === 0) newErrors.equipment = 'Please select at least one equipment option';
+    if (formData.trainingFocus.length === 0) newErrors.trainingFocus = 'Please select at least one training focus';
+    if (formData.timeAvailable < 15) newErrors.timeAvailable = 'Minimum workout time is 15 minutes';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Submit workout request
   const handleSubmitRequest = async () => {
     if (!validateForm()) {
       Alert.alert('Form Error', 'Please fix the highlighted fields');
       return;
     }
-
+    let resolvedUserId = currentUserId;
+    if (!resolvedUserId) {
+      try {
+        const firebaseUser = getAuth().currentUser;
+        if (!firebaseUser) throw new Error('Not authenticated');
+        const userResponse = await fetch(
+          `${process.env.EXPO_PUBLIC_API_URL}/api/v1/users/firebase/${firebaseUser.uid}`
+        );
+        const userData = await userResponse.json();
+        resolvedUserId = userData.id;
+        setCurrentUserId(resolvedUserId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '';
+        if (
+          message.includes('Trial') || message.includes('trial') ||
+          message.includes('limit reached') || message.includes('budget reached') ||
+          message.includes('subscription')
+        ) {
+          setTrialLimitVisible(true);
+        } else {
+          Alert.alert('Error', message || 'Failed to generate workout. Please try again.');
+        }
+      }
+    }
     setIsLoading(true);
-
     try {
-      // Call API endpoint
-      const response = await workoutApiService.generateWorkout(formData);
-
+      const response = await workoutApiService.generateWorkout(formData, resolvedUserId!);
       if (response.success && response.data) {
         const workoutData: WorkoutData = {
           ...response.data,
@@ -111,215 +162,66 @@ export default function WorkoutRequestScreen() {
           `Your ${formData.position} workout is ready. Duration: ${response.data.estimatedDuration} minutes`,
           [
             { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'View Workout',
-              onPress: () => {
-                navigation.navigate('WorkoutDisplay', { workoutData });
-              }
-            }
+            { text: 'View Workout', onPress: () => navigation.navigate('WorkoutDisplay', { workoutData }) },
           ]
         );
       } else {
         throw new Error(response.error || 'Failed to generate workout');
       }
-
     } catch (error) {
-      console.error('Workout generation error:', error);
-      Alert.alert(
-        'Error',
-        error instanceof Error ? error.message : 'Failed to generate workout. Please try again.',
-        [{ text: 'OK' }]
-      );
+      const message = error instanceof Error ? error.message : '';
+      if (
+        message.includes('Trial') || message.includes('trial') ||
+        message.includes('limit reached') || message.includes('budget reached') ||
+        message.includes('subscription')
+      ) {
+        setTrialLimitVisible(true);
+      } else {
+        Alert.alert('Error', message || 'Failed to generate workout. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Add this function after handleSubmitRequest
-  const handleMockWorkout = () => {
-    const mockWorkoutData: WorkoutData = {
-      id: "mock-18",
-      title: "60-MINUTE PRE-SEASON WR WORKOUT",
-      description: "Position-specific training for Wide Receiver in Football",
-      estimatedDuration: 60,
-      exercises: [],
-      focusAreas: ["Core stability", "Reaction time", "Aerobic base"],
-      createdAt: new Date().toISOString(),
-      sport: "Football",
-      position: "Wide Receiver",
-      generatedContent: `# 60-MINUTE PRE-SEASON WR WORKOUT
-      **Focus: Core Stability, Reaction Time & Aerobic Base**
-
-      ---
-
-      ## WARM-UP (10 minutes)
-
-      **Dynamic Movement Prep**
-      - High knees: 20 yards
-      - Butt kicks: 20 yards  
-      - Leg swings (forward/back): 10 each leg
-      - Leg swings (side-to-side): 10 each leg
-      - Walking lunges with rotation: 10 each leg
-      - Arm circles: 10 forward, 10 backward
-
-      **Coaching Cue:** Focus on controlled movements and gradually increasing range of motion. This prepares your hips and shoulders for explosive WR movements.
-
-      ---
-
-      ## CORE STABILITY CIRCUIT (15 minutes)
-      *3 rounds, 45 seconds work / 15 seconds rest*
-
-      ### Round 1-3:
-      1. **Plank to Pike with Medicine Ball**
-        - Hold plank, roll ball toward feet, pike up
-        - **WR Benefit:** Builds core strength for body control during contested catches
-
-      2. **Single-Leg Glute Bridge Hold**
-        - 45 seconds each leg per round
-        - **WR Benefit:** Hip stability for cutting and route running
-
-      3. **Dead Bug with Opposite Reach**
-        - Slow, controlled movement
-        - **WR Benefit:** Core stability while tracking ball overhead
-
-      4. **Medicine Ball Russian Twists**
-        - Keep feet elevated, rotate side to side
-        - **WR Benefit:** Rotational power for breaking tackles after catch
-
-      **Rest:** 60 seconds between rounds
-
-      ---
-
-      ## REACTION TIME & AGILITY (20 minutes)
-
-      ### Cone Drill Circuit (12 minutes)
-      *4 rounds, 2 minutes work / 1 minute rest*
-
-      **Station Rotation (30 seconds each):**
-
-      1. **5-10-5 Shuttle**
-        - Sprint 5 yards right, 10 yards left, 5 yards right
-        - **Coaching Cue:** Stay low, plant and drive off outside foot
-
-      2. **Four-Corner Reaction Drill**
-        - Set 4 cones in square (5 yards apart)
-        - Partner calls out numbers, sprint to that cone
-        - **WR Benefit:** Develops reaction to QB audibles and defensive shifts
-
-      3. **W-Pattern Cuts**
-        - Set 5 cones in W formation, sprint pattern focusing on sharp cuts
-        - **Coaching Cue:** Sink hips on cuts, maintain speed through breaks
-
-      4. **Box Drill with Plyometric Box**
-        - Step up, over, down, around box continuously
-        - **WR Benefit:** Foot speed and coordination for route adjustments
-
-      ### Medicine Ball Reaction Drills (8 minutes)
-      *2 rounds, 3 minutes work / 1 minute rest*
-
-      1. **Partner Ball Drop** (90 seconds)
-        - Partner drops ball from chest height, catch before second bounce
-        - **WR Benefit:** Hand-eye coordination and reaction time
-
-      2. **Wall Ball Catch** (90 seconds)
-        - Throw ball at wall, catch on return at different angles
-        - **WR Benefit:** Tracking and catching balls from various trajectories
-
-      ---
-
-      ## AEROBIC BASE CONDITIONING (12 minutes)
-
-      ### Field Running Circuit
-      *3 rounds, 3 minutes work / 1 minute rest*
-
-      **Round Structure:**
-      - **Minutes 1-2:** Tempo runs at 75% effort (full field length)
-      - **Minute 3:** Route running at game speed
-        - Out routes, comebacks, slants, posts
-        - Focus on precise footwork and acceleration
-
-      **Coaching Cues:**
-      - Maintain consistent pace during tempo runs
-      - Full speed on route breaks, controlled speed between
-      - **WR Benefit:** Builds cardiovascular base needed for 60+ plays per game
-
-      ---
-
-      ## COOL DOWN (3 minutes)
-
-      **Static Stretching:**
-      - Hamstring stretch: 30 seconds each leg
-      - Hip flexor stretch: 30 seconds each leg  
-      - Shoulder cross-body stretch: 20 seconds each arm
-      - Calf stretch: 20 seconds each leg
-
-      ---
-
-      ## INJURY PREVENTION NOTES
-
-      - Focus on proper landing mechanics during plyometric exercises
-      - Maintain core engagement throughout all movements
-      - Stop immediately if you experience any joint pain
-      - Hydrate adequately and listen to your body`
-    };
-
-    console.log('Mock workout data:', mockWorkoutData);
-    navigation.navigate('WorkoutDisplay', { workoutData: mockWorkoutData });
-  };
-
-  // Equipment selection
-  const toggleEquipment = (equipment: string) => {
-    const current = formData.equipment;
-    const updated = current.includes(equipment)
-      ? current.filter(item => item !== equipment)
-      : [...current, equipment];
-
+  const toggleEquipment = (item: string) => {
+    const updated = formData.equipment.includes(item)
+      ? formData.equipment.filter(e => e !== item)
+      : [...formData.equipment, item];
     setFormData({ ...formData, equipment: updated });
-
-    if (errors.equipment) {
-      setErrors({ ...errors, equipment: '' });
-    }
+    if (errors.equipment) setErrors({ ...errors, equipment: '' });
   };
 
-  // Focus selection
-  const toggleFocus = (focus: string) => {
-    const current = formData.trainingFocus;
-    const updated = current.includes(focus)
-      ? current.filter(item => item !== focus)
-      : [...current, focus];
-
+  const toggleFocus = (item: string) => {
+    const updated = formData.trainingFocus.includes(item)
+      ? formData.trainingFocus.filter(f => f !== item)
+      : [...formData.trainingFocus, item];
     setFormData({ ...formData, trainingFocus: updated });
-
-    if (errors.trainingFocus) {
-      setErrors({ ...errors, trainingFocus: '' });
-    }
+    if (errors.trainingFocus) setErrors({ ...errors, trainingFocus: '' });
   };
 
   const renderEquipmentSection = () => (
-    <Card style={[commonStyles.card, errors.equipment && styles.errorCard]}>
+    <Card style={[styles.card, errors.equipment && styles.errorCard]}>
       <Card.Content>
-        <Text style={commonStyles.heading3}>Available Equipment</Text>
-        {errors.equipment && (
-          <Text style={styles.errorText}>{errors.equipment}</Text>
-        )}
-
+        <Text style={styles.sectionTitle}>Available Equipment</Text>
+        {errors.equipment && <Text style={styles.errorText}>{errors.equipment}</Text>}
         {Object.entries(EQUIPMENT_OPTIONS).map(([category, items]) => (
-          <View key={category} style={styles.equipmentCategory}>
-            <Text style={[commonStyles.body, styles.categoryLabel]}>{category}</Text>
-            {items.map((equipment) => (
-              <View key={equipment} style={styles.checkboxRow}>
+          <View key={category} style={styles.optionGroup}>
+            <Text style={styles.categoryLabel}>{category}</Text>
+            {items.map(item => (
+              <TouchableOpacity
+                key={item}
+                style={styles.checkboxRow}
+                onPress={() => toggleEquipment(item)}
+                activeOpacity={0.7}
+              >
                 <Checkbox
-                  status={formData.equipment.includes(equipment) ? 'checked' : 'unchecked'}
-                  onPress={() => toggleEquipment(equipment)}
-                  color={theme.colors.primary}
+                  status={formData.equipment.includes(item) ? 'checked' : 'unchecked'}
+                  onPress={() => toggleEquipment(item)}
+                  color={appTheme.red}
                 />
-                <Text
-                  style={[commonStyles.body, styles.checkboxLabel]}
-                  onPress={() => toggleEquipment(equipment)}
-                >
-                  {equipment}
-                </Text>
-              </View>
+                <Text style={styles.optionLabel}>{item}</Text>
+              </TouchableOpacity>
             ))}
           </View>
         ))}
@@ -328,32 +230,25 @@ export default function WorkoutRequestScreen() {
   );
 
   const renderFocusSection = () => (
-    <Card style={[commonStyles.card, errors.trainingFocus && styles.errorCard]}>
+    <Card style={[styles.card, errors.trainingFocus && styles.errorCard]}>
       <Card.Content>
-        <Text style={commonStyles.heading3}>Training Focus</Text>
-        {errors.trainingFocus && (
-          <Text style={styles.errorText}>{errors.trainingFocus}</Text>
-        )}
-
+        <Text style={styles.sectionTitle}>Training Focus</Text>
+        {errors.trainingFocus && <Text style={styles.errorText}>{errors.trainingFocus}</Text>}
         {Object.entries(FOCUS_OPTIONS).map(([category, items]) => (
-          <View key={category} style={styles.focusCategory}>
-            <Text style={[commonStyles.body, styles.categoryLabel]}>{category}</Text>
+          <View key={category} style={styles.optionGroup}>
+            <Text style={styles.categoryLabel}>{category}</Text>
             <View style={styles.chipContainer}>
-              {items.map((focus) => (
+              {items.map(item => (
                 <Chip
-                  key={focus}
-                  mode={formData.trainingFocus.includes(focus) ? 'flat' : 'outlined'}
-                  selected={formData.trainingFocus.includes(focus)}
-                  onPress={() => toggleFocus(focus)}
-                  style={[
-                    styles.focusChip,
-                    formData.trainingFocus.includes(focus) && {
-                      backgroundColor: theme.colors.primary + '20'
-                    }
-                  ]}
-                  textStyle={{ fontSize: 12 }}
+                  key={item}
+                  mode={formData.trainingFocus.includes(item) ? 'flat' : 'outlined'}
+                  selected={formData.trainingFocus.includes(item)}
+                  onPress={() => toggleFocus(item)}
+                  style={[styles.chip, formData.trainingFocus.includes(item) && styles.chipSelected]}
+                  selectedColor={appTheme.red}
+                  textStyle={{ fontSize: 12, color: formData.trainingFocus.includes(item) ? appTheme.white : appTheme.textMuted }}
                 >
-                  {focus}
+                  {item}
                 </Chip>
               ))}
             </View>
@@ -365,129 +260,135 @@ export default function WorkoutRequestScreen() {
 
   return (
     <View style={commonStyles.container}>
-      {/* Header */}
+      <TrialLimitModal
+        visible={trialLimitVisible}
+        limitType="workout"
+        onDismiss={() => setTrialLimitVisible(false)}
+        onUpgrade={() => {
+          setTrialLimitVisible(false);
+          onUpgradePress();
+        }}
+      />
+
       <View style={styles.header}>
-        <Icon name="fitness-center" size={24} color={theme.colors.primary} />
-        <Text style={[commonStyles.heading2, styles.headerText]}>Generate Workout</Text>
+        <Icon name="fitness-center" size={22} color={appTheme.neonGreen} />
+        <Text style={styles.headerTitle}>Generate Workout</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Position Info Card */}
-        <Card style={commonStyles.card}>
+
+        <Card style={styles.card}>
           <Card.Content>
             <View style={commonStyles.rowBetween}>
               <View>
-                <Text style={commonStyles.heading3}>Training For</Text>
-                <Text style={[commonStyles.body, { marginTop: theme.spacing.xs }]}>
-                  {formData.sport} • {formData.position}
-                </Text>
+                <Text style={styles.sectionTitle}>Training For</Text>
+                {profileLoading ? (
+                  <ActivityIndicator size="small" color={appTheme.red} style={{ marginTop: 4 }} />
+                ) : (
+                  <Text style={styles.trainingForText}>
+                    {userSport || '—'} • {userPosition || '—'}
+                  </Text>
+                )}
               </View>
-              <Icon name="sports-football" size={32} color={theme.colors.primary} />
+              <Icon name="sports" size={32} color={appTheme.neonGreen} />
             </View>
           </Card.Content>
         </Card>
 
-        {/* Experience & Phase */}
-        <Card style={commonStyles.card}>
+        <Card style={styles.card}>
           <Card.Content>
-            <Text style={commonStyles.heading3}>Experience Level</Text>
+            <Text style={styles.sectionTitle}>Experience Level</Text>
             <RadioButton.Group
-              onValueChange={(value) => setFormData({ ...formData, experienceLevel: value as any })}
+              onValueChange={(v) => setFormData({ ...formData, experienceLevel: v as any })}
               value={formData.experienceLevel}
             >
               {[
-                { value: 'beginner', label: 'Beginner (0-1 years)' },
-                { value: 'intermediate', label: 'Intermediate (2-4 years)' },
-                { value: 'advanced', label: 'Advanced (5+ years)' }
-              ].map(option => (
+                { value: 'beginner',     label: 'Beginner (0–1 years)' },
+                { value: 'intermediate', label: 'Intermediate (2–4 years)' },
+                { value: 'advanced',     label: 'Advanced (5+ years)' },
+              ].map(opt => (
                 <TouchableOpacity
-                  key={option.value}
+                  key={opt.value}
                   style={styles.radioRow}
-                  onPress={() => setFormData({ ...formData, experienceLevel: option.value as any })}
+                  onPress={() => setFormData({ ...formData, experienceLevel: opt.value as any })}
                   activeOpacity={0.7}
                 >
-                  <RadioButton value={option.value} color={theme.colors.primary} />
-                  <Text style={[commonStyles.body, styles.radioLabel]}>{option.label}</Text>
+                  <RadioButton value={opt.value} color={appTheme.red} />
+                  <Text style={styles.optionLabel}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
             </RadioButton.Group>
 
             <Divider style={styles.divider} />
 
-            <Text style={commonStyles.heading3}>Training Phase</Text>
+            <Text style={styles.sectionTitle}>Training Phase</Text>
             <RadioButton.Group
-              onValueChange={(value) => setFormData({ ...formData, trainingPhase: value as any })}
+              onValueChange={(v) => setFormData({ ...formData, trainingPhase: v as any })}
               value={formData.trainingPhase}
             >
               {[
-                { value: 'off-season', label: 'Off-season (Skill building)' },
-                { value: 'pre-season', label: 'Pre-season (Peak preparation)' },
-                { value: 'in-season', label: 'In-season (Maintenance)' },
-                { value: 'post-season', label: 'Post-season (Recovery)' }
-              ].map(option => (
+                { value: 'off-season',  label: 'Off-season (Skill building)' },
+                { value: 'pre-season',  label: 'Pre-season (Peak preparation)' },
+                { value: 'in-season',   label: 'In-season (Maintenance)' },
+                { value: 'post-season', label: 'Post-season (Recovery)' },
+              ].map(opt => (
                 <TouchableOpacity
-                  key={option.value}
+                  key={opt.value}
                   style={styles.radioRow}
-                  onPress={() => setFormData({ ...formData, trainingPhase: option.value as any })}
+                  onPress={() => setFormData({ ...formData, trainingPhase: opt.value as any })}
                   activeOpacity={0.7}
                 >
-                  <RadioButton value={option.value} color={theme.colors.primary} />
-                  <Text style={[commonStyles.body, styles.radioLabel]}>{option.label}</Text>
+                  <RadioButton value={opt.value} color={appTheme.red} />
+                  <Text style={styles.optionLabel}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
             </RadioButton.Group>
           </Card.Content>
         </Card>
 
-        {/* Time Available */}
-        <Card style={[commonStyles.card, errors.timeAvailable && styles.errorCard]}>
+        <Card style={[styles.card, errors.timeAvailable && styles.errorCard]}>
           <Card.Content>
-            <Text style={commonStyles.heading3}>Time Available (minutes)</Text>
-            {errors.timeAvailable && (
-              <Text style={styles.errorText}>{errors.timeAvailable}</Text>
-            )}
+            <Text style={styles.sectionTitle}>Time Available (minutes)</Text>
+            {errors.timeAvailable && <Text style={styles.errorText}>{errors.timeAvailable}</Text>}
             <TextInput
               mode="outlined"
               value={formData.timeAvailable.toString()}
               onChangeText={(text) => {
                 const minutes = parseInt(text) || 0;
                 setFormData({ ...formData, timeAvailable: minutes });
-                if (errors.timeAvailable && minutes >= 15) {
-                  setErrors({ ...errors, timeAvailable: '' });
-                }
+                if (errors.timeAvailable && minutes >= 15) setErrors({ ...errors, timeAvailable: '' });
               }}
               keyboardType="numeric"
               placeholder="e.g., 60"
-              style={styles.timeInput}
-              outlineColor={theme.colors.border}
-              activeOutlineColor={theme.colors.primary}
+              style={styles.textInput}
+              outlineColor={appTheme.border}
+              activeOutlineColor={appTheme.red}
+              textColor={appTheme.text}
+              placeholderTextColor={appTheme.textMuted}
             />
-            <View style={styles.timePresets}>
-              {[30, 45, 60, 90].map(time => (
+            <View style={styles.chipContainer}>
+              {[30, 45, 60, 90].map(t => (
                 <Chip
-                  key={time}
-                  mode={formData.timeAvailable === time ? 'flat' : 'outlined'}
-                  onPress={() => setFormData({ ...formData, timeAvailable: time })}
-                  style={styles.timeChip}
-                  textStyle={{ fontSize: 12 }}
+                  key={t}
+                  mode={formData.timeAvailable === t ? 'flat' : 'outlined'}
+                  onPress={() => setFormData({ ...formData, timeAvailable: t })}
+                  style={[styles.chip, formData.timeAvailable === t && styles.chipSelected]}
+                  selectedColor={appTheme.red}
+                  textStyle={{ fontSize: 12, color: formData.timeAvailable === t ? appTheme.white : appTheme.textMuted }}
                 >
-                  {time}min
+                  {t}min
                 </Chip>
               ))}
             </View>
           </Card.Content>
         </Card>
 
-        {/* Equipment Selection */}
         {renderEquipmentSection()}
-
-        {/* Training Focus */}
         {renderFocusSection()}
 
-        {/* Special Requests */}
-        <Card style={commonStyles.card}>
+        <Card style={styles.card}>
           <Card.Content>
-            <Text style={commonStyles.heading3}>Special Requests (Optional)</Text>
+            <Text style={styles.sectionTitle}>Special Requests (Optional)</Text>
             <TextInput
               mode="outlined"
               value={formData.specialRequests}
@@ -495,56 +396,39 @@ export default function WorkoutRequestScreen() {
               placeholder="Any specific needs, injuries to work around, or goals?"
               multiline
               numberOfLines={3}
-              style={styles.specialRequestsInput}
-              outlineColor={theme.colors.border}
-              activeOutlineColor={theme.colors.primary}
+              style={styles.textInput}
+              outlineColor={appTheme.border}
+              activeOutlineColor={appTheme.red}
+              textColor={appTheme.text}
+              placeholderTextColor={appTheme.textMuted}
             />
           </Card.Content>
         </Card>
 
-        {/* Generate Button */}
         <Button
           mode="contained"
           onPress={handleSubmitRequest}
           loading={isLoading}
           disabled={isLoading}
           style={styles.generateButton}
-          buttonColor={theme.colors.primary}
-          contentStyle={styles.generateButtonContent}
+          buttonColor={appTheme.red}
+          contentStyle={styles.buttonContent}
         >
-          {isLoading ? (
-            <View style={styles.loadingContent}>
-              <ActivityIndicator size="small" color="white" />
-              <Text style={styles.loadingText}>Generating workout...</Text>
-            </View>
-          ) : (
-            'Generate My Workout'
-          )}
+          {isLoading ? 'Generating workout...' : 'Generate My Workout'}
         </Button>
 
-        {/* Add Mock Button for Testing */}
-        <Button
-          mode="outlined"
-          onPress={handleMockWorkout}
-          style={[styles.generateButton, styles.mockButton]}
-          textColor={theme.colors.primary}
-          contentStyle={styles.generateButtonContent}
-        >
-          Use Mock Data (Testing)
-        </Button>
-
-        {/* Cost Info */}
-        <Card style={[commonStyles.card, styles.costCard]}>
+        <Card style={styles.costCard}>
           <Card.Content>
-            <View style={styles.costInfo}>
-              <Icon name="info" size={16} color={theme.colors.primary} />
-              <Text style={[commonStyles.caption, styles.costText]}>
-                AI-generated workouts are personalized for your position and goals.
+            <View style={styles.costRow}>
+              <Icon name="info" size={16} color={appTheme.red} />
+              <Text style={styles.costText}>
+                AI-generated workouts are personalised for your position and goals.
                 This will use ~$0.07 of your monthly AI quota.
               </Text>
             </View>
           </Card.Content>
         </Card>
+
       </ScrollView>
     </View>
   );
@@ -555,116 +439,126 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: theme.spacing.base,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: appTheme.navyDark,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: appTheme.border,
   },
-  headerText: {
+  headerTitle: {
     marginLeft: theme.spacing.sm,
+    fontSize: 17,
+    fontWeight: '700',
+    color: appTheme.white,
   },
   content: {
     flex: 1,
     padding: theme.spacing.base,
+    backgroundColor: appTheme.bg,
+  },
+  card: {
+    backgroundColor: appTheme.bgCard,
+    borderRadius: theme.borderRadius.base,
+    marginBottom: theme.spacing.base,
+    borderWidth: 1,
+    borderColor: appTheme.border,
+    ...theme.shadows.sm,
   },
   errorCard: {
     borderLeftWidth: 4,
-    borderLeftColor: 'red',
+    borderLeftColor: appTheme.red,
   },
-  errorText: {
-    color: 'red',
-    fontSize: 12,
-    marginTop: theme.spacing.xs,
-    marginBottom: theme.spacing.sm,
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: appTheme.white,
+    marginBottom: theme.spacing.base,
   },
-  radioRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: theme.spacing.xs,
-  },
-  divider: {
-    marginVertical: theme.spacing.md,
-  },
-  timeInput: {
-    marginTop: theme.spacing.sm,
-    backgroundColor: theme.colors.surface,
-  },
-  timePresets: {
-    flexDirection: 'row',
-    marginTop: theme.spacing.sm,
-    gap: theme.spacing.sm,
-  },
-  timeChip: {
-    marginRight: theme.spacing.sm,
-  },
-  equipmentCategory: {
-    marginBottom: theme.spacing.md,
+  trainingForText: {
+    fontSize: 15,
+    color: appTheme.textMuted,
+    marginTop: 4,
   },
   categoryLabel: {
-    fontWeight: theme.typography.fontWeight.semibold,
+    fontSize: 13,
+    fontWeight: '700',
+    color: appTheme.textMuted,
     marginBottom: theme.spacing.sm,
-    color: theme.colors.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
-  checkboxLabel: {
-    marginLeft: theme.spacing.sm,
-    flex: 1,
+  optionGroup: {
+    marginBottom: theme.spacing.md,
   },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: theme.spacing.xs,
   },
-  radioLabel: {
+  radioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: theme.spacing.xs,
+  },
+  optionLabel: {
     marginLeft: theme.spacing.sm,
+    fontSize: 15,
+    color: appTheme.text,
     flex: 1,
   },
-  focusCategory: {
-    marginBottom: theme.spacing.md,
+  divider: {
+    marginVertical: theme.spacing.md,
+    backgroundColor: appTheme.border,
+  },
+  textInput: {
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    backgroundColor: appTheme.bgElevated,
   },
   chipContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: theme.spacing.sm,
-  },
-  focusChip: {
-    marginBottom: theme.spacing.xs,
-  },
-  specialRequestsInput: {
     marginTop: theme.spacing.sm,
-    backgroundColor: theme.colors.surface,
+  },
+  chip: {
+    marginBottom: theme.spacing.xs,
+    borderColor: appTheme.border,
+  },
+  chipSelected: {
+    backgroundColor: appTheme.red + '25',
+    borderColor: appTheme.red,
+  },
+  errorText: {
+    color: appTheme.red,
+    fontSize: 12,
+    marginBottom: theme.spacing.sm,
   },
   generateButton: {
-    marginVertical: theme.spacing.lg,
+    marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
     borderRadius: theme.borderRadius.base,
   },
-  generateButtonContent: {
+  buttonContent: {
     paddingVertical: theme.spacing.sm,
   },
-  loadingContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: 'white',
-    marginLeft: theme.spacing.sm,
-  },
   costCard: {
-    backgroundColor: theme.colors.primaryLight + '10',
+    backgroundColor: appTheme.bgCard,
+    borderRadius: theme.borderRadius.base,
     borderLeftWidth: 4,
-    borderLeftColor: theme.colors.primary,
+    borderLeftColor: appTheme.red,
     marginBottom: theme.spacing.xl,
+    borderWidth: 1,
+    borderColor: appTheme.border,
+    ...theme.shadows.sm,
   },
-  costInfo: {
+  costRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   costText: {
     marginLeft: theme.spacing.sm,
     flex: 1,
-    lineHeight: 16,
-  },
-  mockButton: {
-    marginTop: 0,
-    marginBottom: theme.spacing.md,
-    borderColor: theme.colors.primary,
+    fontSize: 12,
+    color: appTheme.textMuted,
+    lineHeight: 18,
   },
 });

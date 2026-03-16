@@ -5,478 +5,258 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
+  Modal,
+  FlatList,
   ActivityIndicator,
 } from 'react-native';
-import { Card, Chip, Button, Avatar, ProgressBar } from 'react-native-paper';
+import {
+  Card,
+  Button,
+  Provider as PaperProvider,
+} from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
-import { theme, commonStyles, getPerformanceColor, getPerformanceLevel } from '../theme';
+import { appTheme } from '../theme/appTheme';
+import { theme, commonStyles } from '../theme';
 import { apiService } from '../services/apiService';
-
-type RootStackParamList = {
-  MainTabs: undefined;
-  EditProfile: { userId: string };
-};
+import { UserService } from '../services/userService';
+import { getAuth } from 'firebase/auth';
+import { RootStackParamList } from '../types/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// Mock athlete data - in production, this would come from your API
-const mockAthleteData = {
-  id: '1',
-  name: 'Jordan Thompson',
-  sport: 'Football',
-  position: 'Wide Receiver',
-  school: 'Central High School',
-  graduationYear: 2025,
-  profileImage: 'https://via.placeholder.com/150',
-  aiCompetencies: [
-    { skill: 'Position Technique', level: 'Advanced', progress: 0.9 },
-    { skill: 'Training Consistency', level: 'Intermediate', progress: 0.7 },
-    { skill: 'Performance Analysis', level: 'Beginner', progress: 0.4 },
-  ],
+const POSITION_ENUM_MAP: Record<string, string> = {
+  'QB': 'QB', 'RB': 'RB', 'WR': 'WR', 'OL': 'OL',
+  'TE': 'TE', 'LB': 'LB', 'DB': 'DB', 'DL': 'DL',
+  'PG': 'PG', 'SG': 'SG', 'SF': 'SF', 'PF': 'PF', 'C': 'C',
+  'Pitcher': 'PITCHER', 'Catcher': 'CATCHER', 'Infield': 'INFIELD', 'Outfield': 'OUTFIELD',
+  'Goalkeeper': 'GOALKEEPER', 'Defender': 'DEFENDER', 'Midfielder': 'MIDFIELDER', 'Forward': 'FORWARD',
+  'Center': 'CENTER', 'Winger': 'WINGER', 'Defenseman': 'DEFENSEMAN', 'Goalie': 'GOALIE',
 };
 
-interface ActivityStats {
-  totalChats: number;
-  totalWorkouts: number;
-  recentActivity: number; // Days since last activity
-}
+const ENUM_POSITION_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(POSITION_ENUM_MAP).map(([display, enumVal]) => [enumVal, display])
+);
 
-export default function AthleteProfileScreen() {
-  const navigation = useNavigation<NavigationProp>();
-  const [activeTab, setActiveTab] = useState('overview');
-  
-  // Backend integration state
-  const [backendConnected, setBackendConnected] = useState(false);
-  const [activityStats, setActivityStats] = useState<ActivityStats>({
-    totalChats: 0,
-    totalWorkouts: 0,
-    recentActivity: 0
-  });
-  const [statsLoading, setStatsLoading] = useState(false);
-  const [statsError, setStatsError] = useState<string | null>(null);
-const loadActivityStats = async () => {
-    setStatsLoading(true);
-    setStatsError(null);
+const SPORTS_CONFIG: Record<string, string[]> = {
+  Football:   ['QB', 'RB', 'WR', 'OL', 'TE', 'LB', 'DB', 'DL'],
+  Basketball: ['PG', 'SG', 'SF', 'PF', 'C'],
+  Baseball:   ['Pitcher', 'Catcher', 'Infield', 'Outfield'],
+  Soccer:     ['Goalkeeper', 'Defender', 'Midfielder', 'Forward'],
+  Hockey:     ['Center', 'Winger', 'Defenseman', 'Goalie'],
+};
 
-    try {
-      console.log('🔍 Starting loadActivityStats...');
-      
-      // Method 1: Use existing stats endpoint (if you update UserStatsResponse)
-      const statsResult = await apiService.getUserStats(1); // Replace 1 with actual userId
-      console.log('📊 Stats result:', JSON.stringify(statsResult, null, 2));
-      
-      if (statsResult.success) {
-        console.log('✅ Stats endpoint successful, data:', statsResult.data);
-        setActivityStats({
-          totalChats: statsResult.data.totalConversations || 0,
-          totalWorkouts: statsResult.data.totalWorkouts || 0, // You'll need to add this field
-          recentActivity: statsResult.data.daysSinceLastActivity || 0 // You'll need to add this field
-        });
-        setBackendConnected(true);
-      } else {
-        console.log('❌ Stats endpoint failed, trying individual endpoints...');
-        // Fallback: Try to get data from individual endpoints
-        const [chatsResult, workoutsResult] = await Promise.all([
-          apiService.getUserConversations(1), // Replace 1 with actual userId
-          apiService.getUserWorkouts(1) // Replace 1 with actual userId
-        ]);
-        
-        console.log('💬 Chats result:', JSON.stringify(chatsResult, null, 2));
-        console.log('💪 Workouts result:', JSON.stringify(workoutsResult, null, 2));
-        
-        if (chatsResult.success && workoutsResult.success) {
-          console.log('✅ Individual endpoints successful');
-          console.log('💬 Chats data length:', chatsResult.data?.length || 'undefined');
-          console.log('💪 Workouts data length:', workoutsResult.data?.length || 'undefined');
-          
-          // Calculate recent activity (days since last chat or workout)
-          const allActivities = [
-            ...chatsResult.data.map(c => new Date(c.timestamp || c.createdAt)),
-            ...workoutsResult.data.map(w => new Date(w.createdAt))
-          ];
-          
-          const mostRecentActivity = allActivities.length > 0 
-            ? Math.max(...allActivities.map(d => d.getTime()))
-            : 0;
-          
-          const daysSinceLastActivity = mostRecentActivity > 0 
-            ? Math.floor((Date.now() - mostRecentActivity) / (1000 * 60 * 60 * 24))
-            : 0;
-          
-          const finalStats = {
-            totalChats: chatsResult.data.length,
-            totalWorkouts: workoutsResult.data.length,
-            recentActivity: daysSinceLastActivity
-          };
-          
-          console.log('🎯 Final activity stats:', finalStats);
-          setActivityStats(finalStats);
-          setBackendConnected(true);
-        } else {
-          console.log('❌ Individual endpoints failed');
-          setStatsError('Failed to load activity data from endpoints');
-        }
-      }
-    } catch (error) {
-      console.log('💥 Error in loadActivityStats:', error);
-      setStatsError(error instanceof Error ? error.message : 'Unknown error');
-      console.error('Error loading activity stats:', error);
-    } finally {
-      setStatsLoading(false);
-    }
-  };
-  // Load activity stats from backend
-  // const loadActivityStats = async () => {
-  //   setStatsLoading(true);
-  //   setStatsError(null);
+const ENUM_SPORT_MAP: Record<string, string> = {
+  FOOTBALL: 'Football', BASKETBALL: 'Basketball', BASEBALL: 'Baseball',
+  SOCCER: 'Soccer', HOCKEY: 'Hockey',
+};
 
-  //   try {
-  //     // Method 1: Use existing stats endpoint (if you update UserStatsResponse)
-  //     const statsResult = await apiService.getUserStats(1); // Replace 1 with actual userId
-      
-  //     if (statsResult.success) {
-  //       setActivityStats({
-  //         totalChats: statsResult.data.totalConversations || 0,
-  //         totalWorkouts: statsResult.data.totalWorkouts || 0, // You'll need to add this field
-  //         recentActivity: statsResult.data.daysSinceLastActivity || 0 // You'll need to add this field
-  //       });
-  //       setBackendConnected(true);
-  //     } else {
-  //       // Fallback: Try to get data from individual endpoints
-  //       const [chatsResult, workoutsResult] = await Promise.all([
-  //         apiService.getUserConversations(1), // Replace 1 with actual userId
-  //         apiService.getUserWorkouts(1) // Replace 1 with actual userId
-  //       ]);
-        
-  //       if (chatsResult.success && workoutsResult.success) {
-  //         // Calculate recent activity (days since last chat or workout)
-  //         const allActivities = [
-  //           ...chatsResult.data.map(c => new Date(c.timestamp || c.createdAt)),
-  //           ...workoutsResult.data.map(w => new Date(w.createdAt))
-  //         ];
-          
-  //         const mostRecentActivity = allActivities.length > 0 
-  //           ? Math.max(...allActivities.map(d => d.getTime()))
-  //           : 0;
-          
-  //         const daysSinceLastActivity = mostRecentActivity > 0 
-  //           ? Math.floor((Date.now() - mostRecentActivity) / (1000 * 60 * 60 * 24))
-  //           : 0;
-          
-  //         setActivityStats({
-  //           totalChats: chatsResult.data.length,
-  //           totalWorkouts: workoutsResult.data.length,
-  //           recentActivity: daysSinceLastActivity
-  //         });
-  //         setBackendConnected(true);
-  //       } else {
-  //         setStatsError('Failed to load activity data from endpoints');
-  //       }
-  //     }
-  //   } catch (error) {
-  //     setStatsError(error instanceof Error ? error.message : 'Unknown error');
-  //     console.error('Error loading activity stats:', error);
-  //   } finally {
-  //     setStatsLoading(false);
-  //   }
-  // };
-
-  // Test backend connection
-  const testBackendConnection = async () => {
-    try {
-      const result = await apiService.checkHealth();
-      setBackendConnected(result.success);
-    } catch (error) {
-      setBackendConnected(false);
-    }
-  };
-
-  // Load data on component mount
-  useEffect(() => {
-    testBackendConnection();
-    loadActivityStats();
-  }, []);
-
-  const renderActivityStatCard = (
-    statName: string, 
-    value: number, 
-    icon: string, 
-    subtitle: string
-  ) => (
-    <View style={[styles.statCard, { backgroundColor: theme.colors.primaryLight + '15' }]}>
-      <Icon name={icon as any} size={24} color={theme.colors.primary} />
-      <Text style={[styles.statValue, { color: theme.colors.primary }]}>{value}</Text>
-      <Text style={[commonStyles.caption, styles.statLabel]}>{statName}</Text>
-      <Text style={[commonStyles.caption, styles.statSubtitle, { color: theme.colors.textTertiary }]}>
-        {subtitle}
-      </Text>
-    </View>
-  );
-
-  const renderCompetencyCard = (competency: any, index: number) => (
-    <Card key={index} style={commonStyles.card}>
-      <Card.Content>
-        <View style={commonStyles.rowBetween}>
-          <Text style={[commonStyles.body, { flex: 1 }]}>{competency.skill}</Text>
-          <Chip 
-            mode="outlined" 
-            textStyle={[commonStyles.caption]}
-            style={{ backgroundColor: theme.colors.primaryLight + '20' }}
-          >
-            {competency.level}
-          </Chip>
+function DropdownRow({
+  label, value, items, onSelect,
+}: {
+  label: string;
+  value: string;
+  items: string[];
+  onSelect: (item: string) => void;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <>
+      <TouchableOpacity style={styles.menuButton} onPress={() => setVisible(true)} activeOpacity={0.7}>
+        <Text style={styles.menuLabel}>{label}</Text>
+        <View style={styles.menuButtonRight}>
+          <Text style={styles.menuValue}>{value}</Text>
+          <Icon name="arrow-drop-down" size={24} color={appTheme.navy} />
         </View>
-        <ProgressBar 
-          progress={competency.progress} 
-          color={theme.colors.primary} 
-          style={styles.competencyProgress} 
-        />
-        <Text style={[commonStyles.caption, styles.competencyPercentage]}>
-          {Math.round(competency.progress * 100)}% Mastery
-        </Text>
-      </Card.Content>
-    </Card>
-  );
+      </TouchableOpacity>
 
-  const renderOverviewTab = () => (
-    <View>
-      {/* Backend Connection Status */}
-      <Card style={[commonStyles.card, !backendConnected && styles.warningCard]}>
-        <Card.Content>
-          <View style={commonStyles.rowBetween}>
-            <Text style={commonStyles.body}>
-              {backendConnected ? '✅ Backend Connected' : '❌ Backend Disconnected'}
-            </Text>
-            <Button 
-              mode="text" 
-              onPress={testBackendConnection}
-              textColor={theme.colors.primary}
-              compact
-            >
-              Test
-            </Button>
-          </View>
-        </Card.Content>
-      </Card>
-
-      {/* Basic Info Card */}
-      <Card style={commonStyles.card}>
-        <Card.Content>
-          <View style={commonStyles.rowBetween}>
-            <View>
-              <Text style={commonStyles.heading2}>{mockAthleteData.name}</Text>
-              <Text style={[commonStyles.body, { marginTop: theme.spacing.xs }]}>
-                {mockAthleteData.sport} • {mockAthleteData.position}
-              </Text>
-              <Text style={[commonStyles.bodySecondary, { marginTop: theme.spacing.xs }]}>
-                {mockAthleteData.school} • Class of {mockAthleteData.graduationYear}
-              </Text>
-            </View>
-            <Avatar.Image 
-              size={80} 
-              source={{ uri: mockAthleteData.profileImage }}
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setVisible(false)}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>{label}</Text>
+            <FlatList
+              data={items}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.modalItem, item === value && styles.modalItemSelected]}
+                  onPress={() => { onSelect(item); setVisible(false); }}
+                >
+                  <Text style={[styles.modalItemText, item === value && styles.modalItemTextSelected]}>
+                    {item}
+                  </Text>
+                  {item === value && <Icon name="check" size={20} color={appTheme.navy} />}
+                </TouchableOpacity>
+              )}
             />
           </View>
-        </Card.Content>
-      </Card>
-
-      {/* Activity Stats */}
-      <Card style={commonStyles.card}>
-        <Card.Content>
-          <View style={commonStyles.rowBetween}>
-            <Text style={commonStyles.heading3}>Training Activity</Text>
-            <Button 
-              mode="text" 
-              onPress={loadActivityStats}
-              textColor={theme.colors.primary}
-              disabled={statsLoading}
-            >
-              {statsLoading ? 'Loading...' : 'Refresh'}
-            </Button>
-          </View>
-          
-          {statsLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-              <Text style={commonStyles.caption}>Loading activity stats...</Text>
-            </View>
-          ) : statsError ? (
-            <View style={styles.errorContainer}>
-              <Text style={[commonStyles.caption, { color: 'red' }]}>
-                {statsError}
-              </Text>
-              <Button mode="text" onPress={loadActivityStats} compact>
-                Retry
-              </Button>
-            </View>
-          ) : (
-            <View style={styles.statsGrid}>
-              {renderActivityStatCard(
-                'AI Chats', 
-                activityStats.totalChats, 
-                'chat', 
-                'Coaching conversations'
-              )}
-              {renderActivityStatCard(
-                'Workouts', 
-                activityStats.totalWorkouts, 
-                'fitness-center', 
-                'Generated plans'
-              )}
-              {renderActivityStatCard(
-                'Days Ago', 
-                activityStats.recentActivity, 
-                'access-time', 
-                'Last activity'
-              )}
-              {renderActivityStatCard(
-                'Total', 
-                activityStats.totalChats + activityStats.totalWorkouts, 
-                'trending-up', 
-                'AI interactions'
-              )}
-            </View>
-          )}
-        </Card.Content>
-      </Card>
-
-      {/* Quick Actions */}
-      <Card style={commonStyles.card}>
-        <Card.Content>
-          <Text style={commonStyles.heading3}>Quick Actions</Text>
-          <View style={styles.quickActionsGrid}>
-            <TouchableOpacity style={styles.quickActionCard}>
-              <Icon name="chat" size={32} color={theme.colors.primary} />
-              <Text style={[commonStyles.bodySecondary, { textAlign: 'center', marginTop: 8 }]}>
-                Start AI Chat
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.quickActionCard}>
-              <Icon name="fitness-center" size={32} color={theme.colors.primary} />
-              <Text style={[commonStyles.bodySecondary, { textAlign: 'center', marginTop: 8 }]}>
-                Generate Workout
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.quickActionCard}>
-              <Icon name="history" size={32} color={theme.colors.primary} />
-              <Text style={[commonStyles.bodySecondary, { textAlign: 'center', marginTop: 8 }]}>
-                View History
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.quickActionCard}>
-              <Icon name="analytics" size={32} color={theme.colors.primary} />
-              <Text style={[commonStyles.bodySecondary, { textAlign: 'center', marginTop: 8 }]}>
-                View Analytics
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </Card.Content>
-      </Card>
-    </View>
+        </TouchableOpacity>
+      </Modal>
+    </>
   );
+}
 
-  const renderAITab = () => (
-    <View>
-      <Card style={commonStyles.card}>
-        <Card.Content>
-          <Text style={commonStyles.heading3}>Training Competencies</Text>
-          <Text style={[commonStyles.bodySecondary, { marginBottom: theme.spacing.base }]}>
-            Skills developed through AI coaching and workout generation
-          </Text>
-          {mockAthleteData.aiCompetencies.map(renderCompetencyCard)}
-        </Card.Content>
-      </Card>
+export default function ProfileEditScreen() {
+  const navigation = useNavigation<NavigationProp>();
+  const auth = getAuth();
+  const userService = new UserService();
 
-      {/* Recent AI Interactions */}
-      <Card style={commonStyles.card}>
-        <Card.Content>
-          <Text style={commonStyles.heading3}>Recent AI Interactions</Text>
-          <Text style={[commonStyles.bodySecondary, { marginBottom: theme.spacing.base }]}>
-            Your latest coaching conversations and workout generations
-          </Text>
-          
-          <View style={styles.recentActivityList}>
-            <View style={styles.activityItem}>
-              <Icon name="chat" size={20} color={theme.colors.primary} />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={commonStyles.body}>Position-specific training advice</Text>
-                <Text style={commonStyles.caption}>2 hours ago</Text>
-              </View>
-            </View>
-            
-            <View style={styles.activityItem}>
-              <Icon name="fitness-center" size={20} color={theme.colors.primary} />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={commonStyles.body}>Wide Receiver off-season workout</Text>
-                <Text style={commonStyles.caption}>1 day ago</Text>
-              </View>
-            </View>
-            
-            <View style={styles.activityItem}>
-              <Icon name="chat" size={20} color={theme.colors.primary} />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={commonStyles.body}>Route running technique discussion</Text>
-                <Text style={commonStyles.caption}>3 days ago</Text>
-              </View>
-            </View>
-          </View>
-        </Card.Content>
-      </Card>
-    </View>
-  );
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [formData, setFormData] = useState({
+    sport: 'Football',
+    position: 'QB',
+  });
+
+  useEffect(() => {
+    const resolveUser = async () => {
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser) return;
+      const userData = await userService.checkUserExists(firebaseUser.uid);
+      if (userData) setCurrentUserId(userData.id);
+    };
+    resolveUser();
+  }, []);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const loadProfile = async () => {
+      setProfileLoading(true);
+      try {
+        const result = await apiService.getUserProfile(currentUserId);
+        if (result.success && result.data) {
+          const u = result.data;
+          const displaySport = u.primarySport
+            ? (ENUM_SPORT_MAP[u.primarySport] ?? u.primarySport)
+            : 'Football';
+          const displayPosition = u.primaryPosition
+            ? (ENUM_POSITION_MAP[u.primaryPosition] ?? u.primaryPosition)
+            : SPORTS_CONFIG[displaySport][0];
+          setFormData({ sport: displaySport, position: displayPosition });
+        }
+      } catch (err) {
+        console.error('Failed to load profile:', err);
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+    loadProfile();
+  }, [currentUserId]);
+
+  const handleSave = async () => {
+    if (!currentUserId) {
+      Alert.alert('Error', 'User not authenticated. Please try again.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const result = await apiService.updateUserProfile(currentUserId, {
+        primarySport: formData.sport.toUpperCase(),
+        primaryPosition: POSITION_ENUM_MAP[formData.position] ?? null,
+      });
+      if (result.success) {
+        Alert.alert('Profile Updated', 'Your profile has been successfully updated.', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+      } else {
+        Alert.alert('Error', 'Failed to update profile. Please try again.');
+      }
+    } catch {
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => console.log('Account deletion requested') },
+      ]
+    );
+  };
 
   return (
-    <View style={commonStyles.container}>
-      {/* Header with Edit Button */}
-      <View style={styles.header}>
-        <Text style={commonStyles.heading2}>My Profile</Text>
-        <Button
-          mode="outlined"
-          icon="edit"
-          onPress={() => navigation.navigate('EditProfile', { userId: mockAthleteData.id })}
-          textColor={theme.colors.primary}
-          style={{ borderColor: theme.colors.primary }}
-        >
-          Edit
-        </Button>
-      </View>
-
-      {/* Tab Navigation - Removed Videos tab */}
-      <View style={styles.tabContainer}>
-        {[
-          { key: 'overview', label: 'Overview' },
-          { key: 'training', label: 'Training' }
-        ].map((tab) => (
+    <PaperProvider>
+      <View style={commonStyles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+            <Icon name="close" size={24} color={appTheme.white} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Edit Profile</Text>
           <TouchableOpacity
-            key={tab.key}
-            style={[
-              styles.tab, 
-              activeTab === tab.key && { borderBottomColor: theme.colors.primary }
-            ]}
-            onPress={() => setActiveTab(tab.key)}
+            onPress={handleSave}
+            style={styles.headerButton}
+            disabled={isLoading || profileLoading}
           >
-            <Text style={[
-              commonStyles.body,
-              { color: activeTab === tab.key ? theme.colors.primary : theme.colors.textSecondary },
-              activeTab === tab.key && { fontWeight: 'bold' }
-            ]}>
-              {tab.label}
+            <Text style={[styles.headerAction, (isLoading || profileLoading) && { opacity: 0.4 }]}>
+              {isLoading ? 'Saving...' : 'Save'}
             </Text>
           </TouchableOpacity>
-        ))}
-      </View>
+        </View>
 
-      {/* Tab Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {activeTab === 'overview' && renderOverviewTab()}
-        {activeTab === 'training' && renderAITab()}
-      </ScrollView>
-    </View>
+        {profileLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={appTheme.navy} />
+            <Text style={styles.loadingText}>Loading profile...</Text>
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Athletic Information */}
+            <Card style={styles.card}>
+              <Card.Content>
+                <Text style={styles.sectionTitle}>Athletic Information</Text>
+                <DropdownRow
+                  label="Sport"
+                  value={formData.sport}
+                  items={Object.keys(SPORTS_CONFIG)}
+                  onSelect={(sport) => setFormData({
+                    sport,
+                    position: SPORTS_CONFIG[sport][0],
+                  })}
+                />
+                <DropdownRow
+                  label="Position"
+                  value={formData.position}
+                  items={SPORTS_CONFIG[formData.sport] ?? []}
+                  onSelect={(position) => setFormData({ ...formData, position })}
+                />
+              </Card.Content>
+            </Card>
+
+            {/* Danger Zone */}
+            <Card style={styles.dangerCard}>
+              <Card.Content>
+                <Text style={[styles.sectionTitle, { color: appTheme.red }]}>Danger Zone</Text>
+                <Text style={styles.dangerBody}>
+                  These actions cannot be undone. Please proceed with caution.
+                </Text>
+                <Button
+                  mode="outlined"
+                  onPress={handleDeleteAccount}
+                  textColor={appTheme.red}
+                  style={styles.dangerButton}
+                  icon="delete-forever"
+                >
+                  Delete Account
+                </Button>
+              </Card.Content>
+            </Card>
+          </ScrollView>
+        )}
+      </View>
+    </PaperProvider>
   );
 }
 
@@ -485,99 +265,153 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: theme.spacing.base,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  tab: {
-    flex: 1,
     paddingVertical: theme.spacing.base,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    paddingHorizontal: theme.spacing.base,
+    backgroundColor: appTheme.navyDark,
+    borderBottomWidth: 1,
+    borderBottomColor: appTheme.border,
   },
+  headerButton: {
+    padding: theme.spacing.sm,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: appTheme.white,
+  },
+  headerAction: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: appTheme.red,
+  },
+
   content: {
     flex: 1,
     padding: theme.spacing.base,
+    backgroundColor: appTheme.bg,
   },
-  warningCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: 'orange',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: theme.spacing.sm,
-  },
-  statCard: {
-    width: '48%',
-    padding: theme.spacing.base,
-    borderRadius: theme.borderRadius.base,
-    marginBottom: theme.spacing.md,
+
+  loadingContainer: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: appTheme.bg,
+  },
+  loadingText: {
+    marginTop: theme.spacing.sm,
+    fontSize: 13,
+    color: appTheme.textMuted,
+  },
+
+  card: {
+    backgroundColor: appTheme.bgCard,
+    borderRadius: theme.borderRadius.base,
+    marginBottom: theme.spacing.base,
+    borderWidth: 1,
+    borderColor: appTheme.border,
     ...theme.shadows.sm,
   },
-  statValue: {
-    fontSize: theme.typography.fontSize['2xl'],
-    fontWeight: theme.typography.fontWeight.bold,
-    marginTop: theme.spacing.sm,
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: appTheme.white,
+    marginBottom: theme.spacing.base,
   },
-  statLabel: {
-    marginTop: theme.spacing.xs,
-    textAlign: 'center',
-    fontWeight: theme.typography.fontWeight.semibold,
-  },
-  statSubtitle: {
-    marginTop: 2,
-    textAlign: 'center',
-    fontSize: 10,
-  },
-  quickActionsGrid: {
+
+  // Dropdown row
+  menuButton: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginTop: theme.spacing.sm,
-  },
-  quickActionCard: {
-    width: '48%',
-    padding: theme.spacing.base,
-    borderRadius: theme.borderRadius.base,
-    backgroundColor: theme.colors.primaryLight + '10',
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
+    paddingVertical: theme.spacing.base,
+    paddingHorizontal: theme.spacing.sm,
     borderWidth: 1,
-    borderColor: theme.colors.primaryLight + '30',
+    borderColor: appTheme.border,
+    borderRadius: theme.borderRadius.sm,
+    marginBottom: theme.spacing.base,
+    backgroundColor: appTheme.bgElevated,
   },
-  loadingContainer: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.lg,
+  menuLabel: {
+    fontSize: 15,
+    color: appTheme.textMuted,
   },
-  errorContainer: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.md,
-  },
-  competencyProgress: {
-    marginVertical: theme.spacing.sm,
-  },
-  competencyPercentage: {
-    textAlign: 'right',
-  },
-  recentActivityList: {
-    marginTop: theme.spacing.sm,
-  },
-  activityItem: {
+  menuButtonRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
+  },
+  menuValue: {
+    fontSize: 15,
+    color: appTheme.white,
+    fontWeight: '600',
+    marginRight: 2,
+  },
+
+  // Modal sheet
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: appTheme.bgCard,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderTopWidth: 1,
+    borderColor: appTheme.border,
+    paddingTop: theme.spacing.base,
+    paddingBottom: theme.spacing.xl,
+    maxHeight: '60%',
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: appTheme.white,
+    paddingHorizontal: theme.spacing.base,
+    paddingBottom: theme.spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderBottomColor: appTheme.border,
+    marginBottom: theme.spacing.sm,
+  },
+  modalItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.base,
+    paddingHorizontal: theme.spacing.base,
+  },
+  modalItemSelected: {
+    backgroundColor: appTheme.red + '20',
+  },
+  modalItemText: {
+    fontSize: 15,
+    color: appTheme.text,
+  },
+  modalItemTextSelected: {
+    color: appTheme.red,
+    fontWeight: '700',
+  },
+
+  // Danger zone
+  dangerCard: {
+    backgroundColor: appTheme.bgCard,
+    borderRadius: theme.borderRadius.base,
+    borderLeftWidth: 4,
+    borderLeftColor: appTheme.red,
+    marginBottom: theme.spacing.xl,
+    borderWidth: 1,
+    borderColor: appTheme.border,
+    ...theme.shadows.sm,
+  },
+  dangerBody: {
+    fontSize: 14,
+    color: appTheme.textMuted,
+    marginBottom: theme.spacing.base,
+    lineHeight: 20,
+  },
+  dangerButton: {
+    alignSelf: 'flex-start',
+    borderColor: appTheme.red,
   },
 });

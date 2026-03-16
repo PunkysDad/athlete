@@ -1,25 +1,4 @@
-// src/services/userService.ts
-interface CreateUserRequest {
-  email: string;
-  firebaseUid: string;
-  displayName: string;
-  primarySport?: string;
-  primaryPosition?: string;
-  age?: number;
-}
-
-interface UserResponse {
-  id: number;
-  firebaseUid: string;
-  email?: string;
-  displayName?: string;
-  subscriptionTier: string;
-  primarySport?: string;
-  primaryPosition?: string;
-  createdAt: string;
-  isActive: boolean;
-}
-
+import { CreateUserRequest, UserResponse } from '../interfaces/interfaces';
 export class UserService {
   private baseUrl: string;
 
@@ -29,7 +8,6 @@ export class UserService {
 
   async checkUserExists(firebaseUid: string): Promise<UserResponse | null> {
     try {
-      // FIXED: Use /firebase/{firebaseUid} to match backend
       const response = await fetch(`${this.baseUrl}/users/firebase/${firebaseUid}`, {
         method: 'GET',
         headers: {
@@ -38,28 +16,28 @@ export class UserService {
       });
 
       if (response.status === 404) {
-        return null; // User doesn't exist
+        return null; // User confirmed to not exist
       }
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Non-404 HTTP error — don't treat as "user not found"
+        console.error(`checkUserExists: unexpected status ${response.status}`);
+        return null;
       }
 
       return await response.json();
     } catch (error) {
+      // Network error (backend unreachable, timeout, etc.)
+      // Return null without throwing so callers never mistake this for a new user
       console.error('Error checking user existence:', error);
-      if (error.message?.includes('404')) {
-        return null; // User doesn't exist
-      }
-      throw error;
+      return null;
     }
   }
 
   async createUser(userData: CreateUserRequest): Promise<UserResponse> {
     try {
       console.log('Creating user with data:', userData);
-      
-      // This matches your backend POST /users endpoint
+
       const response = await fetch(`${this.baseUrl}/users`, {
         method: 'POST',
         headers: {

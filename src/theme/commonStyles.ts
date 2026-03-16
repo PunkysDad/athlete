@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { appTheme } from './appTheme';
 import { colors } from './colors';
 import { spacing } from './spacing';
 import { borderRadius } from './borderRadius';
@@ -9,118 +10,105 @@ export const commonStyles = StyleSheet.create({
   // Container styles
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: appTheme.bg,
   },
-  
+
   containerPadded: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: appTheme.bg,
     padding: spacing.base,
   },
-  
+
   // Card styles
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: appTheme.bgCard,
     borderRadius: borderRadius.base,
     padding: spacing.base,
     marginBottom: spacing.base,
+    borderWidth: 1,
+    borderColor: appTheme.border,
     ...shadows.base,
   },
-  
+
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  
+
   // Text styles
   heading1: {
     ...typography.heading1,
-    color: colors.text,
+    color: appTheme.text,
   },
-  
+
   heading2: {
     ...typography.heading2,
-    color: colors.text,
+    color: appTheme.text,
   },
-  
+
   heading3: {
     ...typography.heading3,
-    color: colors.text,
+    color: appTheme.text,
   },
-  
+
   body: {
     ...typography.body,
-    color: colors.text,
+    color: appTheme.text,
   },
-  
+
   bodySecondary: {
     ...typography.body,
-    color: colors.textSecondary,
+    color: appTheme.textMuted,
   },
-  
+
   caption: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: appTheme.textMuted,
   },
-  
+
   // Layout styles
   row: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  
+
   rowBetween: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  
+
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  
+
   // Button styles
   primaryButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: appTheme.red,
     borderRadius: borderRadius.base,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  
+
   secondaryButton: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: appTheme.red,
     borderRadius: borderRadius.base,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  
+
   // Performance stat colors
-  performanceExcellent: {
-    color: colors.performance.excellent,
-  },
-  
-  performanceGood: {
-    color: colors.performance.good,
-  },
-  
-  performanceAverage: {
-    color: colors.performance.average,
-  },
-  
-  performanceNeedsWork: {
-    color: colors.performance.needsWork,
-  },
-  
-  performancePoor: {
-    color: colors.performance.poor,
-  },
+  performanceExcellent: { color: colors.performance.excellent },
+  performanceGood:      { color: colors.performance.good },
+  performanceAverage:   { color: colors.performance.average },
+  performanceNeedsWork: { color: colors.performance.needsWork },
+  performancePoor:      { color: colors.performance.poor },
 });
 
-// Helper function to get performance color based on score
 export const getPerformanceColor = (score: number): string => {
   if (score >= 90) return colors.performance.excellent;
   if (score >= 80) return colors.performance.good;
@@ -129,7 +117,6 @@ export const getPerformanceColor = (score: number): string => {
   return colors.performance.poor;
 };
 
-// Helper function to get performance level text
 export const getPerformanceLevel = (score: number): string => {
   if (score >= 90) return 'Excellent';
   if (score >= 80) return 'Good';
