@@ -9,6 +9,7 @@ import {
   Modal,
   FlatList,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import {
   Card,
@@ -24,6 +25,7 @@ import { apiService } from '../services/apiService';
 import { UserService } from '../services/userService';
 import { getAuth } from 'firebase/auth';
 import { RootStackParamList } from '../types/types';
+import { useUpgrade } from '../context/UpgradeContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -51,6 +53,13 @@ const SPORTS_CONFIG: Record<string, string[]> = {
 const ENUM_SPORT_MAP: Record<string, string> = {
   FOOTBALL: 'Football', BASKETBALL: 'Basketball', BASEBALL: 'Baseball',
   SOCCER: 'Soccer', HOCKEY: 'Hockey',
+};
+
+const TIER_LABELS: Record<string, { label: string; price: string }> = {
+  TRIAL:   { label: 'Free Trial',  price: 'Limited access' },
+  BASIC:   { label: 'Basic',       price: '$12.99/mo' },
+  PREMIUM: { label: 'Premium',     price: '$19.99/mo' },
+  NONE:    { label: 'No Plan',     price: '' },
 };
 
 function DropdownRow({
@@ -102,8 +111,10 @@ export default function ProfileEditScreen() {
   const navigation = useNavigation<NavigationProp>();
   const auth = getAuth();
   const userService = new UserService();
+  const { onUpgradePress } = useUpgrade();
 
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [subscriptionTier, setSubscriptionTier] = useState<string>('TRIAL');
   const [profileLoading, setProfileLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -117,7 +128,10 @@ export default function ProfileEditScreen() {
       const firebaseUser = auth.currentUser;
       if (!firebaseUser) return;
       const userData = await userService.checkUserExists(firebaseUser.uid);
-      if (userData) setCurrentUserId(userData.id);
+      if (userData) {
+        setCurrentUserId(userData.id);
+        setSubscriptionTier(userData.subscriptionTier ?? 'TRIAL');
+      }
     };
     resolveUser();
   }, []);
@@ -137,6 +151,7 @@ export default function ProfileEditScreen() {
             ? (ENUM_POSITION_MAP[u.primaryPosition] ?? u.primaryPosition)
             : SPORTS_CONFIG[displaySport][0];
           setFormData({ sport: displaySport, position: displayPosition });
+          setSubscriptionTier(u.subscriptionTier ?? 'TRIAL');
         }
       } catch (err) {
         console.error('Failed to load profile:', err);
@@ -172,6 +187,24 @@ export default function ProfileEditScreen() {
     }
   };
 
+  const handleCancelSubscription = () => {
+    Alert.alert(
+      'Cancel Subscription',
+      'Your subscription is managed by Apple. You\'ll be taken to your Apple subscription settings where you can cancel.\n\nYou\'ll keep access until the end of your current billing period.',
+      [
+        { text: 'Not Now', style: 'cancel' },
+        {
+          text: 'Manage in Settings',
+          onPress: () => Linking.openURL('itms-apps://apps.apple.com/account/subscriptions'),
+        },
+      ]
+    );
+  };
+
+  const handleChangePlan = () => {
+    onUpgradePress();
+  };
+
   const handleDeleteAccount = () => {
     Alert.alert(
       'Delete Account',
@@ -182,6 +215,9 @@ export default function ProfileEditScreen() {
       ]
     );
   };
+
+  const tierInfo = TIER_LABELS[subscriptionTier] ?? TIER_LABELS.TRIAL;
+  const hasActivePaidPlan = subscriptionTier === 'BASIC' || subscriptionTier === 'PREMIUM';
 
   return (
     <PaperProvider>
@@ -209,10 +245,8 @@ export default function ProfileEditScreen() {
             <Text style={styles.loadingText}>Loading profile...</Text>
           </View>
         ) : (
-          <ScrollView
-            style={styles.content}
-            showsVerticalScrollIndicator={false}
-          >
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+
             {/* Athletic Information */}
             <Card style={styles.card}>
               <Card.Content>
@@ -235,24 +269,59 @@ export default function ProfileEditScreen() {
               </Card.Content>
             </Card>
 
-            {/* Danger Zone */}
-            <Card style={styles.dangerCard}>
+            {/* Subscription */}
+            <Card style={styles.card}>
               <Card.Content>
-                <Text style={[styles.sectionTitle, { color: appTheme.red }]}>Danger Zone</Text>
-                <Text style={styles.dangerBody}>
-                  These actions cannot be undone. Please proceed with caution.
-                </Text>
-                <Button
-                  mode="outlined"
-                  onPress={handleDeleteAccount}
-                  textColor={appTheme.red}
-                  style={styles.dangerButton}
-                  icon="delete-forever"
-                >
-                  Delete Account
-                </Button>
+                <Text style={styles.sectionTitle}>Subscription</Text>
+
+                <View style={styles.tierRow}>
+                  <View>
+                    <Text style={styles.tierName}>{tierInfo.label}</Text>
+                    {tierInfo.price ? (
+                      <Text style={styles.tierPrice}>{tierInfo.price}</Text>
+                    ) : null}
+                  </View>
+                  <View style={[
+                    styles.tierBadge,
+                    hasActivePaidPlan && { backgroundColor: appTheme.red + '25', borderColor: appTheme.red + '60' },
+                  ]}>
+                    <Text style={[
+                      styles.tierBadgeText,
+                      hasActivePaidPlan && { color: appTheme.red },
+                    ]}>
+                      {subscriptionTier}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.subscriptionActions}>
+                  {/* Always show upgrade/change plan */}
+                  <Button
+                    mode="contained"
+                    onPress={handleChangePlan}
+                    buttonColor={appTheme.red}
+                    textColor={appTheme.white}
+                    style={styles.subscriptionButton}
+                    icon={hasActivePaidPlan ? 'swap-horiz' : 'arrow-upward'}
+                  >
+                    {hasActivePaidPlan ? 'Change Plan' : 'Upgrade Now'}
+                  </Button>
+
+                  {/* Only show cancel when on a paid plan */}
+                  {hasActivePaidPlan && (
+                    <Button
+                      mode="outlined"
+                      onPress={handleCancelSubscription}
+                      textColor={appTheme.textMuted}
+                      style={styles.cancelButton}
+                    >
+                      Cancel Subscription
+                    </Button>
+                  )}
+                </View>
               </Card.Content>
             </Card>
+
           </ScrollView>
         )}
       </View>
@@ -318,6 +387,48 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: appTheme.white,
     marginBottom: theme.spacing.base,
+  },
+
+  // Subscription card
+  tierRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.base,
+  },
+  tierName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: appTheme.white,
+  },
+  tierPrice: {
+    fontSize: 13,
+    color: appTheme.textMuted,
+    marginTop: 2,
+  },
+  tierBadge: {
+    backgroundColor: appTheme.bgElevated,
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: appTheme.border,
+  },
+  tierBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: appTheme.textMuted,
+    letterSpacing: 0.5,
+  },
+  subscriptionActions: {
+    gap: theme.spacing.sm,
+  },
+  subscriptionButton: {
+    borderRadius: theme.borderRadius.sm,
+  },
+  cancelButton: {
+    borderRadius: theme.borderRadius.sm,
+    borderColor: appTheme.border,
   },
 
   // Dropdown row

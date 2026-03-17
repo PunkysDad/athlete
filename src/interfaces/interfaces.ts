@@ -122,6 +122,8 @@ export interface OnboardingData {
 export interface OnboardingFlowProps {
   user: any; // Firebase user
   onComplete: (data: OnboardingData) => void;
+  startAtStep?: number;
+  hideTrial?: boolean; 
 }
 export interface CreateUserRequest {
   email: string;

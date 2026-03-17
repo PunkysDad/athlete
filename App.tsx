@@ -215,14 +215,19 @@ export default function App() {
   const [showSubscription, setShowSubscription] = useState(false);
   const handleUpgradeSubscription = () => setShowSubscription(true);
 
-  const handleSubscriptionComplete = async (onboardingData: {
+  
+const handleSubscriptionComplete = async (onboardingData: {
     sport: string | null;
     position: string | null;
     subscriptionTier: string | null;
-    billingCycle: 'monthly';
+    billingCycle: 'monthly' | 'annual';
   }) => {
     setShowSubscription(false);
-    if (userProfile && onboardingData.subscriptionTier) {
+
+    // null subscriptionTier means the user dismissed without making a change
+    if (!onboardingData.subscriptionTier) return;
+
+    if (userProfile) {
       try {
         await fetch(
           `${process.env.EXPO_PUBLIC_API_URL}/api/v1/users/${userProfile.id}/subscription`,
@@ -239,19 +244,6 @@ export default function App() {
     }
   };
 
-  const testRevenueCat = async () => {
-    if (!user?.uid) return;
-    try {
-      await revenueCatService.initialize(user.uid);
-      const packages = await revenueCatService.getAvailablePackages();
-      console.log(`📦 Found ${packages.length} packages`);
-    } catch (error) {
-      console.error('❌ RevenueCat test failed:', error);
-    }
-  };
-
-  useEffect(() => { if (user?.uid) testRevenueCat(); }, [user]);
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -260,6 +252,21 @@ export default function App() {
           setUser(firebaseUser);
           setUserProfile(existingUser ?? null);
           setShowOnboarding(!existingUser);
+
+          // Sync RevenueCat entitlement status to backend on every launch.
+          // Catches cancellations and expirations that happened since last session.
+          if (existingUser) {
+            try {
+              await revenueCatService.initialize(firebaseUser.uid);
+              await revenueCatService.syncTierIfChanged(
+                existingUser.id,
+                existingUser.subscriptionTier
+              );
+            } catch (syncErr) {
+              // Non-fatal — log and continue. App works regardless.
+              console.error('RevenueCat sync error on launch:', syncErr);
+            }
+          }
         } catch {
           // Network error — do not treat as new user, do not show onboarding
           setUser(firebaseUser);
@@ -312,13 +319,19 @@ export default function App() {
   if (initializing) return <PaperProvider><LoadingScreen /></PaperProvider>;
   if (!user) return <PaperProvider><AuthScreen onAuthSuccess={handleAuthSuccess} /></PaperProvider>;
   if (showOnboarding) return <PaperProvider><OnboardingFlow user={user} onComplete={handleOnboardingComplete} /></PaperProvider>;
-  if (showSubscription) {
+  
+if (showSubscription) {
+    const isExistingSubscriber =
+      userProfile?.subscriptionTier === 'BASIC' ||
+      userProfile?.subscriptionTier === 'PREMIUM';
+
     return (
       <PaperProvider>
         <OnboardingFlow
           user={user}
           onComplete={handleSubscriptionComplete}
           startAtStep={3}
+          hideTrial={isExistingSubscriber}
         />
       </PaperProvider>
     );

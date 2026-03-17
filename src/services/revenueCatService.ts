@@ -23,7 +23,9 @@ export interface SubscriptionInfo {
   expirationDate?: Date;
 }
 
-class RevenueCatService {
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.254.5:8080';
+
+export class RevenueCatService {
   private isInitialized = false;
 
   async initialize(userId: string): Promise<void> {
@@ -87,6 +89,41 @@ class RevenueCatService {
     if (!this.isInitialized) throw new Error('RevenueCat not initialized');
     const customerInfo = await Purchases.restorePurchases();
     return this.parseCustomerInfo(customerInfo);
+  }
+
+  /**
+   * Called on app launch after initialization.
+   * Compares the current RevenueCat entitlement against the backend tier
+   * and syncs if they differ — handles cancellations, expirations, and renewals
+   * without needing a webhook.
+   */
+  async syncTierIfChanged(backendUserId: number, backendTier: string): Promise<void> {
+    try {
+      const info = await this.getSubscriptionInfo();
+      const revenueCatTier = info.tier; // 'BASIC' | 'PREMIUM' | 'TRIAL'
+
+      if (revenueCatTier === backendTier) {
+        console.log('Subscription tier in sync:', revenueCatTier);
+        return;
+      }
+
+      console.log(`Tier mismatch — RevenueCat: ${revenueCatTier}, backend: ${backendTier}. Syncing...`);
+
+      const res = await fetch(`${API_BASE}/api/v1/users/${backendUserId}/subscription`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscriptionTier: revenueCatTier }),
+      });
+
+      if (!res.ok) {
+        console.error('Failed to sync tier to backend:', await res.text());
+      } else {
+        console.log('Tier synced successfully to:', revenueCatTier);
+      }
+    } catch (error) {
+      // Non-fatal — log and move on. The app still works, sync will retry next launch.
+      console.error('Error during tier sync:', error);
+    }
   }
 
   // ─── Use entitlements (not product ID string matching) ────────────────────
