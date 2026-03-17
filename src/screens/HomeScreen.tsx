@@ -248,12 +248,12 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </View>
-            <Avatar.Icon
+            {/* <Avatar.Icon
               size={64}
               icon="account"
               style={styles.avatar}
               color={appTheme.navy}
-            />
+            /> */}
           </View>
         </Card.Content>
       </Card>
@@ -421,7 +421,12 @@ export default function HomeScreen() {
 
       {/* Tabs */}
       <View style={styles.tabContainer}>
-        {[{ key: 'overview', label: 'Overview' }, { key: 'tags', label: 'Tags' }].map(tab => (
+        {[
+          { key: 'overview', label: 'Overview' },
+          ...(currentUser?.subscriptionTier === 'PREMIUM'
+            ? [{ key: 'tags', label: 'Tags' }]
+            : []),
+        ].map(tab => (
           <TouchableOpacity
             key={tab.key}
             style={[styles.tab, activeTab === tab.key && styles.tabActive]}

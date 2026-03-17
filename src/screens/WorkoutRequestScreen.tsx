@@ -34,7 +34,7 @@ import { useUpgrade } from '../context/UpgradeContext';
 type WorkoutRequestNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const EQUIPMENT_OPTIONS = {
-  'Basic':          ['Body weight only', 'Resistance bands', 'Dumbbells'],
+  'Basic':          ['Body weight only', 'Resistance bands', 'Dumbbells', 'Kettlebells'],
   'Gym Access':     ['Full gym', 'Barbells', 'Cable machine', 'Leg press'],
   'Sport Specific': ['Agility ladder', 'Cones', 'Medicine ball', 'Plyometric box'],
   'Field/Court':    ['Track access', 'Field access', 'Court access'],
@@ -386,7 +386,7 @@ export default function WorkoutRequestScreen() {
         {renderEquipmentSection()}
         {renderFocusSection()}
 
-        <Card style={styles.card}>
+        {/* <Card style={styles.card}>
           <Card.Content>
             <Text style={styles.sectionTitle}>Special Requests (Optional)</Text>
             <TextInput
@@ -403,7 +403,7 @@ export default function WorkoutRequestScreen() {
               placeholderTextColor={appTheme.textMuted}
             />
           </Card.Content>
-        </Card>
+        </Card> */}
 
         <Button
           mode="contained"
@@ -412,7 +412,9 @@ export default function WorkoutRequestScreen() {
           disabled={isLoading}
           style={styles.generateButton}
           buttonColor={appTheme.red}
+          textColor={appTheme.white}
           contentStyle={styles.buttonContent}
+          theme={{ colors: { onSurfaceDisabled: appTheme.white } }}
         >
           {isLoading ? 'Generating workout...' : 'Generate My Workout'}
         </Button>
@@ -423,7 +425,6 @@ export default function WorkoutRequestScreen() {
               <Icon name="info" size={16} color={appTheme.red} />
               <Text style={styles.costText}>
                 AI-generated workouts are personalised for your position and goals.
-                This will use ~$0.07 of your monthly AI quota.
               </Text>
             </View>
           </Card.Content>

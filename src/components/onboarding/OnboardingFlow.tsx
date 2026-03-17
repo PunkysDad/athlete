@@ -61,8 +61,9 @@ const SUBSCRIPTION_TIERS = [
   }
 ];
 
-export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete, startAtStep }) => {
+export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete, startAtStep, hideTrial }) => {
   const [currentStep, setCurrentStep] = useState(startAtStep ?? 1);
+  const initialStep = startAtStep ?? 1;
   const [isLoading, setIsLoading] = useState(false);
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({
     sport: null,
@@ -180,8 +181,15 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
   };
 
   const handleBackButton = () => {
-    if (currentStep > 1) {
+    if (currentStep > initialStep) {
       setCurrentStep(currentStep - 1);
+    } else {
+      onComplete({
+        sport: null,
+        position: null,
+        subscriptionTier: null,
+        billingCycle: 'monthly',
+      });
     }
   };
 
@@ -256,30 +264,32 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
         <Text style={styles.stepIndicator}>Step 3 of 3</Text>
 
         <ScrollView style={styles.optionsContainer} showsVerticalScrollIndicator={false}>
-          {/* Free Trial Option */}
-          <TouchableOpacity
-            style={styles.trialCard}
-            onPress={() => onComplete({
-              ...onboardingData,
-              subscriptionTier: 'TRIAL',
-              billingCycle: 'monthly',
-            })}
-          >
-            <View style={styles.subscriptionHeader}>
-              <Text style={styles.subscriptionEmoji}>🎯</Text>
-              <View style={styles.subscriptionInfo}>
-                <Text style={styles.subscriptionName}>Start Free Trial</Text>
-                <Text style={styles.trialPrice}>No credit card required</Text>
+          {/* Free Trial Option — hidden when existing subscriber is changing plans */}
+          {!hideTrial && (
+            <TouchableOpacity
+              style={styles.trialCard}
+              onPress={() => onComplete({
+                ...onboardingData,
+                subscriptionTier: 'TRIAL',
+                billingCycle: 'monthly',
+              })}
+            >
+              <View style={styles.subscriptionHeader}>
+                <Text style={styles.subscriptionEmoji}>🎯</Text>
+                <View style={styles.subscriptionInfo}>
+                  <Text style={styles.subscriptionName}>Start Free Trial</Text>
+                  <Text style={styles.trialPrice}>No credit card required</Text>
+                </View>
               </View>
-            </View>
-            <View style={styles.featuresList}>
-              <Text style={styles.featureText}>• 3 AI coaching questions</Text>
-              <Text style={styles.featureText}>• 1 position-specific workout plan</Text>
-              <Text style={styles.featureText}>• Upgrade anytime</Text>
-            </View>
-          </TouchableOpacity>
+              <View style={styles.featuresList}>
+                <Text style={styles.featureText}>• 3 AI coaching questions</Text>
+                <Text style={styles.featureText}>• 1 position-specific workout plan</Text>
+                <Text style={styles.featureText}>• Upgrade anytime</Text>
+              </View>
+            </TouchableOpacity>
+          )}
 
-          <Text style={styles.orDivider}>— or subscribe for full access —</Text>
+          {!hideTrial && <Text style={styles.orDivider}>— or subscribe for full access —</Text>}
 
           {/* Paid Tiers */}
           {SUBSCRIPTION_TIERS.map((tier) => (

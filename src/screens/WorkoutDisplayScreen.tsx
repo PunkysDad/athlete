@@ -21,6 +21,7 @@ import {
   ActivityIndicator,
 } from 'react-native-paper';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { appTheme } from '../theme/appTheme';
@@ -35,6 +36,7 @@ export default function WorkoutDisplayScreen() {
   const route = useRoute();
   const navigation = useNavigation<WorkoutRequestNavigationProp>();
   const { workoutData } = route.params as { workoutData: WorkoutData };
+  const insets = useSafeAreaInsets();
 
   const [savedToLibrary, setSavedToLibrary] = useState(false);
   const [expandedExercise, setExpandedExercise] = useState<number | null>(null);
@@ -207,7 +209,7 @@ export default function WorkoutDisplayScreen() {
   );
 
   const renderCustomTabBar = () => (
-    <View style={styles.customTabBar}>
+    <View style={[styles.customTabBar, { paddingBottom: insets.bottom || 8 }]}>
       <TouchableOpacity
         style={styles.tabItem}
         onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'Home' }], index: 0 } }] })}
@@ -324,18 +326,18 @@ export default function WorkoutDisplayScreen() {
     <View style={styles.screen}>
       {renderTagModal()}
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <IconButton icon="arrow-left" size={24} iconColor={appTheme.white} onPress={() => navigation.goBack()} />
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle} numberOfLines={1}>{workoutTitle}</Text>
           <Text style={styles.headerSubtitle}>{workoutData.sport} • {workoutData.position}</Text>
         </View>
-        <IconButton
+        {/* <IconButton
           icon={savedToLibrary ? 'bookmark' : 'bookmark-outline'}
           size={24}
           iconColor={savedToLibrary ? appTheme.red : 'rgba(255,255,255,0.5)'}
           onPress={handleSaveWorkout}
-        />
+        /> */}
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -353,10 +355,10 @@ export default function WorkoutDisplayScreen() {
                 <Text style={styles.statLabel}>Minutes</Text>
               </View>
               <View style={styles.statDivider} />
-              <View style={styles.statItem}>
+              {/* <View style={styles.statItem}>
                 <Text style={styles.statValue}>{exercises.length}</Text>
                 <Text style={styles.statLabel}>Exercises</Text>
-              </View>
+              </View> */}
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{workoutData.focusAreas.length}</Text>
@@ -444,7 +446,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: appTheme.navyDark,
-    paddingTop: 8,
     paddingBottom: 4,
     borderBottomWidth: 1,
     borderBottomColor: appTheme.border,
