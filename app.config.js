@@ -35,8 +35,6 @@ export default {
       bundler: "metro"
     },
     extra: {
-      facebookAppId: process.env.FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID_HERE",
-      facebookClientToken: process.env.FACEBOOK_CLIENT_TOKEN || "YOUR_CLIENT_TOKEN_HERE",
       backendUrl: process.env.EXPO_PUBLIC_API_URL || "http://localhost:8080",
       appEnv: process.env.APP_ENV || "development",
       eas: {
