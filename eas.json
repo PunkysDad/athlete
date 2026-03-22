@@ -16,7 +16,11 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.sportsiqapp.info"
+        "EXPO_PUBLIC_API_URL": "https://api.sportsiqapp.info",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAOuvLI7rp5jPzLVgKk2ckh84UHgO8ZGb8",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "gameiq-37d8d.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "gameiq-37d8d",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "gameiq-37d8d.firebasestorage.app"
       },
       "android": {
         "image": "ubuntu-22.04-jdk-17-ndk-r26b"
@@ -27,7 +31,11 @@
     },
     "production": {
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.sportsiqapp.info"
+        "EXPO_PUBLIC_API_URL": "https://api.sportsiqapp.info",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAOuvLI7rp5jPzLVgKk2ckh84UHgO8ZGb8",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "gameiq-37d8d.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "gameiq-37d8d",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "gameiq-37d8d.firebasestorage.app"
       },
       "android": {
         "image": "ubuntu-22.04-jdk-17-ndk-r26b"

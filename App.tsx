@@ -33,6 +33,15 @@ const firebaseConfig = {
   storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
 };
 
+// Guard against missing Firebase config — causes silent white screen if any value is undefined
+const missingFirebaseVars = Object.entries(firebaseConfig)
+  .filter(([, v]) => !v)
+  .map(([k]) => k);
+
+if (missingFirebaseVars.length > 0) {
+  console.error('Missing Firebase config vars:', missingFirebaseVars);
+}
+
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
 let auth: ReturnType<typeof getAuth>;
@@ -51,7 +60,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const LoadingScreen: React.FC = () => (
   <View style={styles.loadingContainer}>
     <ActivityIndicator size="large" color={appTheme.navy} />
-    <Text style={styles.loadingText}>Loading GameIQ...</Text>
+    <Text style={styles.loadingText}>Loading SportsIQ...</Text>
   </View>
 );
 
@@ -125,7 +134,7 @@ const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSu
         </TouchableOpacity>
 
         <Text style={styles.termsText}>
-          By continuing, you agree to GameIQ's{' '}
+          By continuing, you agree to SportsIQ's{' '}
           <Text style={styles.termsLink} onPress={() => Linking.openURL('https://sportsiqapp.info/terms.html')}>
             Terms of Service
           </Text>
@@ -215,8 +224,7 @@ export default function App() {
   const [showSubscription, setShowSubscription] = useState(false);
   const handleUpgradeSubscription = () => setShowSubscription(true);
 
-  
-const handleSubscriptionComplete = async (onboardingData: {
+  const handleSubscriptionComplete = async (onboardingData: {
     sport: string | null;
     position: string | null;
     subscriptionTier: string | null;
@@ -224,7 +232,6 @@ const handleSubscriptionComplete = async (onboardingData: {
   }) => {
     setShowSubscription(false);
 
-    // null subscriptionTier means the user dismissed without making a change
     if (!onboardingData.subscriptionTier) return;
 
     if (userProfile) {
@@ -262,12 +269,10 @@ const handleSubscriptionComplete = async (onboardingData: {
                   existingUser.subscriptionTier
                 );
               } catch (syncErr) {
-                // Non-fatal — log and continue. App works regardless.
                 console.error('RevenueCat sync error on launch:', syncErr);
               }
             }
           } catch {
-            // Network error — do not treat as new user, do not show onboarding
             setUser(firebaseUser);
             setUserProfile(null);
             setShowOnboarding(false);
@@ -278,7 +283,6 @@ const handleSubscriptionComplete = async (onboardingData: {
           setShowOnboarding(false);
         }
       } finally {
-        // Always clear the loading state, even if something throws unexpectedly
         setInitializing(false);
       }
     });
@@ -321,8 +325,8 @@ const handleSubscriptionComplete = async (onboardingData: {
   if (initializing) return <PaperProvider><LoadingScreen /></PaperProvider>;
   if (!user) return <PaperProvider><AuthScreen onAuthSuccess={handleAuthSuccess} /></PaperProvider>;
   if (showOnboarding) return <PaperProvider><OnboardingFlow user={user} onComplete={handleOnboardingComplete} /></PaperProvider>;
-  
-if (showSubscription) {
+
+  if (showSubscription) {
     const isExistingSubscriber =
       userProfile?.subscriptionTier === 'BASIC' ||
       userProfile?.subscriptionTier === 'PREMIUM';
@@ -342,10 +346,10 @@ if (showSubscription) {
   return (
     <PaperProvider>
       <UpgradeProvider onUpgradePress={handleUpgradeSubscription}>
-      <NavigationContainer>
-        <RootStack />
-      </NavigationContainer>
-    </UpgradeProvider>
+        <NavigationContainer>
+          <RootStack />
+        </NavigationContainer>
+      </UpgradeProvider>
     </PaperProvider>
   );
 }
