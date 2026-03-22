@@ -1,8 +1,7 @@
 import { ApiResponse, WorkoutPlan, WorkoutRequest } from "../interfaces/interfaces";
+import ENV_CONFIG from '../config/environment';
 
-const API_BASE_URL = __DEV__ 
-  ? 'http://192.168.254.5:8080/api/v1'
-  : 'https://your-production-api.com/api/v1';
+const API_BASE_URL = `${ENV_CONFIG.BACKEND_URL}/api/v1`;
 
 class WorkoutApiService {
   private async makeRequest<T>(
@@ -51,7 +50,7 @@ class WorkoutApiService {
       if (error instanceof TypeError && error.message.includes('Network request failed')) {
         return {
           success: false,
-          error: 'Cannot connect to backend server. Make sure your backend is running on localhost:8080'
+          error: 'Cannot connect to backend server. Make sure the backend is reachable.'
         };
       }
       return {
@@ -66,7 +65,7 @@ class WorkoutApiService {
     console.log('Generating workout with request:', request);
 
     const backendRequest = {
-      userId,                               // real DB user ID passed from screen
+      userId,
       sport: request.sport,
       position: request.position,
       experienceLevel: request.experienceLevel,

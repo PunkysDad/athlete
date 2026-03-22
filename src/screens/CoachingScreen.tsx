@@ -21,6 +21,7 @@ import { apiService, TrialLimitError } from '../services/apiService';
 import { TagResponse } from '../interfaces/interfaces';
 import { useUpgrade } from '../context/UpgradeContext';
 import { appTheme } from '../theme/appTheme';
+import ENV_CONFIG from '../config/environment';
 
 const TAG_COLORS = ['#007AFF', '#FF3B30', '#34C759', '#FF9500', '#AF52DE', '#FF2D55', '#5AC8FA'];
 
@@ -87,7 +88,7 @@ export default function CoachingScreen() {
   const [trialLimitVisible, setTrialLimitVisible] = useState(false);
   const { onUpgradePress } = useUpgrade();
 
-  const backendUrl = 'http://192.168.254.5:8080';
+  const backendUrl = ENV_CONFIG.BACKEND_URL;
 
   useEffect(() => {
     const fetchUserProfile = async () => {
