@@ -7,7 +7,7 @@ export default {
     version: "1.0.0",
     orientation: "portrait",
     jsEngine: 'hermes',
-    newArchEnabled: true,
+    newArchEnabled: false,
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
     assetBundlePatterns: [
