@@ -246,39 +246,41 @@ const handleSubscriptionComplete = async (onboardingData: {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          const existingUser = await userService.checkUserExists(firebaseUser.uid);
-          setUser(firebaseUser);
-          setUserProfile(existingUser ?? null);
-          setShowOnboarding(!existingUser);
+      try {
+        if (firebaseUser) {
+          try {
+            const existingUser = await userService.checkUserExists(firebaseUser.uid);
+            setUser(firebaseUser);
+            setUserProfile(existingUser ?? null);
+            setShowOnboarding(!existingUser);
 
-          // Sync RevenueCat entitlement status to backend on every launch.
-          // Catches cancellations and expirations that happened since last session.
-          if (existingUser) {
-            try {
-              await revenueCatService.initialize(firebaseUser.uid);
-              await revenueCatService.syncTierIfChanged(
-                existingUser.id,
-                existingUser.subscriptionTier
-              );
-            } catch (syncErr) {
-              // Non-fatal — log and continue. App works regardless.
-              console.error('RevenueCat sync error on launch:', syncErr);
+            if (existingUser) {
+              try {
+                await revenueCatService.initialize(firebaseUser.uid);
+                await revenueCatService.syncTierIfChanged(
+                  existingUser.id,
+                  existingUser.subscriptionTier
+                );
+              } catch (syncErr) {
+                // Non-fatal — log and continue. App works regardless.
+                console.error('RevenueCat sync error on launch:', syncErr);
+              }
             }
+          } catch {
+            // Network error — do not treat as new user, do not show onboarding
+            setUser(firebaseUser);
+            setUserProfile(null);
+            setShowOnboarding(false);
           }
-        } catch {
-          // Network error — do not treat as new user, do not show onboarding
-          setUser(firebaseUser);
+        } else {
+          setUser(null);
           setUserProfile(null);
           setShowOnboarding(false);
         }
-      } else {
-        setUser(null);
-        setUserProfile(null);
-        setShowOnboarding(false);
+      } finally {
+        // Always clear the loading state, even if something throws unexpectedly
+        setInitializing(false);
       }
-      setInitializing(false);
     });
     return () => unsubscribe();
   }, []);
