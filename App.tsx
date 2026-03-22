@@ -254,18 +254,18 @@ const handleSubscriptionComplete = async (onboardingData: {
             setUserProfile(existingUser ?? null);
             setShowOnboarding(!existingUser);
 
-            if (existingUser) {
-              try {
-                await revenueCatService.initialize(firebaseUser.uid);
-                await revenueCatService.syncTierIfChanged(
-                  existingUser.id,
-                  existingUser.subscriptionTier
-                );
-              } catch (syncErr) {
-                // Non-fatal — log and continue. App works regardless.
-                console.error('RevenueCat sync error on launch:', syncErr);
-              }
-            }
+            // if (existingUser) {
+            //   try {
+            //     await revenueCatService.initialize(firebaseUser.uid);
+            //     await revenueCatService.syncTierIfChanged(
+            //       existingUser.id,
+            //       existingUser.subscriptionTier
+            //     );
+            //   } catch (syncErr) {
+            //     // Non-fatal — log and continue. App works regardless.
+            //     console.error('RevenueCat sync error on launch:', syncErr);
+            //   }
+            // }
           } catch {
             // Network error — do not treat as new user, do not show onboarding
             setUser(firebaseUser);
