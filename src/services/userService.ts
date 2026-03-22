@@ -1,8 +1,10 @@
 import { CreateUserRequest, UserResponse } from '../interfaces/interfaces';
+import ENV_CONFIG from '../config/environment';
+
 export class UserService {
   private baseUrl: string;
 
-  constructor(baseUrl: string = 'http://192.168.254.5:8080/api/v1') {
+  constructor(baseUrl: string = `${ENV_CONFIG.BACKEND_URL}/api/v1`) {
     this.baseUrl = baseUrl;
   }
 

@@ -1,6 +1,7 @@
 import { ActivityStats, ApiResponse, TagResponse, TaggedConversationResponse, TaggedWorkoutResponse } from '../interfaces/interfaces';
+import ENV_CONFIG from '../config/environment';
 
-const BASE_URL = 'http://192.168.254.5:8080';
+const BASE_URL = ENV_CONFIG.BACKEND_URL;
 
 // Errors thrown by the backend trial/subscription enforcement contain this flag
 // so screens can distinguish a limit error from a generic network failure.

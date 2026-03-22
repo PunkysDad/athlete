@@ -1,10 +1,10 @@
-// src/services/revenueCatService.ts
 import { Platform } from 'react-native';
 import Purchases, {
   PurchasesOffering,
   PurchasesPackage,
   CustomerInfo,
 } from 'react-native-purchases';
+import ENV_CONFIG from '../config/environment';
 
 export const SUBSCRIPTION_PRODUCTS = {
   BASIC_MONTHLY:   'gameiq_basic_monthly',
@@ -23,7 +23,7 @@ export interface SubscriptionInfo {
   expirationDate?: Date;
 }
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.254.5:8080';
+const API_BASE = ENV_CONFIG.BACKEND_URL;
 
 export class RevenueCatService {
   private isInitialized = false;
