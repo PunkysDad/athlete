@@ -129,9 +129,9 @@ const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSu
           }
         </TouchableOpacity>
 
-        {/* <TouchableOpacity style={styles.devButton} onPress={handleDevSignIn}>
+        <TouchableOpacity style={styles.devButton} onPress={handleDevSignIn}>
           <Text style={styles.devButtonText}>Continue as Dev User</Text>
-        </TouchableOpacity> */}
+        </TouchableOpacity>
 
         <Text style={styles.termsText}>
           By continuing, you agree to SportsIQ's{' '}
@@ -222,7 +222,18 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [showSubscription, setShowSubscription] = useState(false);
-  const handleUpgradeSubscription = () => setShowSubscription(true);
+
+  const handleUpgradeSubscription = async () => {
+    if (user) {
+      try {
+        const fresh = await userService.checkUserExists(user.uid);
+        if (fresh) setUserProfile(fresh);
+      } catch {
+        // use stale profile if refresh fails
+      }
+    }
+    setShowSubscription(true);
+  };
 
   const handleSubscriptionComplete = async (onboardingData: {
     sport: string | null;
@@ -328,10 +339,8 @@ export default function App() {
 
   if (showSubscription) {
     const isExistingSubscriber =
-    userProfile?.subscriptionTier === 'BASIC' ||
-    userProfile?.subscriptionTier === 'PREMIUM' ||
-    (userProfile?.subscriptionTier === 'TRIAL' && 
-      (userProfile?.trialChatsUsed >= 3 || userProfile?.trialWorkoutsUsed >= 1));
+      userProfile?.subscriptionTier === 'BASIC' ||
+      userProfile?.subscriptionTier === 'PREMIUM';
 
     return (
       <PaperProvider>
