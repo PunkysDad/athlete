@@ -328,8 +328,10 @@ export default function App() {
 
   if (showSubscription) {
     const isExistingSubscriber =
-      userProfile?.subscriptionTier === 'BASIC' ||
-      userProfile?.subscriptionTier === 'PREMIUM';
+    userProfile?.subscriptionTier === 'BASIC' ||
+    userProfile?.subscriptionTier === 'PREMIUM' ||
+    (userProfile?.subscriptionTier === 'TRIAL' && 
+      (userProfile?.trialChatsUsed >= 3 || userProfile?.trialWorkoutsUsed >= 1));
 
     return (
       <PaperProvider>
