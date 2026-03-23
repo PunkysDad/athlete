@@ -129,9 +129,9 @@ const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSu
           }
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.devButton} onPress={handleDevSignIn}>
+        {/* <TouchableOpacity style={styles.devButton} onPress={handleDevSignIn}>
           <Text style={styles.devButtonText}>Continue as Dev User</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <Text style={styles.termsText}>
           By continuing, you agree to SportsIQ's{' '}
@@ -452,13 +452,13 @@ const styles = StyleSheet.create({
   },
   termsText: {
     fontSize: 12,
-    color: appTheme.textLight,
+    color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 16,
   },
   termsLink: {
-    color: appTheme.navy,
+    color: '#ffffff',
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
@@ -469,6 +469,6 @@ const styles = StyleSheet.create({
   },
   authFooterText: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.75)',
   },
 });
