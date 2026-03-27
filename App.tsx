@@ -97,10 +97,6 @@ const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSu
     }
   };
 
-  const handleDevSignIn = () => {
-    onAuthSuccess({ uid: 'dev-user-123', email: 'dev@gameiq.com', displayName: 'Dev User' });
-  };
-
   return (
     <View style={styles.authContainer}>
       <StatusBar barStyle="light-content" backgroundColor={appTheme.navy} />
@@ -127,10 +123,6 @@ const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSu
             ? <ActivityIndicator color={appTheme.white} size="small" />
             : <Text style={styles.appleButtonText}>Continue with Apple</Text>
           }
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.devButton} onPress={handleDevSignIn}>
-          <Text style={styles.devButtonText}>Continue as Dev User</Text>
         </TouchableOpacity>
 
         <Text style={styles.termsText}>
