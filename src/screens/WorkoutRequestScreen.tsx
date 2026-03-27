@@ -82,6 +82,8 @@ export default function WorkoutRequestScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [trialLimitVisible, setTrialLimitVisible] = useState(false);
+  const [modalType, setModalType] = useState<'trial' | 'budgetBasic' | 'budgetPremium'>('trial');
+  const [userSubscriptionTier, setUserSubscriptionTier] = useState<string | undefined>();
   const { onUpgradePress } = useUpgrade();
 
   useFocusEffect(
@@ -98,6 +100,7 @@ export default function WorkoutRequestScreen() {
             setCurrentUserId(userData.id);
             setUserSport(displaySport);
             setUserPosition(displayPosition);
+            setUserSubscriptionTier(userData.subscriptionTier);
             setFormData(prev => ({ ...prev, sport: displaySport, position: displayPosition }));
           }
         } catch (err) {
@@ -137,11 +140,19 @@ export default function WorkoutRequestScreen() {
         setCurrentUserId(resolvedUserId);
       } catch (error) {
         const message = error instanceof Error ? error.message : '';
-        if (
+        if (message.includes('Monthly AI budget reached')) {
+          if (userSubscriptionTier === 'PREMIUM') {
+            setModalType('budgetPremium');
+          } else {
+            setModalType('budgetBasic');
+          }
+          setTrialLimitVisible(true);
+        } else if (
           message.includes('Trial') || message.includes('trial') ||
           message.includes('limit reached') || message.includes('budget reached') ||
           message.includes('subscription')
         ) {
+          setModalType('trial');
           setTrialLimitVisible(true);
         } else {
           Alert.alert('Error', message || 'Failed to generate workout. Please try again.');
@@ -170,11 +181,19 @@ export default function WorkoutRequestScreen() {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
-      if (
+      if (message.includes('Monthly AI budget reached')) {
+        if (userSubscriptionTier === 'PREMIUM') {
+          setModalType('budgetPremium');
+        } else {
+          setModalType('budgetBasic');
+        }
+        setTrialLimitVisible(true);
+      } else if (
         message.includes('Trial') || message.includes('trial') ||
         message.includes('limit reached') || message.includes('budget reached') ||
         message.includes('subscription')
       ) {
+        setModalType('trial');
         setTrialLimitVisible(true);
       } else {
         Alert.alert('Error', message || 'Failed to generate workout. Please try again.');
@@ -263,6 +282,7 @@ export default function WorkoutRequestScreen() {
       <TrialLimitModal
         visible={trialLimitVisible}
         limitType="workout"
+        modalType={modalType}
         onDismiss={() => setTrialLimitVisible(false)}
         onUpgrade={() => {
           setTrialLimitVisible(false);

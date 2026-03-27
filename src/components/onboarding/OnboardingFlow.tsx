@@ -61,7 +61,7 @@ const SUBSCRIPTION_TIERS = [
   }
 ];
 
-export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete, startAtStep, hideTrial }) => {
+export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete, startAtStep, currentTier }) => {
   const [currentStep, setCurrentStep] = useState(startAtStep ?? 1);
   const initialStep = startAtStep ?? 1;
   const [isLoading, setIsLoading] = useState(false);
@@ -264,8 +264,8 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
         <Text style={styles.stepIndicator}>Step 3 of 3</Text>
 
         <ScrollView style={styles.optionsContainer} showsVerticalScrollIndicator={false}>
-          {/* Free Trial Option — hidden when existing subscriber is changing plans */}
-          {!hideTrial && (
+          {/* Free Trial Option — only shown to brand new users with no tier */}
+          {!currentTier && (
             <TouchableOpacity
               style={styles.trialCard}
               onPress={() => onComplete({
@@ -289,10 +289,10 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
             </TouchableOpacity>
           )}
 
-          {!hideTrial && <Text style={styles.orDivider}>— or subscribe for full access —</Text>}
+          {!currentTier && <Text style={styles.orDivider}>— or subscribe for full access —</Text>}
 
-          {/* Paid Tiers */}
-          {SUBSCRIPTION_TIERS.map((tier) => (
+          {/* Paid Tiers — hide the tier the user already has */}
+          {SUBSCRIPTION_TIERS.filter((tier) => tier.id !== currentTier).map((tier) => (
             <View key={tier.id} style={styles.tierSection}>
               <TouchableOpacity
                 style={[styles.subscriptionCard, tier.popular && styles.popularCard]}

@@ -98,6 +98,14 @@ export interface TagWithItems extends TagResponse {
   items: TaggedItem[];
 }
 
+export interface TrialLimitModalProps {
+  visible: boolean;
+  limitType: 'chat' | 'workout';
+  modalType?: 'trial' | 'budgetBasic' | 'budgetPremium';
+  onDismiss: () => void;
+  onUpgrade: () => void;
+}
+
 export interface UpgradeContextValue {
   onUpgradePress: () => void;
 }
@@ -123,7 +131,7 @@ export interface OnboardingFlowProps {
   user: any; // Firebase user
   onComplete: (data: OnboardingData) => void;
   startAtStep?: number;
-  hideTrial?: boolean; 
+  currentTier?: string;
 }
 export interface CreateUserRequest {
   email: string;

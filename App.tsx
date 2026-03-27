@@ -338,17 +338,13 @@ export default function App() {
   if (showOnboarding) return <PaperProvider><OnboardingFlow user={user} onComplete={handleOnboardingComplete} /></PaperProvider>;
 
   if (showSubscription) {
-    const isExistingSubscriber =
-      userProfile?.subscriptionTier === 'BASIC' ||
-      userProfile?.subscriptionTier === 'PREMIUM';
-
     return (
       <PaperProvider>
         <OnboardingFlow
           user={user}
           onComplete={handleSubscriptionComplete}
           startAtStep={3}
-          hideTrial={isExistingSubscriber}
+          currentTier={userProfile?.subscriptionTier ?? undefined}
         />
       </PaperProvider>
     );

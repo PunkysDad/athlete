@@ -6,12 +6,26 @@ import { appTheme } from '../theme/appTheme';
 interface Props {
   visible: boolean;
   limitType: 'chat' | 'workout';
+  modalType?: 'trial' | 'budgetBasic' | 'budgetPremium';
   onDismiss: () => void;
   onUpgrade: () => void;
 }
 
-export default function TrialLimitModal({ visible, limitType, onDismiss, onUpgrade }: Props) {
+export default function TrialLimitModal({ visible, limitType, modalType = 'trial', onDismiss, onUpgrade }: Props) {
   const isChat = limitType === 'chat';
+
+  const title = modalType === 'trial' ? 'Trial Limit Reached' : 'Monthly Limit Reached';
+
+  let bodyText: string;
+  if (modalType === 'budgetBasic') {
+    bodyText = "You've used your monthly AI budget. Upgrade to Premium for double the allowance.";
+  } else if (modalType === 'budgetPremium') {
+    bodyText = "You've reached your monthly usage limit. Your limit resets at the start of next month. You can still review all of your previous chats and workouts.";
+  } else {
+    bodyText = isChat
+      ? "You've used all 3 free coaching questions included in your trial."
+      : "You've used the 1 free workout plan included in your trial.";
+  }
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
@@ -23,43 +37,47 @@ export default function TrialLimitModal({ visible, limitType, onDismiss, onUpgra
           </View>
 
           {/* Heading */}
-          <Text style={styles.title}>Trial Limit Reached</Text>
+          <Text style={styles.title}>{title}</Text>
 
           {/* Body */}
-          <Text style={styles.body}>
-            {isChat
-              ? "You've used all 3 free coaching questions included in your trial."
-              : "You've used the 1 free workout plan included in your trial."}
-          </Text>
+          <Text style={styles.body}>{bodyText}</Text>
 
-          {/* What they get */}
-          <View style={styles.tierList}>
-            <Text style={styles.tierHeading}>Unlock full access:</Text>
+          {/* What they get — hidden for Premium budget limit */}
+          {modalType !== 'budgetPremium' && (
+            <View style={styles.tierList}>
+              <Text style={styles.tierHeading}>Unlock full access:</Text>
 
-            <View style={styles.tierRow}>
-              <Icon name="check-circle" size={18} color={appTheme.navy} />
-              <View style={styles.tierText}>
-                <Text style={styles.tierName}>Basic — $12.99/mo</Text>
-                <Text style={styles.tierDetail}>~400 chats + ~57 workouts per month</Text>
+              {modalType !== 'budgetBasic' && (
+                <View style={styles.tierRow}>
+                  <Icon name="check-circle" size={18} color="#8B5CF6" />
+                  <View style={styles.tierText}>
+                    <Text style={styles.tierName}>Basic — $12.99/mo</Text>
+                    <Text style={styles.tierDetail}>~400 chats + ~57 workouts per month</Text>
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.tierRow}>
+                <Icon name="check-circle" size={18} color="#8B5CF6" />
+                <View style={styles.tierText}>
+                  <Text style={styles.tierName}>Premium — $19.99/mo</Text>
+                  <Text style={styles.tierDetail}>~800 chats + ~114 workouts per month</Text>
+                </View>
               </View>
             </View>
-
-            <View style={styles.tierRow}>
-              <Icon name="check-circle" size={18} color={appTheme.red} />
-              <View style={styles.tierText}>
-                <Text style={styles.tierName}>Premium — $19.99/mo</Text>
-                <Text style={styles.tierDetail}>~800 chats + ~114 workouts per month</Text>
-              </View>
-            </View>
-          </View>
+          )}
 
           {/* Actions */}
-          <TouchableOpacity style={styles.upgradeBtn} onPress={onUpgrade}>
-            <Text style={styles.upgradeBtnText}>Subscribe Now</Text>
-          </TouchableOpacity>
+          {modalType !== 'budgetPremium' && (
+            <TouchableOpacity style={styles.upgradeBtn} onPress={onUpgrade}>
+              <Text style={styles.upgradeBtnText}>Subscribe Now</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity style={styles.dismissBtn} onPress={onDismiss}>
-            <Text style={styles.dismissBtnText}>Maybe Later</Text>
+            <Text style={styles.dismissBtnText}>
+              {modalType === 'budgetPremium' ? 'Got It' : 'Maybe Later'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -108,7 +126,7 @@ const styles = StyleSheet.create({
   },
   tierList: {
     width: '100%',
-    backgroundColor: appTheme.gray,
+    backgroundColor: '#1a2744',
     borderRadius: 10,
     padding: 14,
     marginBottom: 20,
@@ -117,7 +135,7 @@ const styles = StyleSheet.create({
   tierHeading: {
     fontSize: 13,
     fontWeight: '600',
-    color: appTheme.navy,
+    color: '#e0e0e0',
     marginBottom: 4,
   },
   tierRow: {
@@ -130,12 +148,12 @@ const styles = StyleSheet.create({
   },
   tierName: {
     fontSize: 14,
-    fontWeight: '600',
-    color: appTheme.navyDark,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   tierDetail: {
     fontSize: 12,
-    color: appTheme.textLight,
+    color: '#b0bec5',
     marginTop: 1,
   },
   upgradeBtn: {

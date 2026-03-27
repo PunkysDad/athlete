@@ -36,6 +36,7 @@ interface UserProfile {
   id: number;
   primarySport: string;
   primaryPosition: string;
+  subscriptionTier?: string;
 }
 
 const COACHING_TIPS = [
@@ -86,6 +87,7 @@ export default function CoachingScreen() {
   const [savingTag, setSavingTag]             = useState(false);
 
   const [trialLimitVisible, setTrialLimitVisible] = useState(false);
+  const [modalType, setModalType] = useState<'trial' | 'budgetBasic' | 'budgetPremium'>('trial');
   const { onUpgradePress } = useUpgrade();
 
   const backendUrl = ENV_CONFIG.BACKEND_URL;
@@ -150,6 +152,16 @@ export default function CoachingScreen() {
         try { backendMessage = JSON.parse(errText)?.message ?? null; } catch { /* not JSON */ }
         const msg = backendMessage ?? `HTTP ${res.status}: ${errText}`;
 
+        if (backendMessage && backendMessage.includes('Monthly AI budget reached')) {
+          if (userProfile?.subscriptionTier === 'PREMIUM') {
+            setModalType('budgetPremium');
+          } else {
+            setModalType('budgetBasic');
+          }
+          setTrialLimitVisible(true);
+          return;
+        }
+
         if (
           backendMessage &&
           (backendMessage.includes('Trial') ||
@@ -158,6 +170,7 @@ export default function CoachingScreen() {
             backendMessage.includes('budget reached') ||
             backendMessage.includes('subscription'))
         ) {
+          setModalType('trial');
           setTrialLimitVisible(true);
           return;
         }
@@ -177,6 +190,7 @@ export default function CoachingScreen() {
       setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (error: any) {
       if (error instanceof TrialLimitError) {
+        setModalType('trial');
         setTrialLimitVisible(true);
         return;
       }
@@ -258,6 +272,7 @@ export default function CoachingScreen() {
         <TrialLimitModal
           visible={trialLimitVisible}
           limitType="chat"
+          modalType={modalType}
           onDismiss={() => setTrialLimitVisible(false)}
           onUpgrade={() => {
             setTrialLimitVisible(false);
