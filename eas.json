@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 3.0.0"
+    "version": ">= 3.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -41,7 +42,8 @@
         "image": "ubuntu-22.04-jdk-17-ndk-r26b"
       },
       "ios": {
-        "image": "latest"
+        "image": "latest",
+        "autoIncrement": true
       }
     }
   },
