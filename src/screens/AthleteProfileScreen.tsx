@@ -117,6 +117,7 @@ export default function ProfileEditScreen() {
   const [subscriptionTier, setSubscriptionTier] = useState<string>('TRIAL');
   const [profileLoading, setProfileLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     sport: 'Football',
@@ -211,7 +212,29 @@ export default function ProfileEditScreen() {
       'Are you sure you want to delete your account? This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => console.log('Account deletion requested') },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!currentUserId) return;
+            setIsDeleting(true);
+            try {
+              const response = await fetch(
+                `${process.env.EXPO_PUBLIC_API_URL}/api/v1/users/${currentUserId}`,
+                { method: 'DELETE' }
+              );
+              if (!response.ok) {
+                throw new Error('Delete failed');
+              }
+              await getAuth().signOut();
+              Alert.alert('Your account has been deleted');
+            } catch {
+              Alert.alert('Error', 'Failed to delete account. Please try again.');
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
       ]
     );
   };
@@ -319,6 +342,26 @@ export default function ProfileEditScreen() {
                     </Button>
                   )}
                 </View>
+              </Card.Content>
+            </Card>
+
+            {/* Danger Zone */}
+            <Card style={styles.dangerCard}>
+              <Card.Content>
+                <Text style={[styles.sectionTitle, { color: '#dc3545' }]}>Danger Zone</Text>
+                <Text style={styles.dangerBody}>
+                  Permanently delete your account and all associated data. This action cannot be undone.
+                </Text>
+                <Button
+                  mode="outlined"
+                  onPress={handleDeleteAccount}
+                  disabled={isDeleting}
+                  textColor="#dc3545"
+                  style={styles.dangerButton}
+                  icon="delete-forever"
+                >
+                  Delete Account
+                </Button>
               </Card.Content>
             </Card>
 

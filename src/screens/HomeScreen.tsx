@@ -222,6 +222,9 @@ export default function HomeScreen() {
       disabled={!onPress}
       activeOpacity={onPress ? 0.7 : 1}
     >
+      {onPress && (
+        <Icon name="touch-app" size={16} color={appTheme.neonGreen} style={styles.statCardChevron} />
+      )}
       <Icon name={icon as any} size={22} color={appTheme.neonGreen} />
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
@@ -580,6 +583,11 @@ const styles = StyleSheet.create({
     borderColor: appTheme.border,
     borderLeftWidth: 3,
     borderLeftColor: appTheme.red,
+  },
+  statCardChevron: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
   },
   statValue: {
     fontSize: 28,
