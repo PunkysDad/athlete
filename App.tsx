@@ -69,6 +69,13 @@ const LoadingScreen: React.FC = () => (
 const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    const apiKey = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS;
+    if (apiKey) {
+      Purchases.configure({ apiKey });
+    }
+  }, []);
+
   const handleAppleSignIn = async () => {
     try {
       setIsLoading(true);
@@ -231,13 +238,6 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [showSubscription, setShowSubscription] = useState(false);
-  useEffect(() => {
-    const apiKey = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS;
-    if (apiKey) {
-      Purchases.configure({ apiKey });
-    }
-  }, []);
-
   const handleUpgradeSubscription = async () => {
     if (user) {
       try {
