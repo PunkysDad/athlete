@@ -66,7 +66,7 @@ const LoadingScreen: React.FC = () => (
 );
 
 // ─── Auth Screen ──────────────────────────────────────────────────────────────
-const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void; rcInitialized: boolean }> = ({ onAuthSuccess, rcInitialized }) => {
+const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleAppleSignIn = async () => {
@@ -126,8 +126,7 @@ const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void; rcInitialized: 
           }
         </TouchableOpacity>
 
-        {rcInitialized && (
-          <TouchableOpacity
+        <TouchableOpacity
             style={styles.restoreButton}
             onPress={async () => {
               try {
@@ -142,7 +141,6 @@ const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void; rcInitialized: 
           >
             <Text style={styles.restoreButtonText}>Restore Purchases</Text>
           </TouchableOpacity>
-        )}
 
         <Text style={styles.termsText}>
           By continuing, you agree to SportsIQ's{' '}
@@ -233,7 +231,12 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [showSubscription, setShowSubscription] = useState(false);
-  const [rcInitialized, setRcInitialized] = useState(false);
+  useEffect(() => {
+    const apiKey = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS;
+    if (apiKey) {
+      Purchases.configure({ apiKey });
+    }
+  }, []);
 
   const handleUpgradeSubscription = async () => {
     if (user) {
@@ -280,7 +283,6 @@ export default function App() {
         if (firebaseUser) {
           try {
             await revenueCatService.initialize(firebaseUser.uid);
-            setRcInitialized(true);
           } catch (rcErr) {
             console.error('RevenueCat init error:', rcErr);
           }
@@ -352,7 +354,7 @@ export default function App() {
   };
 
   if (initializing) return <PaperProvider><LoadingScreen /></PaperProvider>;
-  if (!user) return <PaperProvider><AuthScreen onAuthSuccess={handleAuthSuccess} rcInitialized={rcInitialized} /></PaperProvider>;
+  if (!user) return <PaperProvider><AuthScreen onAuthSuccess={handleAuthSuccess} /></PaperProvider>;
   if (showOnboarding) return <PaperProvider><OnboardingFlow user={user} onComplete={handleOnboardingComplete} /></PaperProvider>;
 
   if (showSubscription) {
