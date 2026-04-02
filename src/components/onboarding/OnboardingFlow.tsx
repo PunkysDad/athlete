@@ -1,6 +1,7 @@
 // src/components/onboarding/OnboardingFlow.tsx
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert, Linking } from 'react-native';
+import Purchases from 'react-native-purchases';
 import { revenueCatService, SUBSCRIPTION_PRODUCTS } from '../../services/revenueCatService';
 import { OnboardingData, OnboardingFlowProps } from '../../interfaces/interfaces';
 
@@ -316,6 +317,38 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
               </TouchableOpacity>
             </View>
           ))}
+
+          {!currentTier && (
+            <TouchableOpacity
+              style={styles.restoreButton}
+              onPress={async () => {
+                try {
+                  await Purchases.restorePurchases();
+                  Alert.alert('Success', 'Your purchases have been restored.');
+                } catch (error: any) {
+                  Alert.alert('Restore Failed', error?.message ?? 'Unable to restore purchases. Please try again.');
+                }
+              }}
+            >
+              <Text style={styles.restoreButtonText}>Restore Purchases</Text>
+            </TouchableOpacity>
+          )}
+
+          <View style={styles.legalLinks}>
+            <Text
+              style={styles.legalLinkText}
+              onPress={() => Linking.openURL('https://sportsiqapp.info/privacy.html')}
+            >
+              Privacy Policy
+            </Text>
+            <Text style={styles.legalDivider}>|</Text>
+            <Text
+              style={styles.legalLinkText}
+              onPress={() => Linking.openURL('https://sportsiqapp.info/terms.html')}
+            >
+              Terms of Use
+            </Text>
+          </View>
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -507,5 +540,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#999',
     marginVertical: 16,
+  },
+  restoreButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  restoreButtonText: {
+    fontSize: 14,
+    color: '#0066FF',
+    fontWeight: '500',
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  legalLinkText: {
+    fontSize: 12,
+    color: '#666666',
+  },
+  legalDivider: {
+    fontSize: 12,
+    color: '#666666',
+    marginHorizontal: 8,
   },
 });

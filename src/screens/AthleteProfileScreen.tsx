@@ -218,11 +218,16 @@ export default function ProfileEditScreen() {
           onPress: async () => {
             if (!currentUserId) return;
             setIsDeleting(true);
+            console.log('DEBUG deleteAccount currentUserId:', currentUserId);
+            console.log('DEBUG deleteAccount URL:', `${process.env.EXPO_PUBLIC_API_URL}/api/v1/users/${currentUserId}`);
             try {
               const response = await fetch(
                 `${process.env.EXPO_PUBLIC_API_URL}/api/v1/users/${currentUserId}`,
                 { method: 'DELETE' }
               );
+              console.log('DEBUG deleteAccount response status:', response.status);
+              const responseBody = await response.text();
+              console.log('DEBUG deleteAccount response body:', responseBody);
               if (!response.ok) {
                 throw new Error('Delete failed');
               }

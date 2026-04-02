@@ -10,6 +10,7 @@ import { getApps, initializeApp } from 'firebase/app';
 // @ts-ignore: getReactNativePersistence exists in the React Native bundle
 import { initializeAuth, getReactNativePersistence, getAuth, onAuthStateChanged, signOut, signInWithCredential, OAuthProvider } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Purchases from 'react-native-purchases';
 import { revenueCatService } from './src/services/revenueCatService';
 
 import HomeScreen from './src/screens/HomeScreen';
@@ -65,7 +66,7 @@ const LoadingScreen: React.FC = () => (
 );
 
 // ─── Auth Screen ──────────────────────────────────────────────────────────────
-const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSuccess }) => {
+const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void; rcInitialized: boolean }> = ({ onAuthSuccess, rcInitialized }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleAppleSignIn = async () => {
@@ -124,6 +125,24 @@ const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSu
             : <Text style={styles.appleButtonText}>Continue with Apple</Text>
           }
         </TouchableOpacity>
+
+        {rcInitialized && (
+          <TouchableOpacity
+            style={styles.restoreButton}
+            onPress={async () => {
+              try {
+                await Purchases.restorePurchases();
+                Alert.alert('Success', 'Your purchases have been restored.', [
+                  { text: 'OK', onPress: () => handleAppleSignIn() },
+                ]);
+              } catch (error: any) {
+                Alert.alert('Restore Failed', error?.message ?? 'Unable to restore purchases. Please try again.');
+              }
+            }}
+          >
+            <Text style={styles.restoreButtonText}>Restore Purchases</Text>
+          </TouchableOpacity>
+        )}
 
         <Text style={styles.termsText}>
           By continuing, you agree to SportsIQ's{' '}
@@ -214,6 +233,7 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [showSubscription, setShowSubscription] = useState(false);
+  const [rcInitialized, setRcInitialized] = useState(false);
 
   const handleUpgradeSubscription = async () => {
     if (user) {
@@ -259,14 +279,20 @@ export default function App() {
       try {
         if (firebaseUser) {
           try {
+            await revenueCatService.initialize(firebaseUser.uid);
+            setRcInitialized(true);
+          } catch (rcErr) {
+            console.error('RevenueCat init error:', rcErr);
+          }
+
+          try {
             const existingUser = await userService.checkUserExists(firebaseUser.uid);
             setUser(firebaseUser);
             setUserProfile(existingUser ?? null);
-            setShowOnboarding(!existingUser);
+            setShowOnboarding(!existingUser || !existingUser.primarySport || !existingUser.primaryPosition);
 
             if (existingUser) {
               try {
-                await revenueCatService.initialize(firebaseUser.uid);
                 await revenueCatService.syncTierIfChanged(
                   existingUser.id,
                   existingUser.subscriptionTier
@@ -326,7 +352,7 @@ export default function App() {
   };
 
   if (initializing) return <PaperProvider><LoadingScreen /></PaperProvider>;
-  if (!user) return <PaperProvider><AuthScreen onAuthSuccess={handleAuthSuccess} /></PaperProvider>;
+  if (!user) return <PaperProvider><AuthScreen onAuthSuccess={handleAuthSuccess} rcInitialized={rcInitialized} /></PaperProvider>;
   if (showOnboarding) return <PaperProvider><OnboardingFlow user={user} onComplete={handleOnboardingComplete} /></PaperProvider>;
 
   if (showSubscription) {
@@ -448,6 +474,15 @@ const styles = StyleSheet.create({
     color: appTheme.navy,
     fontSize: 16,
     fontWeight: '600',
+  },
+  restoreButton: {
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  restoreButtonText: {
+    fontSize: 14,
+    color: '#666666',
+    fontWeight: '500',
   },
   termsText: {
     fontSize: 12,

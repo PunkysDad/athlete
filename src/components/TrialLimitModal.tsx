@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Linking } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { appTheme } from '../theme/appTheme';
 
@@ -79,6 +79,22 @@ export default function TrialLimitModal({ visible, limitType, modalType = 'trial
               {modalType === 'budgetPremium' ? 'Got It' : 'Maybe Later'}
             </Text>
           </TouchableOpacity>
+
+          <View style={styles.legalLinks}>
+            <Text
+              style={styles.legalLinkText}
+              onPress={() => Linking.openURL('https://sportsiqapp.info/privacy.html')}
+            >
+              Privacy Policy
+            </Text>
+            <Text style={styles.legalDivider}>|</Text>
+            <Text
+              style={styles.legalLinkText}
+              onPress={() => Linking.openURL('https://sportsiqapp.info/terms.html')}
+            >
+              Terms of Use
+            </Text>
+          </View>
         </View>
       </View>
     </Modal>
@@ -177,5 +193,20 @@ const styles = StyleSheet.create({
   dismissBtnText: {
     color: appTheme.textLight,
     fontSize: 14,
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  legalLinkText: {
+    fontSize: 12,
+    color: '#b0bec5',
+  },
+  legalDivider: {
+    fontSize: 12,
+    color: '#b0bec5',
+    marginHorizontal: 8,
   },
 });
