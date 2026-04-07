@@ -7,13 +7,13 @@ import Purchases, {
 import ENV_CONFIG from '../config/environment';
 
 export const SUBSCRIPTION_PRODUCTS = {
-  BASIC_MONTHLY:   'gameiq_basic_monthly',
-  PREMIUM_MONTHLY: 'gameiq_premium_monthly',
+  BASIC_MONTHLY:   'sportsiq_basic_monthly',
+  PREMIUM_MONTHLY: 'sportsiq_premium_monthly',
 };
 
 export const ENTITLEMENTS = {
-  BASIC:   'gameiq_basic',
-  PREMIUM: 'gameiq_premium',
+  BASIC:   'sportsiq_basic',
+  PREMIUM: 'sportsiq_premium',
 };
 
 export interface SubscriptionInfo {
