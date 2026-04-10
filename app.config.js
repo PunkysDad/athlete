@@ -51,6 +51,7 @@ export default {
     plugins: [
       "expo-dev-client",
       "expo-apple-authentication",
+      "@react-native-google-signin/google-signin",
       [
         "expo-build-properties",
         {
