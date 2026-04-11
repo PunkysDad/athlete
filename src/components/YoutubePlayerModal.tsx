@@ -22,6 +22,7 @@ interface YoutubePlayerModalProps {
   onClose: () => void;
   workoutId: number;
   savedVideoId?: string;
+  savedVideoTitle?: string;
 }
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -33,7 +34,7 @@ const extractVideoId = (urlOrId: string): string => {
   return match ? match[1] : urlOrId;
 };
 
-export default function YoutubePlayerModal({ visible, exerciseName, onClose, workoutId, savedVideoId }: YoutubePlayerModalProps) {
+export default function YoutubePlayerModal({ visible, exerciseName, onClose, workoutId, savedVideoId, savedVideoTitle }: YoutubePlayerModalProps) {
   const [results, setResults] = useState<YoutubeVideoResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -111,6 +112,8 @@ export default function YoutubePlayerModal({ visible, exerciseName, onClose, wor
     if (!selectedVideoId) return;
     setSaving(true);
     try {
+      const selectedVideo = results.find(v => v.videoId === selectedVideoId);
+      const videoTitle = selectedVideo?.title ?? null;
       const firebaseUser = getAuth().currentUser;
       if (!firebaseUser) return;
       const token = await firebaseUser.getIdToken();
@@ -126,6 +129,7 @@ export default function YoutubePlayerModal({ visible, exerciseName, onClose, wor
           exerciseName,
           videoId: selectedVideoId,
           videoUrl: `https://www.youtube.com/watch?v=${selectedVideoId}`,
+          videoTitle,
         }),
       });
       if (response.ok) {
@@ -346,7 +350,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   backButtonText: {
-    color: appTheme.red,
+    color: appTheme.purple,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -360,7 +364,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveButton: {
-    backgroundColor: appTheme.red,
+    backgroundColor: appTheme.purple,
     borderRadius: 8,
     paddingHorizontal: 32,
     paddingVertical: 10,

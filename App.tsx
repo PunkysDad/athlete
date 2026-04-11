@@ -13,6 +13,8 @@ import { initializeAuth, getReactNativePersistence, getAuth, onAuthStateChanged,
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Purchases from 'react-native-purchases';
 import { revenueCatService } from './src/services/revenueCatService';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 
 import HomeScreen from './src/screens/HomeScreen';
 import AthleteProfileScreen from './src/screens/AthleteProfileScreen';
@@ -67,7 +69,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 // ─── Loading Screen ───────────────────────────────────────────────────────────
 const LoadingScreen: React.FC = () => (
   <View style={styles.loadingContainer}>
-    <ActivityIndicator size="large" color={appTheme.navy} />
+    <ActivityIndicator size="large" color={appTheme.purple} />
     <Text style={styles.loadingText}>Loading SportsIQ...</Text>
   </View>
 );
@@ -155,7 +157,16 @@ const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSu
 
   return (
     <View style={styles.authContainer}>
-      <StatusBar barStyle="light-content" backgroundColor={appTheme.navy} />
+      <StatusBar barStyle="light-content" backgroundColor={appTheme.bg} />
+      <LinearGradient
+        colors={['#080B14', '#0D0B1E', '#080B14']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      <View style={styles.orbTopRight} />
+      <View style={styles.orbBottomLeft} />
+
       <SafeAreaView style={styles.authNavSafeArea}>
         <View style={styles.authNav}>
           <Text style={styles.authNavLogo}>
@@ -169,7 +180,7 @@ const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSu
         <Text style={styles.authHeroSubtitle}>AI-powered sports coaching & IQ training</Text>
       </View>
 
-      <View style={styles.authCard}>
+      <BlurView intensity={20} tint="dark" style={styles.authCard}>
         {Platform.OS === 'ios' && (
           <TouchableOpacity
             style={styles.appleButton}
@@ -214,7 +225,7 @@ const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSu
             Privacy Policy
           </Text>
         </Text>
-      </View>
+      </BlurView>
 
       <View style={styles.authFooter}>
         <Text style={styles.authFooterText}>SportsIQ — Powered by Claude</Text>
@@ -237,11 +248,12 @@ function MainTabs() {
           };
           return <Icon name={icons[route.name] ?? 'circle'} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#ffffff',
-        tabBarInactiveTintColor: '#b0bec5',
+        tabBarActiveTintColor: appTheme.neonGreen,
+        tabBarInactiveTintColor: appTheme.textMuted,
         tabBarStyle: {
-          backgroundColor: '#1a2744',
-          borderTopWidth: 0,
+          backgroundColor: 'rgba(8,11,20,0.97)',
+          borderTopWidth: 1,
+          borderTopColor: appTheme.border,
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -439,51 +451,82 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: appTheme.white,
+    backgroundColor: appTheme.bg,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: appTheme.textLight,
+    color: appTheme.textMuted,
   },
   authContainer: {
     flex: 1,
-    backgroundColor: appTheme.white,
+    backgroundColor: appTheme.bg,
+  },
+  // Ambient glow orbs
+  orbTopRight: {
+    position: 'absolute',
+    top: -80,
+    right: -80,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: appTheme.orbPurple,
+    opacity: 0.12,
+    shadowColor: appTheme.orbPurple,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 80,
+  },
+  orbBottomLeft: {
+    position: 'absolute',
+    bottom: 100,
+    left: -100,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: appTheme.neonGreen,
+    opacity: 0.10,
+    shadowColor: appTheme.neonGreen,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 80,
   },
   authNavSafeArea: {
-    backgroundColor: appTheme.navy,
+    backgroundColor: 'rgba(8,11,20,0.95)',
   },
   authNav: {
-    backgroundColor: appTheme.navy,
+    backgroundColor: 'transparent',
     paddingVertical: 16,
     paddingHorizontal: 24,
     flexDirection: 'row',
     alignItems: 'center',
   },
   authNavLogo: {
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: 32,
+    fontWeight: '900',
     color: appTheme.white,
   },
   authNavLogoAccent: {
-    color: appTheme.silver,
+    color: appTheme.neonGreen,
   },
   authHero: {
-    backgroundColor: appTheme.navy,
-    paddingVertical: 48,
+    backgroundColor: 'transparent',
+    paddingTop: 60,
+    paddingBottom: 60,
     paddingHorizontal: 24,
     alignItems: 'center',
   },
   authHeroTitle: {
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: 36,
+    fontWeight: '900',
     color: appTheme.white,
     marginBottom: 8,
     textAlign: 'center',
+    letterSpacing: -1,
   },
   authHeroSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    fontSize: 15,
+    color: appTheme.textMuted,
     textAlign: 'center',
   },
   authCard: {
@@ -491,12 +534,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingTop: 48,
     alignItems: 'center',
-    backgroundColor: appTheme.gray,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderTopWidth: 1,
+    borderTopColor: appTheme.border,
   },
   // ── Apple button (iOS) ──
   appleButton: {
-    backgroundColor: '#000000',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.20)',
+    borderRadius: 20,
     paddingVertical: 16,
     paddingHorizontal: 24,
     width: '100%',
@@ -516,8 +563,8 @@ const styles = StyleSheet.create({
   },
   // ── Google button (Android) ──
   googleButton: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 20,
     paddingVertical: 16,
     paddingHorizontal: 24,
     width: '100%',
@@ -525,7 +572,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#dadce0',
+    borderColor: 'rgba(255,255,255,0.30)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -553,34 +600,36 @@ const styles = StyleSheet.create({
   },
   restoreButtonText: {
     fontSize: 14,
-    color: '#666666',
+    color: appTheme.textMuted,
     fontWeight: '500',
   },
   termsText: {
     fontSize: 12,
-    color: appTheme.textLight,
+    color: appTheme.textMuted,
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 16,
   },
   termsLink: {
-    color: appTheme.navy,
+    color: appTheme.purple,
     fontWeight: '600',
     textDecorationLine: 'underline',
   },
   authFooter: {
-    backgroundColor: appTheme.navyDark,
+    backgroundColor: 'rgba(8,11,20,0.95)',
     paddingVertical: 16,
     alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: appTheme.border,
   },
   authFooterText: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.75)',
+    color: appTheme.textMuted,
   },
   devButton: {
     borderWidth: 2,
-    borderColor: appTheme.navy,
-    borderRadius: 12,
+    borderColor: appTheme.purple,
+    borderRadius: 20,
     paddingVertical: 16,
     paddingHorizontal: 24,
     width: '100%',
@@ -589,7 +638,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   devButtonText: {
-    color: appTheme.navy,
+    color: appTheme.purple,
     fontSize: 16,
     fontWeight: '600',
   },

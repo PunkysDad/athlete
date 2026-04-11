@@ -11,16 +11,15 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
-import {
-  Card,
-  Button,
-  Provider as PaperProvider,
-} from 'react-native-paper';
+import { Button } from 'react-native-paper';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { appTheme } from '../theme/appTheme';
-import { theme, commonStyles } from '../theme';
+import { theme } from '../theme';
+import { componentStyles as cs } from '../theme/componentStyles';
 import { apiService } from '../services/apiService';
 import { UserService } from '../services/userService';
 import { getAuth } from 'firebase/auth';
@@ -77,7 +76,7 @@ function DropdownRow({
         <Text style={styles.menuLabel}>{label}</Text>
         <View style={styles.menuButtonRight}>
           <Text style={styles.menuValue}>{value}</Text>
-          <Icon name="arrow-drop-down" size={24} color={appTheme.navy} />
+          <Icon name="arrow-drop-down" size={24} color={appTheme.textMuted} />
         </View>
       </TouchableOpacity>
 
@@ -96,7 +95,7 @@ function DropdownRow({
                   <Text style={[styles.modalItemText, item === value && styles.modalItemTextSelected]}>
                     {item}
                   </Text>
-                  {item === value && <Icon name="check" size={20} color={appTheme.navy} />}
+                  {item === value && <Icon name="check" size={20} color={appTheme.purple} />}
                 </TouchableOpacity>
               )}
             />
@@ -248,143 +247,204 @@ export default function ProfileEditScreen() {
   const hasActivePaidPlan = subscriptionTier === 'BASIC' || subscriptionTier === 'PREMIUM';
 
   return (
-    <PaperProvider>
-      <View style={commonStyles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
-            <Icon name="close" size={24} color={appTheme.white} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Profile</Text>
-          <TouchableOpacity
-            onPress={handleSave}
-            style={styles.headerButton}
-            disabled={isLoading || profileLoading}
-          >
-            <Text style={[styles.headerAction, (isLoading || profileLoading) && { opacity: 0.4 }]}>
-              {isLoading ? 'Saving...' : 'Save'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+    <View style={styles.root}>
+      {/* Ambient gradient background */}
+      <LinearGradient
+        colors={['#080B14', '#0D0B1E', '#080B14']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      <View style={styles.orbTopRight} />
+      <View style={styles.orbBottomLeft} />
+      <View style={styles.orbMidRight} />
 
-        {profileLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={appTheme.navy} />
-            <Text style={styles.loadingText}>Loading profile...</Text>
-          </View>
-        ) : (
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-
-            {/* Athletic Information */}
-            <Card style={styles.card}>
-              <Card.Content>
-                <Text style={styles.sectionTitle}>Athletic Information</Text>
-                <DropdownRow
-                  label="Sport"
-                  value={formData.sport}
-                  items={Object.keys(SPORTS_CONFIG)}
-                  onSelect={(sport) => setFormData({
-                    sport,
-                    position: SPORTS_CONFIG[sport][0],
-                  })}
-                />
-                <DropdownRow
-                  label="Position"
-                  value={formData.position}
-                  items={SPORTS_CONFIG[formData.sport] ?? []}
-                  onSelect={(position) => setFormData({ ...formData, position })}
-                />
-              </Card.Content>
-            </Card>
-
-            {/* Subscription */}
-            <Card style={styles.card}>
-              <Card.Content>
-                <Text style={styles.sectionTitle}>Subscription</Text>
-
-                <View style={styles.tierRow}>
-                  <View>
-                    <Text style={styles.tierName}>{tierInfo.label}</Text>
-                    {tierInfo.price ? (
-                      <Text style={styles.tierPrice}>{tierInfo.price}</Text>
-                    ) : null}
-                  </View>
-                  <View style={[
-                    styles.tierBadge,
-                    hasActivePaidPlan && { backgroundColor: appTheme.red + '25', borderColor: appTheme.red + '60' },
-                  ]}>
-                    <Text style={[
-                      styles.tierBadgeText,
-                      hasActivePaidPlan && { color: appTheme.red },
-                    ]}>
-                      {subscriptionTier}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.subscriptionActions}>
-                  {/* Always show upgrade/change plan */}
-                  <Button
-                    mode="contained"
-                    onPress={handleChangePlan}
-                    buttonColor={appTheme.red}
-                    textColor={appTheme.white}
-                    style={styles.subscriptionButton}
-                    icon={hasActivePaidPlan ? 'swap-horiz' : 'arrow-upward'}
-                  >
-                    {hasActivePaidPlan ? 'Change Plan' : 'Upgrade Now'}
-                  </Button>
-
-                  {/* Only show cancel when on a paid plan */}
-                  {hasActivePaidPlan && (
-                    <Button
-                      mode="outlined"
-                      onPress={handleCancelSubscription}
-                      textColor={appTheme.textMuted}
-                      style={styles.cancelButton}
-                    >
-                      Cancel Subscription
-                    </Button>
-                  )}
-                </View>
-              </Card.Content>
-            </Card>
-
-            {/* Danger Zone */}
-            <Card style={styles.dangerCard}>
-              <Card.Content>
-                <Text style={[styles.sectionTitle, { color: '#dc3545' }]}>Danger Zone</Text>
-                <Text style={styles.dangerBody}>
-                  Permanently delete your account and all associated data. This action cannot be undone.
-                </Text>
-                <Button
-                  mode="outlined"
-                  onPress={handleDeleteAccount}
-                  disabled={isDeleting}
-                  textColor="#dc3545"
-                  style={styles.dangerButton}
-                  icon="delete-forever"
-                >
-                  Delete Account
-                </Button>
-              </Card.Content>
-            </Card>
-
-          </ScrollView>
-        )}
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+          <Icon name="close" size={24} color={appTheme.white} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Edit Profile</Text>
+        <TouchableOpacity
+          onPress={handleSave}
+          style={styles.headerButton}
+          disabled={isLoading || profileLoading}
+        >
+          <Text style={[styles.headerAction, (isLoading || profileLoading) && { opacity: 0.4 }]}>
+            {isLoading ? 'Saving...' : 'Save'}
+          </Text>
+        </TouchableOpacity>
       </View>
-    </PaperProvider>
+
+      {profileLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={appTheme.purple} />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      ) : (
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+
+          {/* Athletic Information */}
+          <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
+            <View style={cs.cardPadding}>
+              <Text style={cs.cardHeading}>Athletic Information</Text>
+              <View style={{ height: 16 }} />
+              <DropdownRow
+                label="Sport"
+                value={formData.sport}
+                items={Object.keys(SPORTS_CONFIG)}
+                onSelect={(sport) => setFormData({
+                  sport,
+                  position: SPORTS_CONFIG[sport][0],
+                })}
+              />
+              <DropdownRow
+                label="Position"
+                value={formData.position}
+                items={SPORTS_CONFIG[formData.sport] ?? []}
+                onSelect={(position) => setFormData({ ...formData, position })}
+              />
+            </View>
+          </BlurView>
+
+          {/* Subscription */}
+          <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
+            <View style={cs.cardPadding}>
+              <Text style={cs.cardHeading}>Subscription</Text>
+              <View style={{ height: 16 }} />
+
+              <View style={styles.tierRow}>
+                <View>
+                  <Text style={styles.tierName}>{tierInfo.label}</Text>
+                  {tierInfo.price ? (
+                    <Text style={styles.tierPrice}>{tierInfo.price}</Text>
+                  ) : null}
+                </View>
+                <View style={[
+                  styles.tierBadge,
+                  hasActivePaidPlan && { backgroundColor: appTheme.purpleDim, borderColor: 'rgba(139,92,246,0.60)' },
+                ]}>
+                  <Text style={[
+                    styles.tierBadgeText,
+                    hasActivePaidPlan && { color: appTheme.purple },
+                  ]}>
+                    {subscriptionTier}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.subscriptionActions}>
+                {/* Always show upgrade/change plan */}
+                <Button
+                  mode="contained"
+                  onPress={handleChangePlan}
+                  buttonColor={appTheme.purple}
+                  textColor={appTheme.white}
+                  style={styles.subscriptionButton}
+                  icon={hasActivePaidPlan ? 'swap-horiz' : 'arrow-upward'}
+                >
+                  {hasActivePaidPlan ? 'Change Plan' : 'Upgrade Now'}
+                </Button>
+
+                {/* Only show cancel when on a paid plan */}
+                {hasActivePaidPlan && (
+                  <Button
+                    mode="outlined"
+                    onPress={handleCancelSubscription}
+                    textColor={appTheme.textMuted}
+                    style={styles.cancelButton}
+                  >
+                    Cancel Subscription
+                  </Button>
+                )}
+              </View>
+            </View>
+          </BlurView>
+
+          {/* Danger Zone */}
+          <BlurView intensity={15} tint="dark" style={styles.dangerCard}>
+            <View style={styles.dangerAccentStrip} />
+            <View style={cs.cardPadding}>
+              <Text style={[cs.cardHeading, { color: '#dc3545' }]}>Danger Zone</Text>
+              <Text style={styles.dangerBody}>
+                Permanently delete your account and all associated data. This action cannot be undone.
+              </Text>
+              <Button
+                mode="outlined"
+                onPress={handleDeleteAccount}
+                disabled={isDeleting}
+                textColor="#dc3545"
+                style={styles.dangerButton}
+                icon="delete-forever"
+              >
+                Delete Account
+              </Button>
+            </View>
+          </BlurView>
+
+        </ScrollView>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: appTheme.bg,
+  },
+
+  // Ambient glow orbs
+  orbTopRight: {
+    position: 'absolute',
+    top: -80,
+    right: -80,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: appTheme.orbPurple,
+    opacity: 0.12,
+    shadowColor: appTheme.orbPurple,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 80,
+  },
+  orbBottomLeft: {
+    position: 'absolute',
+    bottom: 100,
+    left: -100,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: appTheme.neonGreen,
+    opacity: 0.10,
+    shadowColor: appTheme.neonGreen,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 80,
+  },
+  orbMidRight: {
+    position: 'absolute',
+    top: '45%',
+    right: -60,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: appTheme.neonGreen,
+    opacity: 0.06,
+    shadowColor: appTheme.neonGreen,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 60,
+  },
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: theme.spacing.base,
     paddingHorizontal: theme.spacing.base,
-    backgroundColor: appTheme.navyDark,
+    backgroundColor: 'rgba(8,11,20,0.95)',
     borderBottomWidth: 1,
     borderBottomColor: appTheme.border,
   },
@@ -395,46 +455,32 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: '900',
     color: appTheme.white,
+    letterSpacing: -0.5,
   },
   headerAction: {
     fontSize: 15,
     fontWeight: '700',
-    color: appTheme.red,
+    color: appTheme.purple,
   },
 
   content: {
     flex: 1,
     padding: theme.spacing.base,
-    backgroundColor: appTheme.bg,
+    backgroundColor: 'transparent',
   },
 
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: appTheme.bg,
+    backgroundColor: 'transparent',
   },
   loadingText: {
     marginTop: theme.spacing.sm,
     fontSize: 13,
     color: appTheme.textMuted,
-  },
-
-  card: {
-    backgroundColor: appTheme.bgCard,
-    borderRadius: theme.borderRadius.base,
-    marginBottom: theme.spacing.base,
-    borderWidth: 1,
-    borderColor: appTheme.border,
-    ...theme.shadows.sm,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: appTheme.white,
-    marginBottom: theme.spacing.base,
   },
 
   // Subscription card
@@ -456,26 +502,26 @@ const styles = StyleSheet.create({
   },
   tierBadge: {
     backgroundColor: appTheme.bgElevated,
-    borderRadius: 4,
-    paddingHorizontal: 8,
+    borderRadius: 6,
+    paddingHorizontal: 10,
     paddingVertical: 3,
     borderWidth: 1,
     borderColor: appTheme.border,
   },
   tierBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
     color: appTheme.textMuted,
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   subscriptionActions: {
     gap: theme.spacing.sm,
   },
   subscriptionButton: {
-    borderRadius: theme.borderRadius.sm,
+    borderRadius: 12,
   },
   cancelButton: {
-    borderRadius: theme.borderRadius.sm,
+    borderRadius: 12,
     borderColor: appTheme.border,
   },
 
@@ -488,7 +534,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.sm,
     borderWidth: 1,
     borderColor: appTheme.border,
-    borderRadius: theme.borderRadius.sm,
+    borderRadius: 16,
     marginBottom: theme.spacing.base,
     backgroundColor: appTheme.bgElevated,
   },
@@ -515,8 +561,8 @@ const styles = StyleSheet.create({
   },
   modalSheet: {
     backgroundColor: appTheme.bgCard,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     borderTopWidth: 1,
     borderColor: appTheme.border,
     paddingTop: theme.spacing.base,
@@ -541,36 +587,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.base,
   },
   modalItemSelected: {
-    backgroundColor: appTheme.red + '20',
+    backgroundColor: appTheme.purpleDim,
   },
   modalItemText: {
     fontSize: 15,
     color: appTheme.text,
   },
   modalItemTextSelected: {
-    color: appTheme.red,
+    color: appTheme.purple,
     fontWeight: '700',
   },
 
   // Danger zone
   dangerCard: {
-    backgroundColor: appTheme.bgCard,
-    borderRadius: theme.borderRadius.base,
-    borderLeftWidth: 4,
-    borderLeftColor: appTheme.red,
+    borderRadius: 40,
+    borderWidth: 1.5,
+    borderColor: '#dc354560',
+    overflow: 'hidden',
     marginBottom: theme.spacing.xl,
-    borderWidth: 1,
-    borderColor: appTheme.border,
-    ...theme.shadows.sm,
+  },
+  dangerAccentStrip: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: '#dc3545',
   },
   dangerBody: {
     fontSize: 14,
     color: appTheme.textMuted,
+    marginTop: 12,
     marginBottom: theme.spacing.base,
     lineHeight: 20,
   },
   dangerButton: {
     alignSelf: 'flex-start',
-    borderColor: appTheme.red,
+    borderColor: '#dc354560',
+    borderRadius: 12,
   },
 });

@@ -13,6 +13,8 @@ import {
   Modal,
 } from 'react-native';
 import { Divider, ActivityIndicator as PaperIndicator, Portal } from 'react-native-paper';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
 import FormattedMessage from '../components/FormattedMessage';
@@ -21,6 +23,7 @@ import { apiService, TrialLimitError } from '../services/apiService';
 import { TagResponse } from '../interfaces/interfaces';
 import { useUpgrade } from '../context/UpgradeContext';
 import { appTheme } from '../theme/appTheme';
+import { componentStyles as cs } from '../theme/componentStyles';
 import ENV_CONFIG from '../config/environment';
 
 const TAG_COLORS = ['#007AFF', '#FF3B30', '#34C759', '#FF9500', '#AF52DE', '#FF2D55', '#5AC8FA'];
@@ -269,6 +272,17 @@ export default function CoachingScreen() {
   if (isInChat) {
     return (
       <View style={styles.chatContainer}>
+        {/* Ambient gradient background */}
+        <LinearGradient
+          colors={['#080B14', '#0D0B1E', '#080B14']}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        <View style={styles.orbTopRight} />
+        <View style={styles.orbBottomLeft} />
+        <View style={styles.orbMidRight} />
+
         <TrialLimitModal
           visible={trialLimitVisible}
           limitType="chat"
@@ -300,7 +314,7 @@ export default function CoachingScreen() {
                 </View>
 
                 {tagsLoading ? (
-                  <PaperIndicator style={{ marginVertical: 20 }} color={appTheme.red} />
+                  <PaperIndicator style={{ marginVertical: 20 }} color={appTheme.purple} />
                 ) : (
                   <>
                     {existingTags.length > 0 && (
@@ -364,7 +378,7 @@ export default function CoachingScreen() {
                       </View>
                     ) : (
                       <TouchableOpacity style={styles.createTagButton} onPress={() => setShowNewTagInput(true)}>
-                        <Icon name="add" size={18} color={appTheme.red} />
+                        <Icon name="add" size={18} color={appTheme.purple} />
                         <Text style={styles.createTagText}>Create new tag</Text>
                       </TouchableOpacity>
                     )}
@@ -421,7 +435,7 @@ export default function CoachingScreen() {
             ))}
             {isLoading && (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={appTheme.red} />
+                <ActivityIndicator size="small" color={appTheme.purple} />
                 <Text style={styles.loadingText}>Coach is thinking...</Text>
               </View>
             )}
@@ -430,7 +444,7 @@ export default function CoachingScreen() {
           {conversationId !== null && userProfile?.subscriptionTier === 'PREMIUM' && (
             <View style={styles.tagBar}>
               <TouchableOpacity style={styles.tagBarButton} onPress={openTagModal}>
-                <Icon name="label" size={16} color={appTheme.red} />
+                <Icon name="label" size={16} color={appTheme.purple} />
                 <Text style={styles.tagBarButtonText}>
                   {assignedTagIds.size > 0 ? `Tags (${assignedTagIds.size})` : 'Add Tag'}
                 </Text>
@@ -476,73 +490,160 @@ export default function CoachingScreen() {
   }
 
   return (
-    <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Icon name="psychology" size={22} color={appTheme.neonGreen} />
-          <Text style={styles.cardTitle}>Start New Conversation</Text>
-        </View>
-        <Text style={styles.cardBody}>
-          Get personalized coaching for YOUR position. Ask about training, game strategy, skill development, or anything to improve your game.
-        </Text>
-        <TouchableOpacity
-          style={[styles.createButton, { marginTop: 14, alignSelf: 'stretch', alignItems: 'center', opacity: userProfile ? 1 : 0.5 }]}
-          onPress={startChatSession}
-          disabled={!userProfile}
-        >
-          <Text style={styles.createButtonText}>{userProfile ? 'Begin AI Coaching Session' : 'Loading...'}</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={styles.root}>
+      {/* Ambient gradient background */}
+      <LinearGradient
+        colors={['#080B14', '#0D0B1E', '#080B14']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      <View style={styles.orbTopRight} />
+      <View style={styles.orbBottomLeft} />
+      <View style={styles.orbMidRight} />
 
-      <View style={styles.tipsCard}>
-        <View style={styles.cardHeader}>
-          <Icon name="lightbulb" size={22} color={appTheme.neonGreen} />
-          <Text style={styles.cardTitle}>Tips for Better Coaching Questions</Text>
-        </View>
-        <Text style={styles.tipsIntro}>
-          Specific questions get specific answers. Here's how to get the most out of your AI coach:
-        </Text>
-        {COACHING_TIPS.map((tip, i) => (
-          <View key={i} style={styles.tipRow}>
-            <Text style={styles.tipSport}>{tip.sport}</Text>
-            <View style={styles.tipBad}>
-              <View style={styles.tipBadge}>
-                <Icon name="close" size={12} color={appTheme.white} />
-              </View>
-              <Text style={styles.tipBadText}>{tip.bad}</Text>
+      <ScrollView style={styles.screen} showsVerticalScrollIndicator={false}>
+        {/* Start New Conversation */}
+        <BlurView intensity={20} tint="dark" style={cs.glassCardOrbAccent}>
+          <View style={cs.cardPadding}>
+            <View style={styles.cardHeader}>
+              <Icon name="psychology" size={22} color={appTheme.neonGreen} />
+              <Text style={cs.cardHeading}>Start New Conversation</Text>
             </View>
-            <Icon name="arrow-downward" size={16} color={appTheme.textMuted} style={styles.tipArrow} />
-            <View style={styles.tipGood}>
-              <View style={[styles.tipBadge, styles.tipBadgeGood]}>
-                <Icon name="check" size={12} color={appTheme.white} />
-              </View>
-              <Text style={styles.tipGoodText}>{tip.good}</Text>
-            </View>
-            {i < COACHING_TIPS.length - 1 && <View style={styles.tipDivider} />}
+            <Text style={cs.cardBody}>
+              Get personalized coaching for YOUR position. Ask about training, game strategy, skill development, or anything to improve your game.
+            </Text>
+            <TouchableOpacity
+              style={[styles.beginButton, { opacity: userProfile ? 1 : 0.5 }]}
+              onPress={startChatSession}
+              disabled={!userProfile}
+            >
+              <Text style={styles.beginButtonText}>{userProfile ? 'Begin AI Coaching Session' : 'Loading...'}</Text>
+            </TouchableOpacity>
           </View>
-        ))}
-        <View style={styles.tipsHighlight}>
-          <Icon name="info" size={14} color={appTheme.red} style={{ marginTop: 1 }} />
-          <Text style={styles.tipsHighlightText}>
-            Focus on specific game situations, formations, reads, or decisions — the more precise your question, the more actionable the answer.
-          </Text>
-        </View>
-      </View>
-    </ScrollView>
+        </BlurView>
+
+        {/* Tips card */}
+        <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
+          <View style={styles.tipsAccentStrip} />
+          <View style={cs.cardPadding}>
+            <View style={styles.cardHeader}>
+              <Icon name="lightbulb" size={22} color={appTheme.neonGreen} />
+              <Text style={cs.cardHeading}>Tips for Better Coaching Questions</Text>
+            </View>
+            <Text style={styles.tipsIntro}>
+              Specific questions get specific answers. Here's how to get the most out of your AI coach:
+            </Text>
+            {COACHING_TIPS.map((tip, i) => (
+              <View key={i} style={styles.tipRow}>
+                <Text style={styles.tipSport}>{tip.sport}</Text>
+                <View style={styles.tipBad}>
+                  <View style={styles.tipBadge}>
+                    <Icon name="close" size={12} color={appTheme.white} />
+                  </View>
+                  <Text style={styles.tipBadText}>{tip.bad}</Text>
+                </View>
+                <Icon name="arrow-downward" size={16} color={appTheme.textMuted} style={styles.tipArrow} />
+                <View style={styles.tipGood}>
+                  <View style={[styles.tipBadge, styles.tipBadgeGood]}>
+                    <Icon name="check" size={12} color={appTheme.white} />
+                  </View>
+                  <Text style={styles.tipGoodText}>{tip.good}</Text>
+                </View>
+                {i < COACHING_TIPS.length - 1 && <View style={styles.tipDivider} />}
+              </View>
+            ))}
+            <View style={styles.tipsHighlight}>
+              <Icon name="info" size={14} color={appTheme.purple} style={{ marginTop: 1 }} />
+              <Text style={styles.tipsHighlightText}>
+                Focus on specific game situations, formations, reads, or decisions — the more precise your question, the more actionable the answer.
+              </Text>
+            </View>
+          </View>
+        </BlurView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: appTheme.bg, padding: 16 },
+  root: {
+    flex: 1,
+    backgroundColor: appTheme.bg,
+  },
+  screen: { flex: 1, backgroundColor: 'transparent', padding: 16 },
 
-  card: { backgroundColor: appTheme.bgCard, borderRadius: 8, marginBottom: 16, borderWidth: 1, borderColor: appTheme.border, padding: 16 },
-  tipsCard: { backgroundColor: appTheme.bgCard, borderRadius: 8, borderLeftWidth: 4, borderLeftColor: appTheme.red, marginBottom: 32, borderWidth: 1, borderColor: appTheme.border, padding: 16 },
+  // Ambient glow orbs
+  orbTopRight: {
+    position: 'absolute',
+    top: -80,
+    right: -80,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: appTheme.orbPurple,
+    opacity: 0.12,
+    shadowColor: appTheme.orbPurple,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 80,
+  },
+  orbBottomLeft: {
+    position: 'absolute',
+    bottom: 100,
+    left: -100,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: appTheme.neonGreen,
+    opacity: 0.10,
+    shadowColor: appTheme.neonGreen,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 80,
+  },
+  orbMidRight: {
+    position: 'absolute',
+    top: '45%',
+    right: -60,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: appTheme.neonGreen,
+    opacity: 0.06,
+    shadowColor: appTheme.neonGreen,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 60,
+  },
+
+  // Landing card elements
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 8 },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: appTheme.white },
-  cardBody: { fontSize: 14, color: appTheme.textMuted, lineHeight: 20, marginBottom: 4 },
+  beginButton: {
+    backgroundColor: appTheme.purple,
+    borderRadius: 20,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  beginButtonText: {
+    color: appTheme.white,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  tipsAccentStrip: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: appTheme.neonGreen,
+    borderTopLeftRadius: 40,
+    borderBottomLeftRadius: 40,
+  },
 
   tipsIntro: { fontSize: 13, color: appTheme.textMuted, lineHeight: 19, marginBottom: 16 },
-  tipSport: { fontSize: 11, fontWeight: '700', color: appTheme.red, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 },
+  tipSport: { fontSize: 11, fontWeight: '700', color: appTheme.purple, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 },
   tipRow: { marginBottom: 4 },
   tipBad: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 4 },
   tipGood: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
@@ -552,43 +653,44 @@ const styles = StyleSheet.create({
   tipGoodText: { flex: 1, fontSize: 13, color: appTheme.text, fontWeight: '500', lineHeight: 18 },
   tipArrow: { marginLeft: 4, marginVertical: 2 },
   tipDivider: { height: 1, backgroundColor: appTheme.border, marginVertical: 12 },
-  tipsHighlight: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: appTheme.bgElevated, borderRadius: 6, padding: 10, marginTop: 16, gap: 6 },
+  tipsHighlight: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: appTheme.bgElevated, borderRadius: 12, padding: 10, marginTop: 16, gap: 6 },
   tipsHighlightText: { flex: 1, fontSize: 12, color: appTheme.textMuted, fontWeight: '500', lineHeight: 17 },
 
-  chatContainer: { flex: 1, backgroundColor: appTheme.bg },
-  chatHeader: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: appTheme.navyDark },
+  // Chat
+  chatContainer: { flex: 1, backgroundColor: 'transparent' },
+  chatHeader: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: 'rgba(8,11,20,0.95)', borderBottomWidth: 1, borderBottomColor: appTheme.border },
   backButton: { marginRight: 12 },
   chatHeaderContent: { flex: 1 },
-  chatHeaderTitle: { fontSize: 17, fontWeight: '700', color: appTheme.white },
+  chatHeaderTitle: { fontSize: 17, fontWeight: '800', color: appTheme.white },
   chatHeaderSubtitle: { fontSize: 13, color: appTheme.textMuted, marginTop: 1 },
   statusIndicator: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statusText: { fontSize: 12, color: appTheme.neonGreen },
 
-  messagesContainer: { flex: 1, backgroundColor: appTheme.bg },
+  messagesContainer: { flex: 1, backgroundColor: 'transparent' },
   messagesContent: { padding: 16 },
   messageWrapper: { marginBottom: 12 },
   userMessageWrapper: { alignItems: 'flex-end' },
   aiMessageWrapper: { alignItems: 'flex-start' },
   messageBubble: { maxWidth: '85%', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
-  userMessage: { backgroundColor: appTheme.red, borderBottomRightRadius: 4 },
-  aiMessage: { backgroundColor: appTheme.bgCard, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: appTheme.border },
+  userMessage: { backgroundColor: appTheme.purple, borderBottomRightRadius: 4 },
+  aiMessage: { backgroundColor: appTheme.bgCard, borderBottomLeftRadius: 6, borderWidth: 1, borderColor: appTheme.border },
   loadingContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 8 },
   loadingText: { fontSize: 14, color: appTheme.textMuted, fontStyle: 'italic' },
 
-  tagBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, backgroundColor: appTheme.bgCard, borderTopWidth: 1, borderTopColor: appTheme.border, gap: 10 },
-  tagBarButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: appTheme.red, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  tagBarButtonText: { color: appTheme.red, fontSize: 13, fontWeight: '600' },
+  tagBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, backgroundColor: 'rgba(8,11,20,0.90)', borderTopWidth: 1, borderTopColor: appTheme.border, gap: 10 },
+  tagBarButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: appTheme.purple, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  tagBarButtonText: { color: appTheme.purple, fontSize: 13, fontWeight: '600' },
   tagChipScroll: { flex: 1 },
   tagChip: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginRight: 6 },
   tagChipText: { fontSize: 12, fontWeight: '500' },
 
-  inputContainer: { flexDirection: 'row', alignItems: 'flex-end', padding: 16, backgroundColor: appTheme.bgCard, borderTopWidth: 1, borderTopColor: appTheme.border },
+  inputContainer: { flexDirection: 'row', alignItems: 'flex-end', padding: 16, backgroundColor: 'rgba(8,11,20,0.95)', borderTopWidth: 1, borderTopColor: appTheme.border },
   textInput: { flex: 1, borderWidth: 1, borderColor: appTheme.border, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, marginRight: 12, maxHeight: 100, fontSize: 15, backgroundColor: appTheme.bgElevated, color: appTheme.text },
-  sendButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: appTheme.red, alignItems: 'center', justifyContent: 'center' },
+  sendButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: appTheme.purple, alignItems: 'center', justifyContent: 'center' },
   sendButtonDisabled: { backgroundColor: appTheme.border },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalContainer: { backgroundColor: appTheme.bgCard, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderColor: appTheme.border, padding: 24 },
+  modalContainer: { backgroundColor: appTheme.bgCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1, borderColor: appTheme.border, padding: 24 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: appTheme.white },
   tagList: { gap: 4 },
@@ -596,7 +698,7 @@ const styles = StyleSheet.create({
   tagDot: { width: 12, height: 12, borderRadius: 6, marginRight: 10 },
   tagRowName: { flex: 1, fontSize: 15, color: appTheme.text },
   createTagButton: { flexDirection: 'row', alignItems: 'center', padding: 10, gap: 6 },
-  createTagText: { color: appTheme.red, fontSize: 15, fontWeight: '500' },
+  createTagText: { color: appTheme.purple, fontSize: 15, fontWeight: '500' },
   newTagForm: { gap: 12 },
   newTagInput: { borderWidth: 1, borderColor: appTheme.border, borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: appTheme.bgElevated, color: appTheme.text },
   colorRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
@@ -605,6 +707,6 @@ const styles = StyleSheet.create({
   newTagActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
   cancelButton: { paddingHorizontal: 16, paddingVertical: 10, justifyContent: 'center' },
   cancelButtonText: { color: appTheme.textMuted, fontSize: 15 },
-  createButton: { backgroundColor: appTheme.red, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  createButton: { backgroundColor: appTheme.purple, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
   createButtonText: { color: appTheme.white, fontSize: 15, fontWeight: '600' },
 });
