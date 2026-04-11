@@ -255,15 +255,15 @@ export default function YoutubePlayerModal({ visible, exerciseName, onClose, wor
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.92)',
     justifyContent: 'flex-start',
     paddingTop: SCREEN_HEIGHT * 0.12,
   },
   container: {
-    backgroundColor: appTheme.bgCard,
+    backgroundColor: appTheme.bg,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: appTheme.border,
+    borderColor: appTheme.borderAccent,
     padding: 16,
     maxHeight: SCREEN_HEIGHT * 0.75,
   },
