@@ -441,7 +441,7 @@ export default function CoachingScreen() {
             )}
           </ScrollView>
 
-          {conversationId !== null && userProfile?.subscriptionTier === 'PREMIUM' && (
+          {conversationId !== null && (userProfile?.subscriptionTier === 'PREMIUM' || userProfile?.subscriptionTier === 'TRIAL') && (
             <View style={styles.tagBar}>
               <TouchableOpacity style={styles.tagBarButton} onPress={openTagModal}>
                 <Icon name="label" size={16} color={appTheme.purple} />

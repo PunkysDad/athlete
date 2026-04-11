@@ -423,7 +423,7 @@ export default function HomeScreen() {
       <View style={cs.tabContainer}>
         {[
           { key: 'overview', label: 'Overview' },
-          ...(currentUser?.subscriptionTier === 'PREMIUM'
+          ...(currentUser?.subscriptionTier === 'TRIAL' || currentUser?.subscriptionTier === 'PREMIUM' || (currentUser?.subscriptionTier === 'BASIC' && tagsWithItems.length > 0)
             ? [{ key: 'tags', label: 'Tags' }]
             : []),
         ].map(tab => (

@@ -434,7 +434,7 @@ export default function WorkoutDisplayScreen() {
           )}
         </View>
 
-        {subscriptionTier === 'PREMIUM' && (
+        {(subscriptionTier === 'PREMIUM' || subscriptionTier === 'TRIAL') && (
           <View style={styles.actionButtons}>
             <Button
               mode="outlined"
@@ -449,7 +449,7 @@ export default function WorkoutDisplayScreen() {
           </View>
         )}
 
-        {subscriptionTier === 'PREMIUM' && assignedTagIds.size > 0 && (
+        {(subscriptionTier === 'PREMIUM' || subscriptionTier === 'TRIAL') && assignedTagIds.size > 0 && (
           <View style={styles.assignedTagsRow}>
             {existingTags
               .filter(t => assignedTagIds.has(t.id))
