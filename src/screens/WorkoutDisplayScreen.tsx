@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   View,
@@ -27,6 +27,7 @@ import { theme } from '../theme';
 import { appTheme } from '../theme/appTheme';
 import { Exercise, WorkoutData, TagResponse } from '../interfaces/interfaces';
 import FormattedMessage from '../components/FormattedMessage';
+import YoutubePlayerModal from '../components/YoutubePlayerModal';
 import { RootStackParamList } from '../types/types';
 import { apiService } from '../services/apiService';
 import { getAuth } from 'firebase/auth';
@@ -50,6 +51,11 @@ export default function WorkoutDisplayScreen() {
   const [showNewTagInput, setShowNewTagInput] = useState(false);
   const [savingTag, setSavingTag] = useState(false);
 
+  const [youtubeModalVisible, setYoutubeModalVisible] = useState(false);
+  const [selectedExercise, setSelectedExercise] = useState('');
+  const [selectedExerciseVideoUrl, setSelectedExerciseVideoUrl] = useState<string | undefined>(undefined);
+  const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null);
+
   const TAG_COLORS = ['#007AFF', '#FF3B30', '#34C759', '#FF9500', '#AF52DE', '#FF2D55', '#5AC8FA'];
 
   const getCurrentUserId = async (): Promise<number | null> => {
@@ -57,12 +63,19 @@ export default function WorkoutDisplayScreen() {
       const firebaseUser = getAuth().currentUser;
       if (!firebaseUser) return null;
       const result = await apiService.getUserByFirebaseUid(firebaseUser.uid);
-      if (result.success && result.data) return result.data.id;
+      if (result.success && result.data) {
+        setSubscriptionTier(result.data.subscriptionTier || null);
+        return result.data.id;
+      }
       return null;
     } catch {
       return null;
     }
   };
+
+  useEffect(() => {
+    getCurrentUserId();
+  }, []);
 
   const openTagModal = async () => {
     setTagModalVisible(true);
@@ -314,6 +327,12 @@ export default function WorkoutDisplayScreen() {
                     <Text style={styles.detailText}>{exercise.injuryPrevention}</Text>
                   </View>
                 )}
+                <TouchableOpacity
+                  style={styles.showExamplesButton}
+                  onPress={() => { setSelectedExercise(exercise.name); setSelectedExerciseVideoUrl(exercise.videoUrl); setYoutubeModalVisible(true); }}
+                >
+                  <Text style={styles.showExamplesText}>▶ Show Examples</Text>
+                </TouchableOpacity>
               </View>
             )}
           </Card.Content>
@@ -325,6 +344,13 @@ export default function WorkoutDisplayScreen() {
   return (
     <View style={styles.screen}>
       {renderTagModal()}
+      <YoutubePlayerModal
+        visible={youtubeModalVisible}
+        exerciseName={selectedExercise}
+        onClose={() => setYoutubeModalVisible(false)}
+        workoutId={Number(workoutData.id)}
+        savedVideoId={selectedExerciseVideoUrl}
+      />
 
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <IconButton icon="arrow-left" size={24} iconColor={appTheme.white} onPress={() => navigation.goBack()} />
@@ -385,7 +411,9 @@ export default function WorkoutDisplayScreen() {
 
         <View style={styles.exercisesSection}>
           <Text style={styles.sectionTitle}>Workout Details</Text>
-          {workoutData.generatedContent ? (
+          {exercises.length > 0 ? (
+            exercises.map((exercise, index) => renderExercise(exercise, index))
+          ) : workoutData.generatedContent ? (
             <FormattedMessage text={workoutData.generatedContent} isUser={false} />
           ) : (
             <Card style={styles.placeholderCard}>
@@ -396,20 +424,22 @@ export default function WorkoutDisplayScreen() {
           )}
         </View>
 
-        <View style={styles.actionButtons}>
-          <Button
-            mode="outlined"
-            onPress={openTagModal}
-            style={styles.outlineButton}
-            textColor={appTheme.red}
-            contentStyle={styles.buttonContent}
-            icon="tag"
-          >
-            {assignedTagIds.size > 0 ? `Tags (${assignedTagIds.size})` : 'Add Tag'}
-          </Button>
-        </View>
+        {subscriptionTier === 'PREMIUM' && (
+          <View style={styles.actionButtons}>
+            <Button
+              mode="outlined"
+              onPress={openTagModal}
+              style={styles.outlineButton}
+              textColor={appTheme.red}
+              contentStyle={styles.buttonContent}
+              icon="tag"
+            >
+              {assignedTagIds.size > 0 ? `Tags (${assignedTagIds.size})` : 'Add Tag'}
+            </Button>
+          </View>
+        )}
 
-        {assignedTagIds.size > 0 && (
+        {subscriptionTier === 'PREMIUM' && assignedTagIds.size > 0 && (
           <View style={styles.assignedTagsRow}>
             {existingTags
               .filter(t => assignedTagIds.has(t.id))
@@ -501,6 +531,7 @@ const styles = StyleSheet.create({
   },
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
   exerciseInfo: { flex: 1 },
+  exerciseNameRow: { flexDirection: 'row', alignItems: 'center' },
   exerciseName: { fontSize: 15, fontWeight: '600', color: appTheme.white },
   exerciseStats: { fontSize: 13, color: appTheme.red, marginTop: 2, fontWeight: '500' },
   exerciseDescription: { fontSize: 13, lineHeight: 18, color: appTheme.textMuted },
@@ -511,6 +542,8 @@ const styles = StyleSheet.create({
   detailText: { fontSize: 13, lineHeight: 18, color: appTheme.textMuted },
   coachingCue: { fontStyle: 'italic', color: appTheme.red },
   placeholderCard: { backgroundColor: appTheme.bgCard, borderWidth: 1, borderColor: appTheme.border },
+  showExamplesButton: { marginTop: 8, borderWidth: 1, borderColor: appTheme.red, borderRadius: 8, paddingVertical: 10, alignItems: 'center' as const },
+  showExamplesText: { color: appTheme.red, fontSize: 14, fontWeight: '600' as const },
 
   actionButtons: { marginTop: 20, gap: 10 },
   outlineButton: { borderColor: appTheme.red, borderRadius: 8 },

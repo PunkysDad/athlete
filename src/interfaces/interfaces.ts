@@ -22,6 +22,7 @@ export interface Exercise {
   gameApplication?: string;
   injuryPrevention?: string;
   coachingCue?: string;
+  videoUrl?: string;
 }
 
 export interface WorkoutPlan {
@@ -154,4 +155,11 @@ export interface UserResponse {
   primaryPosition?: string;
   createdAt: string;
   isActive: boolean;
+}
+
+export interface YoutubeVideoResult {
+  videoId: string;
+  title: string;
+  thumbnail: string;
+  channelName: string;
 }

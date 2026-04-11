@@ -426,7 +426,7 @@ export default function HomeScreen() {
       <View style={styles.tabContainer}>
         {[
           { key: 'overview', label: 'Overview' },
-          ...(currentUser?.subscriptionTier === 'PREMIUM' || currentUser?.subscriptionTier === 'TRIAL'
+          ...(currentUser?.subscriptionTier === 'PREMIUM'
             ? [{ key: 'tags', label: 'Tags' }]
             : []),
         ].map(tab => (
