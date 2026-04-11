@@ -1,9 +1,11 @@
 // src/components/onboarding/OnboardingFlow.tsx
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert, Linking } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Purchases from 'react-native-purchases';
 import { revenueCatService, SUBSCRIPTION_PRODUCTS } from '../../services/revenueCatService';
 import { OnboardingData, OnboardingFlowProps } from '../../interfaces/interfaces';
+import { appTheme } from '../../theme/appTheme';
 
 // Sport and Position data
 const SPORTS_DATA = {
@@ -50,7 +52,7 @@ const SUBSCRIPTION_TIERS = [
   {
     id: 'PREMIUM',
     name: 'Premium',
-    monthlyPrice: '$19.99/month', 
+    monthlyPrice: '$19.99/month',
     emoji: '🚀',
     features: [
       'Approximately twice the amount of AI coaching chats than Basic',
@@ -195,26 +197,36 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
   };
 
   const renderSportSelection = () => (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Welcome to SportsIQ!</Text>
-        <Text style={styles.subtitle}>What sport do you want to master?</Text>
-        <Text style={styles.stepIndicator}>Step 1 of 3</Text>
+    <View style={styles.root}>
+      <LinearGradient
+        colors={['#080B14', '#0D0B1E', '#080B14']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      <View style={styles.orbTopRight} />
+      <View style={styles.orbBottomLeft} />
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={styles.content}>
+          <Text style={styles.title}>Welcome to SportsIQ!</Text>
+          <Text style={styles.subtitle}>What sport do you want to master?</Text>
+          <Text style={styles.stepIndicator}>Step 1 of 3</Text>
 
-        <ScrollView style={styles.optionsContainer} showsVerticalScrollIndicator={false}>
-          {Object.entries(SPORTS_DATA).map(([key, sport]) => (
-            <TouchableOpacity
-              key={key}
-              style={styles.optionCard}
-              onPress={() => handleSportSelection(key)}
-            >
-              <Text style={styles.optionEmoji}>{sport.emoji}</Text>
-              <Text style={styles.optionText}>{sport.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-    </SafeAreaView>
+          <ScrollView style={styles.optionsContainer} showsVerticalScrollIndicator={false}>
+            {Object.entries(SPORTS_DATA).map(([key, sport]) => (
+              <TouchableOpacity
+                key={key}
+                style={styles.optionCard}
+                onPress={() => handleSportSelection(key)}
+              >
+                <Text style={styles.optionEmoji}>{sport.emoji}</Text>
+                <Text style={styles.optionText}>{sport.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </SafeAreaView>
+    </View>
   );
 
   const renderPositionSelection = () => {
@@ -222,136 +234,156 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
     if (!selectedSport) return null;
 
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.root}>
+        <LinearGradient
+          colors={['#080B14', '#0D0B1E', '#080B14']}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        <View style={styles.orbTopRight} />
+        <View style={styles.orbBottomLeft} />
+        <SafeAreaView style={{ flex: 1 }}>
+          <View style={styles.content}>
+            <TouchableOpacity style={styles.backButton} onPress={handleBackButton}>
+              <Text style={styles.backButtonText}>← Back</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.title}>Choose Your Position</Text>
+            <Text style={styles.subtitle}>
+              Select your primary position in {selectedSport.name}
+            </Text>
+            <Text style={styles.stepIndicator}>Step 2 of 3</Text>
+
+            <ScrollView style={styles.optionsContainer} showsVerticalScrollIndicator={false}>
+              {selectedSport.positions.map((position) => (
+                <TouchableOpacity
+                  key={position}
+                  style={styles.optionCard}
+                  onPress={() => handlePositionSelection(position)}
+                >
+                  <Text style={styles.optionEmoji}>{selectedSport.emoji}</Text>
+                  <Text style={styles.optionText}>{position}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  };
+
+  const renderSubscriptionSelection = () => (
+    <View style={styles.root}>
+      <LinearGradient
+        colors={['#080B14', '#0D0B1E', '#080B14']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      <View style={styles.orbTopRight} />
+      <View style={styles.orbBottomLeft} />
+      <SafeAreaView style={{ flex: 1 }}>
         <View style={styles.content}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackButton}>
             <Text style={styles.backButtonText}>← Back</Text>
           </TouchableOpacity>
 
-          <Text style={styles.title}>Choose Your Position</Text>
+          <Text style={styles.title}>Choose Your Plan</Text>
           <Text style={styles.subtitle}>
-            Select your primary position in {selectedSport.name}
+            Select the plan that works best for you
           </Text>
-          <Text style={styles.stepIndicator}>Step 2 of 3</Text>
+          <Text style={styles.stepIndicator}>Step 3 of 3</Text>
 
           <ScrollView style={styles.optionsContainer} showsVerticalScrollIndicator={false}>
-            {selectedSport.positions.map((position) => (
+            {/* Free Trial Option — only shown to brand new users with no tier */}
+            {!currentTier && (
               <TouchableOpacity
-                key={position}
-                style={styles.optionCard}
-                onPress={() => handlePositionSelection(position)}
+                style={styles.trialCard}
+                onPress={() => onComplete({
+                  ...onboardingData,
+                  subscriptionTier: 'TRIAL',
+                  billingCycle: 'monthly',
+                })}
               >
-                <Text style={styles.optionEmoji}>{selectedSport.emoji}</Text>
-                <Text style={styles.optionText}>{position}</Text>
+                <View style={styles.subscriptionHeader}>
+                  <Text style={styles.subscriptionEmoji}>🎯</Text>
+                  <View style={styles.subscriptionInfo}>
+                    <Text style={styles.subscriptionName}>Start Free Trial</Text>
+                    <Text style={styles.trialPrice}>No credit card required</Text>
+                  </View>
+                </View>
+                <View style={styles.featuresList}>
+                  <Text style={styles.featureText}>• 3 AI coaching questions</Text>
+                  <Text style={styles.featureText}>• 1 position-specific workout plan</Text>
+                  <Text style={styles.featureText}>• Upgrade anytime</Text>
+                </View>
               </TouchableOpacity>
+            )}
+
+            {!currentTier && <Text style={styles.orDivider}>— or subscribe for full access —</Text>}
+
+            {/* Paid Tiers — hide the tier the user already has */}
+            {SUBSCRIPTION_TIERS.filter((tier) => tier.id !== currentTier).map((tier) => (
+              <View key={tier.id} style={styles.tierSection}>
+                <TouchableOpacity
+                  style={[styles.subscriptionCard, tier.popular && styles.popularCard]}
+                  onPress={() => handleSubscriptionSelection({ tier: tier.id, billing: 'monthly' })}
+                >
+                  {tier.popular && <Text style={styles.popularBadge}>MOST POPULAR</Text>}
+
+                  <View style={styles.subscriptionHeader}>
+                    <Text style={styles.subscriptionEmoji}>{tier.emoji}</Text>
+                    <View style={styles.subscriptionInfo}>
+                      <Text style={styles.subscriptionName}>{tier.name}</Text>
+                      <Text style={styles.subscriptionPrice}>{tier.monthlyPrice}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.featuresList}>
+                    {tier.features.map((feature, index) => (
+                      <Text key={index} style={styles.featureText}>• {feature}</Text>
+                    ))}
+                  </View>
+                </TouchableOpacity>
+              </View>
             ))}
+
+            {!currentTier && (
+              <TouchableOpacity
+                style={styles.restoreButton}
+                onPress={async () => {
+                  try {
+                    await Purchases.restorePurchases();
+                    Alert.alert('Success', 'Your purchases have been restored.');
+                  } catch (error: any) {
+                    Alert.alert('Restore Failed', error?.message ?? 'Unable to restore purchases. Please try again.');
+                  }
+                }}
+              >
+                <Text style={styles.restoreButtonText}>Restore Purchases</Text>
+              </TouchableOpacity>
+            )}
+
+            <View style={styles.legalLinks}>
+              <Text
+                style={styles.legalLinkText}
+                onPress={() => Linking.openURL('https://sportsiqapp.info/privacy.html')}
+              >
+                Privacy Policy
+              </Text>
+              <Text style={styles.legalDivider}>|</Text>
+              <Text
+                style={styles.legalLinkText}
+                onPress={() => Linking.openURL('https://sportsiqapp.info/terms.html')}
+              >
+                Terms of Use
+              </Text>
+            </View>
           </ScrollView>
         </View>
       </SafeAreaView>
-    );
-  };
-
-  const renderSubscriptionSelection = () => (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBackButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.title}>Choose Your Plan</Text>
-        <Text style={styles.subtitle}>
-          Select the plan that works best for you
-        </Text>
-        <Text style={styles.stepIndicator}>Step 3 of 3</Text>
-
-        <ScrollView style={styles.optionsContainer} showsVerticalScrollIndicator={false}>
-          {/* Free Trial Option — only shown to brand new users with no tier */}
-          {!currentTier && (
-            <TouchableOpacity
-              style={styles.trialCard}
-              onPress={() => onComplete({
-                ...onboardingData,
-                subscriptionTier: 'TRIAL',
-                billingCycle: 'monthly',
-              })}
-            >
-              <View style={styles.subscriptionHeader}>
-                <Text style={styles.subscriptionEmoji}>🎯</Text>
-                <View style={styles.subscriptionInfo}>
-                  <Text style={styles.subscriptionName}>Start Free Trial</Text>
-                  <Text style={styles.trialPrice}>No credit card required</Text>
-                </View>
-              </View>
-              <View style={styles.featuresList}>
-                <Text style={styles.featureText}>• 3 AI coaching questions</Text>
-                <Text style={styles.featureText}>• 1 position-specific workout plan</Text>
-                <Text style={styles.featureText}>• Upgrade anytime</Text>
-              </View>
-            </TouchableOpacity>
-          )}
-
-          {!currentTier && <Text style={styles.orDivider}>— or subscribe for full access —</Text>}
-
-          {/* Paid Tiers — hide the tier the user already has */}
-          {SUBSCRIPTION_TIERS.filter((tier) => tier.id !== currentTier).map((tier) => (
-            <View key={tier.id} style={styles.tierSection}>
-              <TouchableOpacity
-                style={[styles.subscriptionCard, tier.popular && styles.popularCard]}
-                onPress={() => handleSubscriptionSelection({ tier: tier.id, billing: 'monthly' })}
-              >
-                {tier.popular && <Text style={styles.popularBadge}>MOST POPULAR</Text>}
-
-                <View style={styles.subscriptionHeader}>
-                  <Text style={styles.subscriptionEmoji}>{tier.emoji}</Text>
-                  <View style={styles.subscriptionInfo}>
-                    <Text style={styles.subscriptionName}>{tier.name}</Text>
-                    <Text style={styles.subscriptionPrice}>{tier.monthlyPrice}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.featuresList}>
-                  {tier.features.map((feature, index) => (
-                    <Text key={index} style={styles.featureText}>• {feature}</Text>
-                  ))}
-                </View>
-              </TouchableOpacity>
-            </View>
-          ))}
-
-          {!currentTier && (
-            <TouchableOpacity
-              style={styles.restoreButton}
-              onPress={async () => {
-                try {
-                  await Purchases.restorePurchases();
-                  Alert.alert('Success', 'Your purchases have been restored.');
-                } catch (error: any) {
-                  Alert.alert('Restore Failed', error?.message ?? 'Unable to restore purchases. Please try again.');
-                }
-              }}
-            >
-              <Text style={styles.restoreButtonText}>Restore Purchases</Text>
-            </TouchableOpacity>
-          )}
-
-          <View style={styles.legalLinks}>
-            <Text
-              style={styles.legalLinkText}
-              onPress={() => Linking.openURL('https://sportsiqapp.info/privacy.html')}
-            >
-              Privacy Policy
-            </Text>
-            <Text style={styles.legalDivider}>|</Text>
-            <Text
-              style={styles.legalLinkText}
-              onPress={() => Linking.openURL('https://sportsiqapp.info/terms.html')}
-            >
-              Terms of Use
-            </Text>
-          </View>
-        </ScrollView>
-      </View>
-    </SafeAreaView>
+    </View>
   );
 
   // Main render logic
@@ -363,34 +395,62 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
 };
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: appTheme.bg,
+  },
+  // Ambient glow orbs
+  orbTopRight: {
+    position: 'absolute',
+    top: -80,
+    right: -80,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: '#7C3AED',
+    opacity: 0.12,
+  },
+  orbBottomLeft: {
+    position: 'absolute',
+    bottom: 100,
+    left: -100,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: '#39FF14',
+    opacity: 0.10,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 40,
+    backgroundColor: 'transparent',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 30,
+    fontWeight: '900',
+    color: appTheme.white,
     textAlign: 'center',
     marginBottom: 8,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 18,
-    color: '#666',
+    fontSize: 16,
+    color: appTheme.textMuted,
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 24,
   },
   stepIndicator: {
     textAlign: 'center',
-    fontSize: 14,
-    color: '#999',
+    fontSize: 13,
+    color: appTheme.textMuted,
     marginBottom: 30,
+    fontWeight: '600',
   },
   optionsContainer: {
     flex: 1,
@@ -398,17 +458,16 @@ const styles = StyleSheet.create({
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: 'rgba(255,255,255,0.07)',
     padding: 20,
-    marginBottom: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    marginBottom: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
     elevation: 3,
   },
   optionEmoji: {
@@ -417,8 +476,8 @@ const styles = StyleSheet.create({
   },
   optionText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: appTheme.white,
     flex: 1,
   },
   backButton: {
@@ -429,54 +488,36 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#0066FF',
-    fontWeight: '500',
+    color: appTheme.purple,
+    fontWeight: '700',
   },
   tierSection: {
     marginBottom: 24,
   },
   subscriptionCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: 'rgba(255,255,255,0.07)',
     padding: 24,
     marginBottom: 12,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
     elevation: 3,
-    borderWidth: 2,
-    borderColor: 'transparent',
   },
   popularCard: {
-    borderColor: '#0066FF',
-    backgroundColor: '#f8f9ff',
-  },
-  annualCard: {
-    backgroundColor: '#f0f8f0',
-    borderColor: '#28a745',
+    backgroundColor: 'rgba(139,92,246,0.15)',
+    borderColor: appTheme.purple,
+    borderWidth: 1.5,
   },
   popularBadge: {
     position: 'absolute',
     top: -8,
     left: 16,
-    backgroundColor: '#0066FF',
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  annualBadge: {
-    position: 'absolute',
-    top: -8,
-    left: 16,
-    backgroundColor: '#28a745',
-    color: '#ffffff',
+    backgroundColor: appTheme.purple,
+    color: appTheme.white,
     fontSize: 12,
     fontWeight: 'bold',
     paddingHorizontal: 12,
@@ -498,47 +539,41 @@ const styles = StyleSheet.create({
   subscriptionName: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: appTheme.white,
     marginBottom: 4,
   },
   subscriptionPrice: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#0066FF',
-  },
-  savingsText: {
-    fontSize: 14,
-    color: '#28a745',
-    fontWeight: '500',
-    marginTop: 2,
+    color: appTheme.purple,
   },
   featuresList: {
     paddingLeft: 4,
   },
   featureText: {
     fontSize: 14,
-    color: '#666',
+    color: appTheme.textMuted,
     marginBottom: 6,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   trialCard: {
-    backgroundColor: '#f0f8ff',
-    borderWidth: 2,
-    borderColor: '#0066FF',
-    borderRadius: 16,
+    backgroundColor: 'rgba(57,255,20,0.08)',
+    borderWidth: 1.5,
+    borderColor: appTheme.neonGreen + '60',
+    borderRadius: 24,
     padding: 24,
     marginBottom: 8,
   },
   trialPrice: {
     fontSize: 14,
-    color: '#0066FF',
+    color: appTheme.neonGreen,
     fontWeight: '500',
     marginTop: 2,
   },
   orDivider: {
     textAlign: 'center',
     fontSize: 13,
-    color: '#999',
+    color: appTheme.textMuted,
     marginVertical: 16,
   },
   restoreButton: {
@@ -548,7 +583,7 @@ const styles = StyleSheet.create({
   },
   restoreButtonText: {
     fontSize: 14,
-    color: '#0066FF',
+    color: appTheme.textMuted,
     fontWeight: '500',
   },
   legalLinks: {
@@ -560,11 +595,11 @@ const styles = StyleSheet.create({
   },
   legalLinkText: {
     fontSize: 12,
-    color: '#666666',
+    color: appTheme.purple,
   },
   legalDivider: {
     fontSize: 12,
-    color: '#666666',
+    color: appTheme.textMuted,
     marginHorizontal: 8,
   },
 });

@@ -4,6 +4,9 @@
 .env.development
 .env.production
 
+# Claude Code
+CLAUDE.md
+
 # Build artifacts
 node_modules/
 .expo/

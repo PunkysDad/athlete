@@ -12,7 +12,6 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import {
-  Card,
   Button,
   RadioButton,
   Checkbox,
@@ -20,10 +19,13 @@ import {
   Chip,
   Divider,
 } from 'react-native-paper';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { appTheme } from '../theme/appTheme';
-import { theme, commonStyles } from '../theme';
+import { theme } from '../theme';
+import { componentStyles as cs } from '../theme/componentStyles';
 import { workoutApiService } from '../services/workoutApiService';
 import { UserService } from '../services/userService';
 import { WorkoutData, WorkoutRequest } from '../interfaces/interfaces';
@@ -220,10 +222,11 @@ export default function WorkoutRequestScreen() {
   };
 
   const renderEquipmentSection = () => (
-    <Card style={[styles.card, errors.equipment && styles.errorCard]}>
-      <Card.Content>
-        <Text style={styles.sectionTitle}>Available Equipment</Text>
+    <BlurView intensity={15} tint="dark" style={[cs.glassCardOrb, errors.equipment && styles.errorCard]}>
+      <View style={cs.cardPadding}>
+        <Text style={cs.cardHeading}>Available Equipment</Text>
         {errors.equipment && <Text style={styles.errorText}>{errors.equipment}</Text>}
+        <View style={{ height: 12 }} />
         {Object.entries(EQUIPMENT_OPTIONS).map(([category, items]) => (
           <View key={category} style={styles.optionGroup}>
             <Text style={styles.categoryLabel}>{category}</Text>
@@ -237,22 +240,23 @@ export default function WorkoutRequestScreen() {
                 <Checkbox
                   status={formData.equipment.includes(item) ? 'checked' : 'unchecked'}
                   onPress={() => toggleEquipment(item)}
-                  color={appTheme.red}
+                  color={appTheme.purple}
                 />
                 <Text style={styles.optionLabel}>{item}</Text>
               </TouchableOpacity>
             ))}
           </View>
         ))}
-      </Card.Content>
-    </Card>
+      </View>
+    </BlurView>
   );
 
   const renderFocusSection = () => (
-    <Card style={[styles.card, errors.trainingFocus && styles.errorCard]}>
-      <Card.Content>
-        <Text style={styles.sectionTitle}>Training Focus</Text>
+    <BlurView intensity={15} tint="dark" style={[cs.glassCardOrb, errors.trainingFocus && styles.errorCard]}>
+      <View style={cs.cardPadding}>
+        <Text style={cs.cardHeading}>Training Focus</Text>
         {errors.trainingFocus && <Text style={styles.errorText}>{errors.trainingFocus}</Text>}
+        <View style={{ height: 12 }} />
         {Object.entries(FOCUS_OPTIONS).map(([category, items]) => (
           <View key={category} style={styles.optionGroup}>
             <Text style={styles.categoryLabel}>{category}</Text>
@@ -264,8 +268,8 @@ export default function WorkoutRequestScreen() {
                   selected={formData.trainingFocus.includes(item)}
                   onPress={() => toggleFocus(item)}
                   style={[styles.chip, formData.trainingFocus.includes(item) && styles.chipSelected]}
-                  selectedColor={appTheme.red}
-                  textStyle={{ fontSize: 12, color: formData.trainingFocus.includes(item) ? appTheme.white : appTheme.textMuted }}
+                  selectedColor={appTheme.purple}
+                  textStyle={{ fontSize: 12, color: formData.trainingFocus.includes(item) ? appTheme.purple : appTheme.textMuted }}
                 >
                   {item}
                 </Chip>
@@ -273,12 +277,23 @@ export default function WorkoutRequestScreen() {
             </View>
           </View>
         ))}
-      </Card.Content>
-    </Card>
+      </View>
+    </BlurView>
   );
 
   return (
-    <View style={commonStyles.container}>
+    <View style={styles.root}>
+      {/* Ambient gradient background */}
+      <LinearGradient
+        colors={['#080B14', '#0D0B1E', '#080B14']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      <View style={styles.orbTopRight} />
+      <View style={styles.orbBottomLeft} />
+      <View style={styles.orbMidRight} />
+
       <TrialLimitModal
         visible={trialLimitVisible}
         limitType="workout"
@@ -297,27 +312,37 @@ export default function WorkoutRequestScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
 
-        <Card style={styles.card}>
-          <Card.Content>
-            <View style={commonStyles.rowBetween}>
+        {/* Training For */}
+        <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
+          <View style={cs.cardPadding}>
+            <View style={cs.rowBetween}>
               <View>
-                <Text style={styles.sectionTitle}>Training For</Text>
+                <Text style={cs.cardHeading}>Training For</Text>
                 {profileLoading ? (
-                  <ActivityIndicator size="small" color={appTheme.red} style={{ marginTop: 4 }} />
+                  <ActivityIndicator size="small" color={appTheme.purple} style={{ marginTop: 4 }} />
                 ) : (
-                  <Text style={styles.trainingForText}>
-                    {userSport || '—'} • {userPosition || '—'}
-                  </Text>
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={styles.trainingForText}>
+                      {userSport || '—'} · {userPosition || '—'}
+                    </Text>
+                    {userPosition ? (
+                      <View style={[cs.badge, cs.purpleBadge, { marginTop: 6 }]}>
+                        <Text style={[cs.badgeText, cs.purpleBadgeText]}>{userPosition}</Text>
+                      </View>
+                    ) : null}
+                  </View>
                 )}
               </View>
               <Icon name="sports" size={32} color={appTheme.neonGreen} />
             </View>
-          </Card.Content>
-        </Card>
+          </View>
+        </BlurView>
 
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text style={styles.sectionTitle}>Experience Level</Text>
+        {/* Experience Level & Training Phase */}
+        <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
+          <View style={cs.cardPadding}>
+            <Text style={cs.cardHeading}>Experience Level</Text>
+            <View style={{ height: 12 }} />
             <RadioButton.Group
               onValueChange={(v) => setFormData({ ...formData, experienceLevel: v as any })}
               value={formData.experienceLevel}
@@ -333,7 +358,7 @@ export default function WorkoutRequestScreen() {
                   onPress={() => setFormData({ ...formData, experienceLevel: opt.value as any })}
                   activeOpacity={0.7}
                 >
-                  <RadioButton value={opt.value} color={appTheme.red} />
+                  <RadioButton value={opt.value} color={appTheme.purple} />
                   <Text style={styles.optionLabel}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -341,7 +366,8 @@ export default function WorkoutRequestScreen() {
 
             <Divider style={styles.divider} />
 
-            <Text style={styles.sectionTitle}>Training Phase</Text>
+            <Text style={cs.cardHeading}>Training Phase</Text>
+            <View style={{ height: 12 }} />
             <RadioButton.Group
               onValueChange={(v) => setFormData({ ...formData, trainingPhase: v as any })}
               value={formData.trainingPhase}
@@ -358,17 +384,18 @@ export default function WorkoutRequestScreen() {
                   onPress={() => setFormData({ ...formData, trainingPhase: opt.value as any })}
                   activeOpacity={0.7}
                 >
-                  <RadioButton value={opt.value} color={appTheme.red} />
+                  <RadioButton value={opt.value} color={appTheme.purple} />
                   <Text style={styles.optionLabel}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
             </RadioButton.Group>
-          </Card.Content>
-        </Card>
+          </View>
+        </BlurView>
 
-        <Card style={[styles.card, errors.timeAvailable && styles.errorCard]}>
-          <Card.Content>
-            <Text style={styles.sectionTitle}>Time Available (minutes)</Text>
+        {/* Time Available */}
+        <BlurView intensity={15} tint="dark" style={[cs.glassCardOrb, errors.timeAvailable && styles.errorCard]}>
+          <View style={cs.cardPadding}>
+            <Text style={cs.cardHeading}>Time Available (minutes)</Text>
             {errors.timeAvailable && <Text style={styles.errorText}>{errors.timeAvailable}</Text>}
             <TextInput
               mode="outlined"
@@ -382,7 +409,7 @@ export default function WorkoutRequestScreen() {
               placeholder="e.g., 60"
               style={styles.textInput}
               outlineColor={appTheme.border}
-              activeOutlineColor={appTheme.red}
+              activeOutlineColor={appTheme.purple}
               textColor={appTheme.text}
               placeholderTextColor={appTheme.textMuted}
             />
@@ -393,22 +420,22 @@ export default function WorkoutRequestScreen() {
                   mode={formData.timeAvailable === t ? 'flat' : 'outlined'}
                   onPress={() => setFormData({ ...formData, timeAvailable: t })}
                   style={[styles.chip, formData.timeAvailable === t && styles.chipSelected]}
-                  selectedColor={appTheme.red}
-                  textStyle={{ fontSize: 12, color: formData.timeAvailable === t ? appTheme.white : appTheme.textMuted }}
+                  selectedColor={appTheme.purple}
+                  textStyle={{ fontSize: 12, color: formData.timeAvailable === t ? appTheme.purple : appTheme.textMuted }}
                 >
                   {t}min
                 </Chip>
               ))}
             </View>
-          </Card.Content>
-        </Card>
+          </View>
+        </BlurView>
 
         {renderEquipmentSection()}
         {renderFocusSection()}
 
         {/* <Card style={styles.card}>
           <Card.Content>
-            <Text style={styles.sectionTitle}>Special Requests (Optional)</Text>
+            <Text style={cs.cardHeading}>Special Requests (Optional)</Text>
             <TextInput
               mode="outlined"
               value={formData.specialRequests}
@@ -418,7 +445,7 @@ export default function WorkoutRequestScreen() {
               numberOfLines={3}
               style={styles.textInput}
               outlineColor={appTheme.border}
-              activeOutlineColor={appTheme.red}
+              activeOutlineColor={appTheme.purple}
               textColor={appTheme.text}
               placeholderTextColor={appTheme.textMuted}
             />
@@ -431,7 +458,7 @@ export default function WorkoutRequestScreen() {
           loading={isLoading}
           disabled={isLoading}
           style={styles.generateButton}
-          buttonColor={appTheme.red}
+          buttonColor={appTheme.purple}
           textColor={appTheme.white}
           contentStyle={styles.buttonContent}
           theme={{ colors: { onSurfaceDisabled: appTheme.white } }}
@@ -439,16 +466,18 @@ export default function WorkoutRequestScreen() {
           {isLoading ? 'Generating workout...' : 'Generate My Workout'}
         </Button>
 
-        <Card style={styles.costCard}>
-          <Card.Content>
+        {/* Cost info card with neon green left accent */}
+        <BlurView intensity={15} tint="dark" style={styles.costCard}>
+          <View style={styles.costAccentStrip} />
+          <View style={cs.cardPadding}>
             <View style={styles.costRow}>
-              <Icon name="info" size={16} color={appTheme.red} />
+              <Icon name="info" size={16} color={appTheme.neonGreen} />
               <Text style={styles.costText}>
                 AI-generated workouts are personalised for your position and goals.
               </Text>
             </View>
-          </Card.Content>
-        </Card>
+          </View>
+        </BlurView>
 
       </ScrollView>
     </View>
@@ -456,47 +485,84 @@ export default function WorkoutRequestScreen() {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: appTheme.bg,
+  },
+
+  // Ambient glow orbs
+  orbTopRight: {
+    position: 'absolute',
+    top: -80,
+    right: -80,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: appTheme.orbPurple,
+    opacity: 0.12,
+    shadowColor: appTheme.orbPurple,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 80,
+  },
+  orbBottomLeft: {
+    position: 'absolute',
+    bottom: 100,
+    left: -100,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: appTheme.neonGreen,
+    opacity: 0.10,
+    shadowColor: appTheme.neonGreen,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 80,
+  },
+  orbMidRight: {
+    position: 'absolute',
+    top: '45%',
+    right: -60,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: appTheme.neonGreen,
+    opacity: 0.06,
+    shadowColor: appTheme.neonGreen,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 60,
+  },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: theme.spacing.base,
-    backgroundColor: appTheme.navyDark,
+    backgroundColor: 'rgba(8,11,20,0.95)',
     borderBottomWidth: 1,
     borderBottomColor: appTheme.border,
   },
   headerTitle: {
     marginLeft: theme.spacing.sm,
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: '900',
     color: appTheme.white,
+    letterSpacing: -0.5,
   },
   content: {
     flex: 1,
     padding: theme.spacing.base,
-    backgroundColor: appTheme.bg,
+    backgroundColor: 'transparent',
   },
-  card: {
-    backgroundColor: appTheme.bgCard,
-    borderRadius: theme.borderRadius.base,
-    marginBottom: theme.spacing.base,
-    borderWidth: 1,
-    borderColor: appTheme.border,
-    ...theme.shadows.sm,
-  },
+
   errorCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: appTheme.red,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: appTheme.white,
-    marginBottom: theme.spacing.base,
+    borderColor: '#dc354560',
+    borderWidth: 1.5,
   },
   trainingForText: {
-    fontSize: 15,
-    color: appTheme.textMuted,
-    marginTop: 4,
+    fontSize: 18,
+    fontWeight: '800',
+    color: appTheme.white,
   },
   categoryLabel: {
     fontSize: 13,
@@ -504,7 +570,7 @@ const styles = StyleSheet.create({
     color: appTheme.textMuted,
     marginBottom: theme.spacing.sm,
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: 0.8,
   },
   optionGroup: {
     marginBottom: theme.spacing.md,
@@ -545,31 +611,39 @@ const styles = StyleSheet.create({
     borderColor: appTheme.border,
   },
   chipSelected: {
-    backgroundColor: appTheme.red + '25',
-    borderColor: appTheme.red,
+    backgroundColor: appTheme.purpleDim,
+    borderColor: appTheme.purple,
   },
   errorText: {
-    color: appTheme.red,
+    color: '#dc3545',
     fontSize: 12,
+    marginTop: 4,
     marginBottom: theme.spacing.sm,
   },
   generateButton: {
     marginTop: theme.spacing.sm,
     marginBottom: theme.spacing.sm,
-    borderRadius: theme.borderRadius.base,
+    borderRadius: 20,
   },
   buttonContent: {
     paddingVertical: theme.spacing.sm,
   },
   costCard: {
-    backgroundColor: appTheme.bgCard,
-    borderRadius: theme.borderRadius.base,
-    borderLeftWidth: 4,
-    borderLeftColor: appTheme.red,
-    marginBottom: theme.spacing.xl,
+    borderRadius: 40,
     borderWidth: 1,
     borderColor: appTheme.border,
-    ...theme.shadows.sm,
+    overflow: 'hidden',
+    marginBottom: theme.spacing.xl,
+  },
+  costAccentStrip: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: appTheme.neonGreen,
+    borderTopLeftRadius: 40,
+    borderBottomLeftRadius: 40,
   },
   costRow: {
     flexDirection: 'row',

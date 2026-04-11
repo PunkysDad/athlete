@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { appTheme } from '../theme/appTheme';
 import { theme } from '../theme';
@@ -112,64 +113,121 @@ export default function HistoryListModal({ visible, type, userId, onClose, onSel
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Icon name="arrow-back" size={24} color={appTheme.white} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            {type === 'chat' ? 'AI Chat History' : 'Workout History'}
-          </Text>
-          <View style={{ width: 40 }} />
-        </View>
+      <View style={styles.root}>
+        <LinearGradient
+          colors={['#080B14', '#0D0B1E', '#080B14']}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        <View style={styles.orbTopRight} />
+        <View style={styles.orbBottomLeft} />
+        <View style={styles.orbMidRight} />
 
-        {/* Content */}
-        {loading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color={appTheme.red} />
-            <Text style={styles.emptyText}>Loading...</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.centered}>
-            <Icon name="error-outline" size={40} color={appTheme.textMuted} />
-            <Text style={[styles.emptyText, { color: appTheme.red }]}>{error}</Text>
-          </View>
-        ) : items.length === 0 ? (
-          <View style={styles.centered}>
-            <Icon
-              name={type === 'chat' ? 'chat-bubble-outline' : 'fitness-center'}
-              size={48}
-              color={appTheme.textMuted}
-            />
-            <Text style={styles.emptyText}>
-              {type === 'chat' ? 'No coaching chats yet' : 'No workouts generated yet'}
+        <SafeAreaView style={{ flex: 1 }}>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Icon name="arrow-back" size={24} color={appTheme.white} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>
+              {type === 'chat' ? 'AI Chat History' : 'Workout History'}
             </Text>
+            <View style={{ width: 40 }} />
           </View>
-        ) : (
-          <FlatList
-            data={items}
-            keyExtractor={item => `${item.type}-${item.id}`}
-            renderItem={renderItem}
-            contentContainerStyle={styles.list}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
-      </SafeAreaView>
+
+          {/* Content */}
+          {loading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size="large" color={appTheme.purple} />
+              <Text style={styles.emptyText}>Loading...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.centered}>
+              <Icon name="error-outline" size={40} color={appTheme.textMuted} />
+              <Text style={[styles.emptyText, { color: appTheme.purple }]}>{error}</Text>
+            </View>
+          ) : items.length === 0 ? (
+            <View style={styles.centered}>
+              <Icon
+                name={type === 'chat' ? 'chat-bubble-outline' : 'fitness-center'}
+                size={48}
+                color={appTheme.textMuted}
+              />
+              <Text style={styles.emptyText}>
+                {type === 'chat' ? 'No coaching chats yet' : 'No workouts generated yet'}
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={items}
+              keyExtractor={item => `${item.type}-${item.id}`}
+              renderItem={renderItem}
+              contentContainerStyle={styles.list}
+              showsVerticalScrollIndicator={false}
+            />
+          )}
+        </SafeAreaView>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
     backgroundColor: appTheme.bg,
   },
+
+  // Ambient glow orbs
+  orbTopRight: {
+    position: 'absolute',
+    top: -80,
+    right: -80,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: appTheme.orbPurple,
+    opacity: 0.12,
+    shadowColor: appTheme.orbPurple,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 80,
+  },
+  orbBottomLeft: {
+    position: 'absolute',
+    bottom: 100,
+    left: -100,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: appTheme.neonGreen,
+    opacity: 0.10,
+    shadowColor: appTheme.neonGreen,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 80,
+  },
+  orbMidRight: {
+    position: 'absolute',
+    top: '45%',
+    right: -60,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: appTheme.neonGreen,
+    opacity: 0.06,
+    shadowColor: appTheme.neonGreen,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 60,
+  },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: appTheme.navyDark,
+    backgroundColor: 'rgba(8,11,20,0.95)',
     paddingHorizontal: theme.spacing.base,
     paddingVertical: theme.spacing.lg,
     borderBottomWidth: 1,
@@ -181,7 +239,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: '800',
     color: appTheme.white,
   },
   list: {
@@ -190,8 +248,8 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: appTheme.bgCard,
-    borderRadius: theme.borderRadius.base,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
     padding: theme.spacing.base,
     marginBottom: theme.spacing.sm,
     borderWidth: 1,
@@ -201,7 +259,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: appTheme.neonGreen + '20',
+    backgroundColor: appTheme.neonGreenDim,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: theme.spacing.base,

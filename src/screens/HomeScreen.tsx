@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -8,10 +8,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { Card, Button, Avatar } from 'react-native-paper';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Button } from 'react-native-paper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { appTheme } from '../theme/appTheme';
-import { theme, commonStyles } from '../theme';
+import { theme } from '../theme';
+import { componentStyles as cs } from '../theme/componentStyles';
 import { apiService } from '../services/apiService';
 import { UserService } from '../services/userService';
 import { getAuth } from 'firebase/auth';
@@ -27,11 +30,9 @@ export default function HomeScreen() {
   const auth = getAuth();
   const userService = new UserService();
   const [activeTab, setActiveTab] = useState('overview');
-
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [userLoading, setUserLoading] = useState(true);
-
   const [backendConnected, setBackendConnected] = useState(false);
   const [activityStats, setActivityStats] = useState<ActivityStats>({
     totalChats: 0,
@@ -40,22 +41,16 @@ export default function HomeScreen() {
   });
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string | null>(null);
-
   const [tagsWithItems, setTagsWithItems] = useState<TagWithItems[]>([]);
   const [tagsLoading, setTagsLoading] = useState(false);
   const [expandedTags, setExpandedTags] = useState<Set<number>>(new Set());
-
   const [selectedItem, setSelectedItem] = useState<TaggedItem | null>(null);
   const [sheetVisible, setSheetVisible] = useState(false);
-  const [focusCount, setFocusCount] = useState(0);
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [historyModalType, setHistoryModalType] = useState<'chat' | 'workout'>('chat');
 
-  // -------------------------------------------------------------------------
-  // User resolution
-  // -------------------------------------------------------------------------
-
-  const getCurrentUser = async (): Promise<{ user: any; userId: number } | null> => {
+  // ── User resolution ────────────────────────────────────────────────────────
+  const getCurrentUser = async () => {
     try {
       const firebaseUser = auth.currentUser;
       if (!firebaseUser) return null;
@@ -68,10 +63,7 @@ export default function HomeScreen() {
     }
   };
 
-  // -------------------------------------------------------------------------
-  // Activity stats
-  // -------------------------------------------------------------------------
-
+  // ── Activity stats ─────────────────────────────────────────────────────────
   const loadActivityStats = async (userId: number) => {
     setStatsLoading(true);
     setStatsError(null);
@@ -117,19 +109,7 @@ export default function HomeScreen() {
     }
   };
 
-  const testBackendConnection = async () => {
-    try {
-      const result = await apiService.checkHealth();
-      setBackendConnected(result.success);
-    } catch {
-      setBackendConnected(false);
-    }
-  };
-
-  // -------------------------------------------------------------------------
-  // Tags
-  // -------------------------------------------------------------------------
-
+  // ── Tags ───────────────────────────────────────────────────────────────────
   const formatDate = (dateStr: string): string => {
     if (!dateStr) return '';
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -140,32 +120,27 @@ export default function HomeScreen() {
     try {
       const tagsResult = await apiService.getUserTags(userId);
       if (!tagsResult.success) return;
-
       const enriched: TagWithItems[] = await Promise.all(
         tagsResult.data.map(async (tag) => {
           const [convResult, workoutResult] = await Promise.all([
             apiService.getConversationsByTag(userId, tag.id),
             apiService.getWorkoutsByTag(userId, tag.id),
           ]);
-
           const chatItems: TaggedItem[] = (convResult.success ? convResult.data : []).map((c: any) => ({
             id: c.id,
             title: c.title || 'Coaching conversation',
             type: 'chat' as const,
             date: formatDate(c.createdAt),
           }));
-
           const workoutItems: TaggedItem[] = (workoutResult.success ? workoutResult.data : []).map((w: any) => ({
             id: w.id,
             title: w.title || `${w.position || ''} ${w.sport || ''} workout`.trim(),
             type: 'workout' as const,
             date: formatDate(w.createdAt),
           }));
-
           return { ...tag, items: [...chatItems, ...workoutItems] };
         })
       );
-
       const withContent = enriched.filter(t => t.items.length > 0);
       setTagsWithItems(withContent);
       setExpandedTags(new Set(withContent.map(t => t.id)));
@@ -186,10 +161,7 @@ export default function HomeScreen() {
 
   const totalTaggedItems = tagsWithItems.reduce((sum, t) => sum + t.items.length, 0);
 
-  // -------------------------------------------------------------------------
-  // Lifecycle
-  // -------------------------------------------------------------------------
-
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
   useFocusEffect(
     useCallback(() => {
       const initializeUser = async () => {
@@ -198,170 +170,182 @@ export default function HomeScreen() {
         if (result) {
           setCurrentUser(result.user);
           setCurrentUserId(result.userId);
-          testBackendConnection();
           await loadActivityStats(result.userId);
           await loadTagsWithContent(result.userId);
         } else {
           setStatsError('Please log in to view your activity stats');
         }
         setUserLoading(false);
-        setFocusCount(prev => prev + 1);
       };
       initializeUser();
     }, [])
   );
 
-  // -------------------------------------------------------------------------
-  // Render helpers
-  // -------------------------------------------------------------------------
+  // ── Render helpers ─────────────────────────────────────────────────────────
 
-  const renderStatCard = (label: string, value: number, icon: string, subtitle: string, onPress?: () => void) => (
-    <TouchableOpacity
-      style={styles.statCard}
-      onPress={onPress}
-      disabled={!onPress}
-      activeOpacity={onPress ? 0.7 : 1}
-    >
-      {onPress && (
-        <Icon name="touch-app" size={16} color={appTheme.neonGreen} style={styles.statCardChevron} />
-      )}
-      <Icon name={icon as any} size={22} color={appTheme.neonGreen} />
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statSubtitle}>{subtitle}</Text>
-    </TouchableOpacity>
-  );
+  const renderStatCard = (
+    label: string,
+    value: number,
+    icon: string,
+    subtitle: string,
+    onPress?: () => void,
+    accentColor?: string,
+  ) => {
+    const accent = accentColor || appTheme.neonGreen;
+    const cardStyle = [
+      cs.statCard,
+      onPress ? cs.statCardTouchable : null,
+      { borderColor: accent + '60' },
+    ];
+    return (
+      <TouchableOpacity
+        style={cardStyle}
+        onPress={onPress}
+        disabled={!onPress}
+        activeOpacity={onPress ? 0.7 : 1}
+      >
+        {onPress && (
+          <Icon name="touch-app" size={42} color={accent} style={cs.statTouchIndicator} />
+        )}
+        <View style={[styles.statIconWrapper, { backgroundColor: accent + '20' }]}>
+          <Icon name={icon as any} size={20} color={accent} />
+        </View>
+        <Text style={cs.statValue}>{value}</Text>
+        <Text style={cs.statLabel}>{label}</Text>
+        <Text style={cs.statSubtitle}>{subtitle}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderOverviewTab = () => (
     <View>
-      {/* Profile Card */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <View style={commonStyles.rowBetween}>
-            <View>
-              <Text style={styles.cardHeading}>
-                {currentUser?.displayName || currentUser?.email || 'Athlete'}
+      {/* Profile glass card */}
+      <BlurView intensity={20} tint="dark" style={cs.glassCardOrbAccent}>
+        <View style={cs.cardPadding}>
+          <View style={cs.rowBetween}>
+            <View style={{ flex: 1 }}>
+              <View style={[cs.rowStart, { marginBottom: 10 }]}>
+                <View style={styles.avatarGlow}>
+                  <Icon name="person" size={22} color={appTheme.white} />
+                </View>
+                <Text style={[cs.cardHeading, { marginLeft: 10, fontSize: 18 }]}>
+                  {currentUser?.displayName || currentUser?.email || 'Athlete'}
+                </Text>
+              </View>
+              <Text style={cs.cardBody}>
+                {currentUser?.primarySport || 'Sport'} · {currentUser?.primaryPosition || 'Position'}
               </Text>
-              <Text style={styles.cardBody}>
-                {currentUser?.primarySport || 'Sport'} • {currentUser?.primaryPosition || 'Position'}
-              </Text>
-              <View style={styles.tierBadge}>
-                <Text style={styles.tierBadgeText}>
+              <View style={[cs.badge, cs.purpleBadge]}>
+                <Text style={[cs.badgeText, cs.purpleBadgeText]}>
                   {currentUser?.subscriptionTier || 'FREE'}
                 </Text>
               </View>
             </View>
-            {/* <Avatar.Icon
-              size={64}
-              icon="account"
-              style={styles.avatar}
-              color={appTheme.navy}
-            /> */}
+            {/* Decorative position orb */}
+            <View style={styles.positionOrb}>
+              <Icon name="sports" size={28} color={appTheme.purple} />
+            </View>
           </View>
-        </Card.Content>
-      </Card>
+        </View>
+      </BlurView>
 
-      {/* Activity Stats */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <View style={commonStyles.rowBetween}>
-            <Text style={styles.cardHeading}>Training Activity</Text>
-            <Button
-              mode="text"
+      {/* Activity stats glass card */}
+      <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
+        <View style={cs.cardPadding}>
+          <View style={cs.rowBetween}>
+            <Text style={cs.cardHeading}>Training Activity</Text>
+            <TouchableOpacity
               onPress={() => currentUserId && loadActivityStats(currentUserId)}
-              textColor={appTheme.navy}
               disabled={statsLoading || !currentUserId}
+              style={styles.refreshBtn}
             >
-              {statsLoading ? 'Loading...' : 'Refresh'}
-            </Button>
+              <Icon
+                name="refresh"
+                size={18}
+                color={statsLoading ? appTheme.textMuted : appTheme.purple}
+              />
+            </TouchableOpacity>
           </View>
 
-          {userLoading ? (
-            <View style={styles.centered}>
-              <ActivityIndicator size="small" color={appTheme.navy} />
-              <Text style={styles.cardCaption}>Loading user data...</Text>
+          {userLoading || statsLoading ? (
+            <View style={cs.centered}>
+              <ActivityIndicator size="small" color={appTheme.purple} />
+              <Text style={[cs.cardCaption, { marginTop: 8 }]}>
+                {userLoading ? 'Loading user data...' : 'Loading stats...'}
+              </Text>
             </View>
           ) : !currentUserId ? (
-            <View style={styles.centered}>
-              <Text style={[styles.cardCaption, { color: '#f59e0b' }]}>
+            <View style={cs.centered}>
+              <Text style={[cs.cardCaption, { color: '#f59e0b' }]}>
                 Please log in to view your training stats
               </Text>
             </View>
-          ) : statsLoading ? (
-            <View style={styles.centered}>
-              <ActivityIndicator size="small" color={appTheme.navy} />
-              <Text style={styles.cardCaption}>Loading activity stats...</Text>
-            </View>
           ) : statsError ? (
-            <View style={styles.centered}>
-              <Text style={[styles.cardCaption, { color: appTheme.red }]}>{statsError}</Text>
-              <Button
-                mode="text"
-                onPress={() => currentUserId && loadActivityStats(currentUserId)}
-                textColor={appTheme.navy}
-                compact
-              >
-                Retry
-              </Button>
+            <View style={cs.centered}>
+              <Text style={[cs.cardCaption, { color: appTheme.purple, marginBottom: 8 }]}>{statsError}</Text>
+              <TouchableOpacity onPress={() => loadActivityStats(currentUserId)} style={styles.retryBtn}>
+                <Text style={styles.retryBtnText}>Retry</Text>
+              </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.statsGrid}>
-              {renderStatCard('AI Chats', activityStats.totalChats, 'chat', 'Coaching conversations',
-                () => { setHistoryModalType('chat'); setHistoryModalVisible(true); })}
+            <View style={cs.statsGrid}>
+              {renderStatCard('AI Chats', activityStats.totalChats, 'chat', 'Coaching sessions',
+                () => { setHistoryModalType('chat'); setHistoryModalVisible(true); }, appTheme.neonGreen)}
               {renderStatCard('Workouts', activityStats.totalWorkouts, 'fitness-center', 'Generated plans',
-                () => { setHistoryModalType('workout'); setHistoryModalVisible(true); })}
-              {renderStatCard('Days Ago', activityStats.recentActivity, 'access-time', 'Last activity')}
-              {renderStatCard('Total', activityStats.totalChats + activityStats.totalWorkouts, 'trending-up', 'AI interactions')}
+                () => { setHistoryModalType('workout'); setHistoryModalVisible(true); }, appTheme.purple)}
+              {renderStatCard('Days Ago', activityStats.recentActivity, 'access-time', 'Last activity', undefined, appTheme.cyan)}
+              {renderStatCard('Total', activityStats.totalChats + activityStats.totalWorkouts, 'trending-up', 'AI interactions', undefined, appTheme.purpleLight)}
             </View>
           )}
-        </Card.Content>
-      </Card>
+        </View>
+      </BlurView>
     </View>
   );
 
   const renderTagsTab = () => (
     <View>
-      <View style={[commonStyles.rowBetween, { marginBottom: theme.spacing.base }]}>
-        <Text style={styles.cardHeading}>My Tagged Content</Text>
+      <View style={[cs.rowBetween, { marginBottom: 16 }]}>
+        <Text style={cs.cardHeading}>My Tagged Content</Text>
         {tagsWithItems.length > 0 && (
-          <Text style={styles.cardCaption}>
+          <Text style={cs.cardCaption}>
             {tagsWithItems.length} tags · {totalTaggedItems} items
           </Text>
         )}
       </View>
 
       {tagsLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="small" color={appTheme.navy} />
-          <Text style={[styles.cardCaption, { marginTop: theme.spacing.sm }]}>Loading tags...</Text>
+        <View style={cs.centered}>
+          <ActivityIndicator size="small" color={appTheme.purple} />
+          <Text style={[cs.cardCaption, { marginTop: 8 }]}>Loading tags...</Text>
         </View>
       ) : tagsWithItems.length === 0 ? (
-        <Card style={styles.card}>
-          <Card.Content>
-            <View style={styles.emptyState}>
-              <Icon name="label-outline" size={48} color={appTheme.silver} />
-              <Text style={[styles.cardBody, { marginTop: theme.spacing.base, textAlign: 'center' }]}>
-                No tagged content yet
-              </Text>
-              <Text style={[styles.cardCaption, { marginTop: theme.spacing.xs, textAlign: 'center' }]}>
+        <BlurView intensity={15} tint="dark" style={cs.glassCard}>
+          <View style={cs.cardPadding}>
+            <View style={cs.emptyState}>
+              <View style={styles.emptyIcon}>
+                <Icon name="label-outline" size={32} color={appTheme.purple} />
+              </View>
+              <Text style={cs.emptyStateText}>No tagged content yet</Text>
+              <Text style={cs.emptyStateCaption}>
                 Tag your coaching chats and workout plans to organize them here
               </Text>
             </View>
-          </Card.Content>
-        </Card>
+          </View>
+        </BlurView>
       ) : (
         tagsWithItems.map(tag => {
           const isExpanded = expandedTags.has(tag.id);
           return (
             <View key={tag.id} style={styles.tagGroup}>
               <TouchableOpacity
-                style={[styles.tagPill, { backgroundColor: tag.color + '33', borderColor: tag.color }]}
+                style={[styles.tagPill, { backgroundColor: tag.color + '25', borderColor: tag.color + '80' }]}
                 onPress={() => toggleTag(tag.id)}
                 activeOpacity={0.7}
               >
+                <View style={[styles.tagDot, { backgroundColor: tag.color }]} />
                 <Text style={[styles.tagPillText, { color: tag.color }]}>{tag.name}</Text>
-                <View style={[styles.tagCount, { backgroundColor: tag.color }]}>
-                  <Text style={styles.tagCountText}>{tag.items.length}</Text>
+                <View style={[styles.tagCount, { backgroundColor: tag.color + '30', borderColor: tag.color + '50' }]}>
+                  <Text style={[styles.tagCountText, { color: tag.color }]}>{tag.items.length}</Text>
                 </View>
                 <Icon
                   name={isExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
@@ -381,22 +365,25 @@ export default function HomeScreen() {
                     setSheetVisible(true);
                   }}
                 >
-                  <View style={styles.taggedItemIcon}>
+                  <View style={[
+                    styles.taggedItemIcon,
+                    { backgroundColor: item.type === 'chat' ? appTheme.neonGreenDim : appTheme.purpleDim }
+                  ]}>
                     <Icon
                       name={item.type === 'chat' ? 'chat' : 'fitness-center'}
-                      size={18}
-                      color={appTheme.neonGreen}
+                      size={16}
+                      color={item.type === 'chat' ? appTheme.neonGreen : appTheme.purple}
                     />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.taggedItemTitle} numberOfLines={2} ellipsizeMode="tail">
                       {item.title}
                     </Text>
-                    <Text style={styles.cardCaption}>
+                    <Text style={cs.cardCaption}>
                       {item.type === 'chat' ? 'Chat' : 'Workout'} · {item.date}
                     </Text>
                   </View>
-                  <Icon name="chevron-right" size={18} color={appTheme.silver} />
+                  <Icon name="chevron-right" size={18} color={appTheme.textMuted} />
                 </TouchableOpacity>
               ))}
             </View>
@@ -406,16 +393,26 @@ export default function HomeScreen() {
     </View>
   );
 
-  // -------------------------------------------------------------------------
-  // Main render
-  // -------------------------------------------------------------------------
-
+  // ── Main render ────────────────────────────────────────────────────────────
   return (
-    <View style={commonStyles.container}>
-      {/* Header — matches site nav style */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Dashboard</Text>
-        <Text style={styles.headerSubtitle}>
+    <View style={styles.root}>
+      {/* Ambient gradient background */}
+      <LinearGradient
+        colors={['#080B14', '#0D0B1E', '#080B14']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      {/* Purple orb glow top-right */}
+      <View style={styles.orbTopRight} />
+      {/* Green orb glow bottom-left */}
+      <View style={styles.orbBottomLeft} />
+      <View style={styles.orbMidRight} />
+
+      {/* Header */}
+      <View style={cs.screenHeader}>
+        <Text style={cs.screenHeaderTitle}>Dashboard</Text>
+        <Text style={cs.screenHeaderSubtitle}>
           {currentUser?.primarySport
             ? `${currentUser.primarySport} · ${currentUser.primaryPosition}`
             : 'Your training overview'}
@@ -423,7 +420,7 @@ export default function HomeScreen() {
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabContainer}>
+      <View style={cs.tabContainer}>
         {[
           { key: 'overview', label: 'Overview' },
           ...(currentUser?.subscriptionTier === 'PREMIUM'
@@ -432,17 +429,21 @@ export default function HomeScreen() {
         ].map(tab => (
           <TouchableOpacity
             key={tab.key}
-            style={[styles.tab, activeTab === tab.key && styles.tabActive]}
+            style={[cs.tab, activeTab === tab.key && cs.tabActive]}
             onPress={() => setActiveTab(tab.key)}
           >
-            <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
+            <Text style={[cs.tabText, activeTab === tab.key && cs.tabTextActive]}>
               {tab.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {activeTab === 'overview' && renderOverviewTab()}
         {activeTab === 'tags' && renderTagsTab()}
       </ScrollView>
@@ -452,7 +453,6 @@ export default function HomeScreen() {
         visible={sheetVisible}
         onClose={() => setSheetVisible(false)}
       />
-
       <HistoryListModal
         visible={historyModalVisible}
         type={historyModalType}
@@ -468,196 +468,161 @@ export default function HomeScreen() {
   );
 }
 
+// Screen-specific styles only (shared patterns live in componentStyles.ts)
 const styles = StyleSheet.create({
-  header: {
-    backgroundColor: appTheme.navyDark,
-    paddingHorizontal: theme.spacing.base,
-    paddingVertical: theme.spacing.lg,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: appTheme.white,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: appTheme.textMuted,
-    marginTop: 2,
-  },
-
-  // Tabs
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: appTheme.bgCard,
-    borderBottomWidth: 1,
-    borderBottomColor: appTheme.border,
-  },
-  tab: {
+  root: {
     flex: 1,
-    paddingVertical: theme.spacing.base,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabActive: {
-    borderBottomColor: appTheme.red,
-  },
-  tabText: {
-    fontSize: 15,
-    color: appTheme.textMuted,
-  },
-  tabTextActive: {
-    color: appTheme.white,
-    fontWeight: '700',
-  },
-
-  content: {
-    flex: 1,
-    padding: theme.spacing.base,
     backgroundColor: appTheme.bg,
   },
-
-  // Cards
-  card: {
-    backgroundColor: appTheme.bgCard,
-    borderRadius: theme.borderRadius.base,
-    marginBottom: theme.spacing.base,
-    borderWidth: 6,
-    borderColor: appTheme.border,
-    ...theme.shadows.sm,
+  scrollView: {
+    flex: 1,
   },
-  cardHeading: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: appTheme.white,
-  },
-  cardBody: {
-    fontSize: 14,
-    color: appTheme.textMuted,
-    marginTop: theme.spacing.xs,
-    lineHeight: 20,
-  },
-  cardCaption: {
-    fontSize: 12,
-    color: appTheme.textMuted,
-    lineHeight: 16,
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
   },
 
-  // Tier badge
-  tierBadge: {
-    marginTop: theme.spacing.sm,
-    alignSelf: 'flex-start',
-    backgroundColor: appTheme.red + '25',
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: appTheme.red + '60',
-  },
-  tierBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: appTheme.red,
-    letterSpacing: 0.5,
-  },
-
-  avatar: {
-    backgroundColor: appTheme.navyLight,
-  },
-
-  // Stats grid
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: theme.spacing.sm,
-  },
-  statCard: {
-    width: '48%',
-    padding: theme.spacing.base,
-    borderRadius: theme.borderRadius.base,
-    marginBottom: theme.spacing.md,
-    alignItems: 'center',
-    backgroundColor: appTheme.bgElevated,
-    borderWidth: 1,
-    borderColor: appTheme.border,
-    borderLeftWidth: 3,
-    borderLeftColor: appTheme.red,
-  },
-  statCardChevron: {
+  // Ambient glow orbs
+  orbTopRight: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: -80,
+    right: -80,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: appTheme.orbPurple,
+    opacity: 0.12,
+    // Blur via large shadow on iOS
+    shadowColor: appTheme.orbPurple,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 80,
   },
-  statValue: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: appTheme.white,
-    marginTop: theme.spacing.sm,
+  orbBottomLeft: {
+    position: 'absolute',
+    bottom: 100,
+    left: -100,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: appTheme.neonGreen,
+    opacity: 0.10,
+    shadowColor: appTheme.neonGreen,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 80,
   },
-  statLabel: {
-    marginTop: theme.spacing.xs,
-    textAlign: 'center',
-    fontWeight: '600',
-    fontSize: 12,
-    color: appTheme.text,
-  },
-  statSubtitle: {
-    marginTop: 2,
-    textAlign: 'center',
-    fontSize: 10,
-    color: appTheme.textMuted,
+  orbMidRight: {
+    position: 'absolute',
+    top: '45%',
+    right: -60,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: appTheme.neonGreen,
+    opacity: 0.06,
+    shadowColor: appTheme.neonGreen,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 60,
   },
 
-  centered: {
+  // Profile card elements
+  avatarGlow: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: appTheme.purpleDim,
+    borderWidth: 1.5,
+    borderColor: appTheme.borderAccent,
     alignItems: 'center',
-    paddingVertical: theme.spacing.lg,
+    justifyContent: 'center',
   },
-  emptyState: {
+  positionOrb: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: appTheme.purpleDim,
+    borderWidth: 1,
+    borderColor: appTheme.borderAccent,
     alignItems: 'center',
-    paddingVertical: theme.spacing.xl,
+    justifyContent: 'center',
+  },
+
+  // Stat card inner elements
+  statIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+
+  // Refresh / retry
+  refreshBtn: {
+    padding: 8,
+  },
+  retryBtn: {
+    backgroundColor: appTheme.purpleDim,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: appTheme.borderAccent,
+  },
+  retryBtnText: {
+    color: appTheme.purple,
+    fontSize: 13,
+    fontWeight: '700',
   },
 
   // Tags
   tagGroup: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: 20,
   },
   tagPill: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingHorizontal: theme.spacing.base,
-    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1.5,
-    marginBottom: theme.spacing.sm,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  tagDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
   },
   tagPillText: {
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 14,
   },
   tagCount: {
-    marginLeft: theme.spacing.sm,
+    marginLeft: 8,
     borderRadius: 10,
-    minWidth: 22,
-    height: 22,
+    minWidth: 24,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
+    borderWidth: 1,
   },
   tagCountText: {
-    color: appTheme.white,
     fontSize: 12,
     fontWeight: '700',
   },
   taggedItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: appTheme.bgElevated,
-    borderRadius: theme.borderRadius.base,
-    paddingHorizontal: theme.spacing.base,
-    paddingVertical: theme.spacing.base,
-    marginBottom: theme.spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: appTheme.border,
   },
@@ -665,15 +630,25 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: appTheme.neonGreen + '20',  // ← change this line
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: theme.spacing.base,
+    marginRight: 12,
   },
   taggedItemTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: appTheme.text,
     marginBottom: 2,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: appTheme.purpleDim,
+    borderWidth: 1,
+    borderColor: appTheme.borderAccent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
   },
 });

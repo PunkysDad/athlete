@@ -23,6 +23,7 @@ export interface Exercise {
   injuryPrevention?: string;
   coachingCue?: string;
   videoUrl?: string;
+  videoTitle?: string;
 }
 
 export interface WorkoutPlan {

@@ -13,18 +13,20 @@ import {
   Platform,
 } from 'react-native';
 import {
-  Card,
   Button,
   Chip,
   IconButton,
   Divider,
   ActivityIndicator,
 } from 'react-native-paper';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { appTheme } from '../theme/appTheme';
+import { componentStyles as cs } from '../theme/componentStyles';
 import { Exercise, WorkoutData, TagResponse } from '../interfaces/interfaces';
 import FormattedMessage from '../components/FormattedMessage';
 import YoutubePlayerModal from '../components/YoutubePlayerModal';
@@ -54,6 +56,7 @@ export default function WorkoutDisplayScreen() {
   const [youtubeModalVisible, setYoutubeModalVisible] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState('');
   const [selectedExerciseVideoUrl, setSelectedExerciseVideoUrl] = useState<string | undefined>(undefined);
+  const [selectedExerciseVideoTitle, setSelectedExerciseVideoTitle] = useState<string | undefined>(undefined);
   const [subscriptionTier, setSubscriptionTier] = useState<string | null>(null);
 
   const TAG_COLORS = ['#007AFF', '#FF3B30', '#34C759', '#FF9500', '#AF52DE', '#FF2D55', '#5AC8FA'];
@@ -145,7 +148,7 @@ export default function WorkoutDisplayScreen() {
           </View>
 
           {tagsLoading ? (
-            <ActivityIndicator style={{ marginVertical: 20 }} color={appTheme.red} />
+            <ActivityIndicator style={{ marginVertical: 20 }} color={appTheme.purple} />
           ) : (
             <>
               {existingTags.length > 0 && (
@@ -195,7 +198,7 @@ export default function WorkoutDisplayScreen() {
                     </Button>
                     <Button
                       mode="contained"
-                      buttonColor={appTheme.red}
+                      buttonColor={appTheme.purple}
                       onPress={handleCreateAndAssignTag}
                       loading={savingTag}
                       disabled={!newTagName.trim() || savingTag}
@@ -206,14 +209,14 @@ export default function WorkoutDisplayScreen() {
                 </View>
               ) : (
                 <TouchableOpacity style={styles.createTagButton} onPress={() => setShowNewTagInput(true)}>
-                  <Icon name="add" size={18} color={appTheme.red} />
+                  <Icon name="add" size={18} color={appTheme.purple} />
                   <Text style={styles.createTagText}>Create new tag</Text>
                 </TouchableOpacity>
               )}
             </>
           )}
 
-          <Button mode="contained" buttonColor={appTheme.red} textColor={appTheme.white} onPress={() => setTagModalVisible(false)} style={{ marginTop: 16 }}>
+          <Button mode="contained" buttonColor={appTheme.purple} textColor={appTheme.white} onPress={() => setTagModalVisible(false)} style={{ marginTop: 16 }}>
             Done
           </Button>
         </View>
@@ -286,9 +289,9 @@ export default function WorkoutDisplayScreen() {
   const renderExercise = (exercise: Exercise, index: number) => {
     const isExpanded = expandedExercise === index;
     return (
-      <Card key={index} style={styles.exerciseCard}>
+      <BlurView key={index} intensity={15} tint="dark" style={styles.exerciseCard}>
         <TouchableOpacity onPress={() => toggleExerciseDetails(index)}>
-          <Card.Content>
+          <View style={styles.exerciseCardInner}>
             <View style={styles.exerciseHeader}>
               <View style={styles.exerciseInfo}>
                 <Text style={styles.exerciseName}>{exercise.name}</Text>
@@ -297,7 +300,7 @@ export default function WorkoutDisplayScreen() {
                   {exercise.restSeconds && ` • ${Math.floor(exercise.restSeconds / 60)}:${(exercise.restSeconds % 60).toString().padStart(2, '0')} rest`}
                 </Text>
               </View>
-              <Icon name={isExpanded ? 'expand-less' : 'expand-more'} size={24} color={appTheme.silver} />
+              <Icon name={isExpanded ? 'expand-less' : 'expand-more'} size={24} color={appTheme.textMuted} />
             </View>
             <Text style={styles.exerciseDescription}>{exercise.description}</Text>
             {isExpanded && (
@@ -329,27 +332,42 @@ export default function WorkoutDisplayScreen() {
                 )}
                 <TouchableOpacity
                   style={styles.showExamplesButton}
-                  onPress={() => { setSelectedExercise(exercise.name); setSelectedExerciseVideoUrl(exercise.videoUrl); setYoutubeModalVisible(true); }}
+                  onPress={() => { setSelectedExercise(exercise.name); setSelectedExerciseVideoUrl(exercise.videoUrl); setSelectedExerciseVideoTitle(exercise.videoTitle); setYoutubeModalVisible(true); }}
                 >
                   <Text style={styles.showExamplesText}>▶ Show Examples</Text>
                 </TouchableOpacity>
               </View>
             )}
-          </Card.Content>
+          </View>
         </TouchableOpacity>
-      </Card>
+      </BlurView>
     );
   };
 
   return (
     <View style={styles.screen}>
+      {/* Ambient gradient background */}
+      <LinearGradient
+        colors={['#080B14', '#0D0B1E', '#080B14']}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      <View style={styles.orbTopRight} />
+      <View style={styles.orbBottomLeft} />
+      <View style={styles.orbMidRight} />
+
       {renderTagModal()}
       <YoutubePlayerModal
         visible={youtubeModalVisible}
         exerciseName={selectedExercise}
-        onClose={() => setYoutubeModalVisible(false)}
+        onClose={() => {
+          setYoutubeModalVisible(false);
+          setSelectedExerciseVideoTitle(undefined);
+        }}
         workoutId={Number(workoutData.id)}
         savedVideoId={selectedExerciseVideoUrl}
+        savedVideoTitle={selectedExerciseVideoTitle}
       />
 
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
@@ -358,18 +376,14 @@ export default function WorkoutDisplayScreen() {
           <Text style={styles.headerTitle} numberOfLines={1}>{workoutTitle}</Text>
           <Text style={styles.headerSubtitle}>{workoutData.sport} • {workoutData.position}</Text>
         </View>
-        {/* <IconButton
-          icon={savedToLibrary ? 'bookmark' : 'bookmark-outline'}
-          size={24}
-          iconColor={savedToLibrary ? appTheme.red : 'rgba(255,255,255,0.5)'}
-          onPress={handleSaveWorkout}
-        /> */}
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
 
-        <Card style={styles.overviewCard}>
-          <Card.Content>
+        {/* Overview card */}
+        <BlurView intensity={20} tint="dark" style={cs.glassCardOrbAccent}>
+          <View style={styles.overviewAccentStrip} />
+          <View style={cs.cardPadding}>
             <View style={styles.overviewHeader}>
               <Icon name="fitness-center" size={20} color={appTheme.neonGreen} />
               <Text style={styles.overviewTitle}>Workout Overview</Text>
@@ -381,10 +395,6 @@ export default function WorkoutDisplayScreen() {
                 <Text style={styles.statLabel}>Minutes</Text>
               </View>
               <View style={styles.statDivider} />
-              {/* <View style={styles.statItem}>
-                <Text style={styles.statValue}>{exercises.length}</Text>
-                <Text style={styles.statLabel}>Exercises</Text>
-              </View> */}
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{workoutData.focusAreas.length}</Text>
@@ -406,8 +416,8 @@ export default function WorkoutDisplayScreen() {
                 ))}
               </View>
             </View>
-          </Card.Content>
-        </Card>
+          </View>
+        </BlurView>
 
         <View style={styles.exercisesSection}>
           <Text style={styles.sectionTitle}>Workout Details</Text>
@@ -416,11 +426,11 @@ export default function WorkoutDisplayScreen() {
           ) : workoutData.generatedContent ? (
             <FormattedMessage text={workoutData.generatedContent} isUser={false} />
           ) : (
-            <Card style={styles.placeholderCard}>
-              <Card.Content>
+            <BlurView intensity={15} tint="dark" style={styles.placeholderCard}>
+              <View style={cs.cardPadding}>
                 <Text style={{ textAlign: 'center', color: appTheme.textMuted }}>Loading workout details...</Text>
-              </Card.Content>
-            </Card>
+              </View>
+            </BlurView>
           )}
         </View>
 
@@ -430,7 +440,7 @@ export default function WorkoutDisplayScreen() {
               mode="outlined"
               onPress={openTagModal}
               style={styles.outlineButton}
-              textColor={appTheme.red}
+              textColor={appTheme.purple}
               contentStyle={styles.buttonContent}
               icon="tag"
             >
@@ -470,12 +480,56 @@ export default function WorkoutDisplayScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: appTheme.bg },
+  screen: { flex: 1, backgroundColor: 'transparent' },
+
+  // Ambient glow orbs
+  orbTopRight: {
+    position: 'absolute',
+    top: -80,
+    right: -80,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: appTheme.orbPurple,
+    opacity: 0.12,
+    shadowColor: appTheme.orbPurple,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 80,
+  },
+  orbBottomLeft: {
+    position: 'absolute',
+    bottom: 100,
+    left: -100,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: appTheme.neonGreen,
+    opacity: 0.10,
+    shadowColor: appTheme.neonGreen,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 80,
+  },
+  orbMidRight: {
+    position: 'absolute',
+    top: '45%',
+    right: -60,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: appTheme.neonGreen,
+    opacity: 0.06,
+    shadowColor: appTheme.neonGreen,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 60,
+  },
 
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: appTheme.navyDark,
+    backgroundColor: 'rgba(8,11,20,0.95)',
     paddingBottom: 4,
     borderBottomWidth: 1,
     borderBottomColor: appTheme.border,
@@ -484,16 +538,18 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontWeight: '800', color: appTheme.white },
   headerSubtitle: { fontSize: 12, color: appTheme.textMuted, marginTop: 2 },
 
-  content: { flex: 1, padding: 16 },
+  content: { flex: 1, padding: 16, backgroundColor: 'transparent' },
 
-  overviewCard: {
-    backgroundColor: appTheme.bgCard,
-    borderLeftWidth: 4,
-    borderLeftColor: appTheme.red,
-    borderRadius: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: appTheme.border,
+  // Overview card
+  overviewAccentStrip: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: appTheme.neonGreen,
+    borderTopLeftRadius: 40,
+    borderBottomLeftRadius: 40,
   },
   overviewHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   overviewTitle: { marginLeft: 8, fontWeight: '700', fontSize: 15, color: appTheme.white },
@@ -503,7 +559,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: appTheme.bgElevated,
-    borderRadius: 8,
+    borderRadius: 20,
     paddingVertical: 12,
     marginBottom: 16,
     borderWidth: 1,
@@ -511,43 +567,47 @@ const styles = StyleSheet.create({
   },
   statItem: { flex: 1, alignItems: 'center' },
   statDivider: { width: 1, height: 32, backgroundColor: appTheme.border },
-  statValue: { fontSize: 22, fontWeight: '800', color: appTheme.white },
+  statValue: { fontSize: 24, fontWeight: '900', color: appTheme.white },
   statLabel: { fontSize: 12, color: appTheme.textMuted, marginTop: 2 },
 
   focusAreasContainer: { marginTop: 4 },
   focusAreasLabel: { fontSize: 13, fontWeight: '600', color: appTheme.textMuted, marginBottom: 6 },
   focusAreasChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  focusChip: { borderColor: appTheme.border, backgroundColor: appTheme.bgElevated, marginBottom: 4 },
-  chipText: { fontSize: 12, color: appTheme.textMuted },
+  focusChip: { borderColor: appTheme.borderAccent, backgroundColor: appTheme.purpleDim, marginBottom: 4 },
+  chipText: { fontSize: 12, color: appTheme.purple },
 
   exercisesSection: { marginBottom: 8 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: appTheme.white, marginBottom: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: appTheme.white, marginBottom: 10 },
   exerciseCard: {
     marginBottom: 8,
-    backgroundColor: appTheme.bgCard,
-    borderRadius: 8,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: appTheme.border,
+    overflow: 'hidden',
   },
+  exerciseCardInner: { padding: 16 },
   exerciseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
   exerciseInfo: { flex: 1 },
-  exerciseNameRow: { flexDirection: 'row', alignItems: 'center' },
   exerciseName: { fontSize: 15, fontWeight: '600', color: appTheme.white },
-  exerciseStats: { fontSize: 13, color: appTheme.red, marginTop: 2, fontWeight: '500' },
+  exerciseStats: { fontSize: 13, color: appTheme.neonGreen, marginTop: 2, fontWeight: '500' },
   exerciseDescription: { fontSize: 13, lineHeight: 18, color: appTheme.textMuted },
   expandedContent: { marginTop: 8 },
   sectionDivider: { marginBottom: 8 },
   detailSection: { marginBottom: 8 },
   detailLabel: { fontSize: 13, fontWeight: '600', color: appTheme.text, marginBottom: 4 },
   detailText: { fontSize: 13, lineHeight: 18, color: appTheme.textMuted },
-  coachingCue: { fontStyle: 'italic', color: appTheme.red },
-  placeholderCard: { backgroundColor: appTheme.bgCard, borderWidth: 1, borderColor: appTheme.border },
-  showExamplesButton: { marginTop: 8, borderWidth: 1, borderColor: appTheme.red, borderRadius: 8, paddingVertical: 10, alignItems: 'center' as const },
-  showExamplesText: { color: appTheme.red, fontSize: 14, fontWeight: '600' as const },
+  coachingCue: { fontStyle: 'italic', color: appTheme.purple },
+  placeholderCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: appTheme.border,
+    overflow: 'hidden',
+  },
+  showExamplesButton: { marginTop: 8, borderWidth: 1, borderColor: appTheme.neonGreen, borderRadius: 16, paddingVertical: 10, alignItems: 'center' as const, backgroundColor: appTheme.neonGreenDim },
+  showExamplesText: { color: appTheme.neonGreen, fontSize: 14, fontWeight: '600' as const },
 
   actionButtons: { marginTop: 20, gap: 10 },
-  outlineButton: { borderColor: appTheme.red, borderRadius: 8 },
-  solidButton: { borderRadius: 8 },
+  outlineButton: { borderColor: appTheme.purple, borderRadius: 8 },
   buttonContent: { paddingVertical: 6 },
 
   assignedTagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10, paddingHorizontal: 2 },
@@ -558,7 +618,7 @@ const styles = StyleSheet.create({
 
   customTabBar: {
     flexDirection: 'row',
-    backgroundColor: appTheme.navyDark,
+    backgroundColor: 'rgba(8,11,20,0.95)',
     borderTopWidth: 1,
     borderTopColor: appTheme.border,
     paddingVertical: 8,
@@ -567,10 +627,10 @@ const styles = StyleSheet.create({
   tabItem: { flex: 1, alignItems: 'center', paddingVertical: 6 },
   activeTab: {},
   tabLabel: { fontSize: 12, color: appTheme.silver, marginTop: 4 },
-  activeTabLabel: { color: appTheme.white, fontWeight: '600' },
+  activeTabLabel: { color: appTheme.neonGreen, fontWeight: '600' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalContainer: { backgroundColor: appTheme.bgCard, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderTopWidth: 1, borderColor: appTheme.border, padding: 24, maxHeight: '70%' },
+  modalContainer: { backgroundColor: appTheme.bgCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1, borderColor: appTheme.border, padding: 24, maxHeight: '70%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: appTheme.white },
   tagList: { gap: 4 },
@@ -579,7 +639,7 @@ const styles = StyleSheet.create({
   tagRowName: { flex: 1, fontSize: 15, color: appTheme.text },
   tagCheck: { marginLeft: 'auto' },
   createTagButton: { flexDirection: 'row', alignItems: 'center', padding: 10, gap: 6 },
-  createTagText: { color: appTheme.red, fontSize: 15, fontWeight: '500' },
+  createTagText: { color: appTheme.purple, fontSize: 15, fontWeight: '500' },
   newTagForm: { gap: 12 },
   newTagInput: { borderWidth: 1, borderColor: appTheme.border, borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: appTheme.bgElevated, color: appTheme.text },
   colorRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
