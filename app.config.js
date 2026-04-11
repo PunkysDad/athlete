@@ -8,6 +8,9 @@ export default {
     orientation: "portrait",
     jsEngine: 'hermes',
     newArchEnabled: false,
+    updates: {
+      url: "https://u.expo.dev/ecaaa5e4-f225-44ee-a214-bdf423f43020"
+    },
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
     assetBundlePatterns: [
@@ -17,6 +20,7 @@ export default {
       supportsTablet: true,
       bundleIdentifier: "com.justinbooth.gameiq",
       googleServicesFile: "./GoogleService-Info.plist",
+      runtimeVersion: "1.0.0",
       usesAppleSignIn: true,
       icon: "./assets/icon.png",
       infoPlist: {
@@ -24,6 +28,9 @@ export default {
       }
     },
     android: {
+      runtimeVersion: {
+        policy: "appVersion"
+      },
       adaptiveIcon: {
         foregroundImage: "./assets/icon.png",
         backgroundColor: "#FFFFFF"
