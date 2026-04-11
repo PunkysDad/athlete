@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator, Text, StyleSheet, TouchableOpacity, Alert, SafeAreaView, StatusBar, Linking } from 'react-native';
+import { View, ActivityIndicator, Text, StyleSheet, TouchableOpacity, Alert, SafeAreaView, StatusBar, Linking, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { PaperProvider } from 'react-native-paper';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { getApps, initializeApp } from 'firebase/app';
 // @ts-ignore: getReactNativePersistence exists in the React Native bundle
-import { initializeAuth, getReactNativePersistence, getAuth, onAuthStateChanged, signOut, signInWithCredential, OAuthProvider } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence, getAuth, onAuthStateChanged, signOut, signInWithCredential, OAuthProvider, GoogleAuthProvider } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Purchases from 'react-native-purchases';
 import { revenueCatService } from './src/services/revenueCatService';
@@ -34,7 +35,6 @@ const firebaseConfig = {
   storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
 };
 
-// Guard against missing Firebase config — causes silent white screen if any value is undefined
 const missingFirebaseVars = Object.entries(firebaseConfig)
   .filter(([, v]) => !v)
   .map(([k]) => k);
@@ -50,6 +50,13 @@ try {
   auth = initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
 } catch {
   auth = getAuth(app);
+}
+
+// Configure Google Sign-In once at module level (Android only)
+if (Platform.OS === 'android') {
+  GoogleSignin.configure({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  });
 }
 
 const userService = new UserService();
@@ -70,12 +77,15 @@ const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSu
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const apiKey = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS;
+    const apiKey = Platform.OS === 'ios'
+      ? process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS
+      : process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_ANDROID;
     if (apiKey) {
       Purchases.configure({ apiKey });
     }
   }, []);
 
+  // ── Apple Sign-In (iOS only) ─────────────────────────────────────────────
   const handleAppleSignIn = async () => {
     try {
       setIsLoading(true);
@@ -105,6 +115,44 @@ const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSu
     }
   };
 
+  // ── Google Sign-In (Android only) ───────────────────────────────────────
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsLoading(true);
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const signInResult = await GoogleSignin.signIn();
+      // idToken lives on signInResult.data in v13+ of the library
+      const idToken = (signInResult as any)?.data?.idToken ?? (signInResult as any)?.idToken;
+      if (!idToken) throw new Error('Google Sign-In did not return an ID token.');
+      const firebaseCredential = GoogleAuthProvider.credential(idToken);
+      const result = await signInWithCredential(auth, firebaseCredential);
+      onAuthSuccess(result.user);
+    } catch (error: any) {
+      // Code 12501 = user cancelled on Android
+      if (error.code === '12501' || error.code === 'SIGN_IN_CANCELLED') return;
+      Alert.alert('Sign-In Error', error.message || 'Failed to sign in with Google. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRestorePurchases = async () => {
+    try {
+      await Purchases.restorePurchases();
+      Alert.alert('Success', 'Your purchases have been restored.', [
+        {
+          text: 'OK',
+          onPress: () => {
+            if (Platform.OS === 'ios') handleAppleSignIn();
+            else handleGoogleSignIn();
+          },
+        },
+      ]);
+    } catch (error: any) {
+      Alert.alert('Restore Failed', error?.message ?? 'Unable to restore purchases. Please try again.');
+    }
+  };
+
   return (
     <View style={styles.authContainer}>
       <StatusBar barStyle="light-content" backgroundColor={appTheme.navy} />
@@ -122,32 +170,39 @@ const AuthScreen: React.FC<{ onAuthSuccess: (user: any) => void }> = ({ onAuthSu
       </View>
 
       <View style={styles.authCard}>
-        <TouchableOpacity
-          style={styles.appleButton}
-          onPress={handleAppleSignIn}
-          disabled={isLoading}
-        >
-          {isLoading
-            ? <ActivityIndicator color={appTheme.white} size="small" />
-            : <Text style={styles.appleButtonText}>Continue with Apple</Text>
-          }
-        </TouchableOpacity>
-
-        <TouchableOpacity
-            style={styles.restoreButton}
-            onPress={async () => {
-              try {
-                await Purchases.restorePurchases();
-                Alert.alert('Success', 'Your purchases have been restored.', [
-                  { text: 'OK', onPress: () => handleAppleSignIn() },
-                ]);
-              } catch (error: any) {
-                Alert.alert('Restore Failed', error?.message ?? 'Unable to restore purchases. Please try again.');
-              }
-            }}
+        {Platform.OS === 'ios' && (
+          <TouchableOpacity
+            style={styles.appleButton}
+            onPress={handleAppleSignIn}
+            disabled={isLoading}
           >
-            <Text style={styles.restoreButtonText}>Restore Purchases</Text>
+            {isLoading
+              ? <ActivityIndicator color={appTheme.white} size="small" />
+              : <Text style={styles.appleButtonText}>Continue with Apple</Text>
+            }
           </TouchableOpacity>
+        )}
+
+        {Platform.OS === 'android' && (
+          <TouchableOpacity
+            style={styles.googleButton}
+            onPress={handleGoogleSignIn}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#3c4043" size="small" />
+            ) : (
+              <View style={styles.googleButtonInner}>
+                <Text style={styles.googleLogo}>G</Text>
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity style={styles.restoreButton} onPress={handleRestorePurchases}>
+          <Text style={styles.restoreButtonText}>Restore Purchases</Text>
+        </TouchableOpacity>
 
         <Text style={styles.termsText}>
           By continuing, you agree to SportsIQ's{' '}
@@ -238,6 +293,7 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [showSubscription, setShowSubscription] = useState(false);
+
   const handleUpgradeSubscription = async () => {
     if (user) {
       try {
@@ -257,9 +313,7 @@ export default function App() {
     billingCycle: 'monthly' | 'annual';
   }) => {
     setShowSubscription(false);
-
     if (!onboardingData.subscriptionTier) return;
-
     if (userProfile) {
       try {
         await fetch(
@@ -286,13 +340,11 @@ export default function App() {
           } catch (rcErr) {
             console.error('RevenueCat init error:', rcErr);
           }
-
           try {
             const existingUser = await userService.checkUserExists(firebaseUser.uid);
             setUser(firebaseUser);
             setUserProfile(existingUser ?? null);
             setShowOnboarding(!existingUser || !existingUser.primarySport || !existingUser.primaryPosition);
-
             if (existingUser) {
               try {
                 await revenueCatService.syncTierIfChanged(
@@ -441,6 +493,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: appTheme.gray,
   },
+  // ── Apple button (iOS) ──
   appleButton: {
     backgroundColor: '#000000',
     borderRadius: 12,
@@ -461,6 +514,69 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  // ── Google button (Android) ──
+  googleButton: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    width: '100%',
+    maxWidth: 320,
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#dadce0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  googleButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  googleLogo: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#4285F4',
+  },
+  googleButtonText: {
+    color: '#3c4043',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  restoreButton: {
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  restoreButtonText: {
+    fontSize: 14,
+    color: '#666666',
+    fontWeight: '500',
+  },
+  termsText: {
+    fontSize: 12,
+    color: appTheme.textLight,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 16,
+  },
+  termsLink: {
+    color: appTheme.navy,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  authFooter: {
+    backgroundColor: appTheme.navyDark,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  authFooterText: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.75)',
+  },
   devButton: {
     borderWidth: 2,
     borderColor: appTheme.navy,
@@ -476,35 +592,5 @@ const styles = StyleSheet.create({
     color: appTheme.navy,
     fontSize: 16,
     fontWeight: '600',
-  },
-  restoreButton: {
-    paddingVertical: 12,
-    marginBottom: 16,
-  },
-  restoreButtonText: {
-    fontSize: 14,
-    color: '#666666',
-    fontWeight: '500',
-  },
-  termsText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: 16,
-  },
-  termsLink: {
-    color: '#ffffff',
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
-  authFooter: {
-    backgroundColor: appTheme.navyDark,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  authFooterText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.75)',
   },
 });
