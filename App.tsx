@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, ActivityIndicator, Text, StyleSheet, TouchableOpacity, Alert, SafeAreaView, StatusBar, Linking, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, ActivityIndicator, Text, StyleSheet, TouchableOpacity, Alert, SafeAreaView, StatusBar, Linking, Platform, AppState } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -363,6 +363,9 @@ export default function App() {
                   existingUser.id,
                   existingUser.subscriptionTier
                 );
+                // Re-fetch profile in case tier was updated by sync
+                const refreshed = await userService.checkUserExists(firebaseUser.uid);
+                if (refreshed) setUserProfile(refreshed);
               } catch (syncErr) {
                 console.error('RevenueCat sync error on launch:', syncErr);
               }
@@ -383,6 +386,27 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // ── AppState foreground sync ─────────────────────────────────────────────
+  const appStateRef = useRef(AppState.currentState);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (appStateRef.current.match(/inactive|background/) && nextAppState === 'active') {
+        if (user && userProfile?.id) {
+          try {
+            await revenueCatService.syncTierIfChanged(userProfile.id, userProfile.subscriptionTier);
+            const fresh = await userService.checkUserExists(user.uid);
+            if (fresh) setUserProfile(fresh);
+          } catch (err) {
+            console.error('Foreground tier sync error:', err);
+          }
+        }
+      }
+      appStateRef.current = nextAppState;
+    });
+    return () => subscription.remove();
+  }, [user, userProfile]);
 
   const handleAuthSuccess = (authenticatedUser: any) => {
     console.log('Authentication successful for:', authenticatedUser.uid);
