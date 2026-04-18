@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
   },
   overviewHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   overviewTitle: { marginLeft: 8, fontWeight: '700', fontSize: 15, color: appTheme.white },
-  overviewDescription: { fontSize: 14, lineHeight: 20, color: appTheme.textMuted, marginBottom: 16 },
+  overviewDescription: { fontSize: 14, lineHeight: 20, color: appTheme.white, marginBottom: 16 },
 
   statsRow: {
     flexDirection: 'row',
@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
   exerciseInfo: { flex: 1 },
   exerciseName: { fontSize: 15, fontWeight: '600', color: appTheme.white },
   exerciseStats: { fontSize: 13, color: appTheme.neonGreen, marginTop: 2, fontWeight: '500' },
-  exerciseDescription: { fontSize: 13, lineHeight: 18, color: appTheme.textMuted },
+  exerciseDescription: { fontSize: 13, lineHeight: 18, color: appTheme.white },
   expandedContent: { marginTop: 8 },
   sectionDivider: { marginBottom: 8 },
   detailSection: { marginBottom: 8 },
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
   activeTabLabel: { color: appTheme.neonGreen, fontWeight: '600' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalContainer: { backgroundColor: appTheme.bgCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1, borderColor: appTheme.border, padding: 24, maxHeight: '70%' },
+  modalContainer: { backgroundColor: '#000000', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1, borderColor: appTheme.border, padding: 24, maxHeight: '70%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: appTheme.white },
   tagList: { gap: 4 },

@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
   },
   workoutDescription: {
     fontSize: 14,
-    color: appTheme.textMuted,
+    color: appTheme.white,
     lineHeight: 20,
     marginBottom: 16,
   },
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
   },
   exerciseDescription: {
     fontSize: 13,
-    color: appTheme.textMuted,
+    color: appTheme.white,
     lineHeight: 18,
   },
   exerciseHeader: {
