@@ -73,7 +73,9 @@ class WorkoutApiService {
       availableEquipment: request.equipment,
       sessionDuration: request.timeAvailable,
       focusAreas: request.trainingFocus,
-      specialRequirements: request.specialRequests || null
+      specialRequirements: request.specialRequests || null,
+      additionalEquipment: request.additionalEquipment || null,
+      specialFocusAreas: request.specialFocusAreas || null,
     };
 
     return this.makeRequest<WorkoutPlan>('/workouts/generate', {

@@ -53,6 +53,8 @@ export interface WorkoutRequest {
   timeAvailable: number;
   trainingFocus: string[];
   specialRequests?: string;
+  additionalEquipment?: string;
+  specialFocusAreas?: string;
 }
 
 export interface WorkoutResponse {
@@ -154,6 +156,7 @@ export interface UserResponse {
   subscriptionTier: string;
   primarySport?: string;
   primaryPosition?: string;
+  fitnessGoals?: string[];
   createdAt: string;
   isActive: boolean;
 }

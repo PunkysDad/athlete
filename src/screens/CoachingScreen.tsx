@@ -80,6 +80,7 @@ export default function CoachingScreen() {
   const auth                          = getAuth();
 
   const [conversationId, setConversationId]   = useState<number | null>(null);
+  const [sessionId, setSessionId]             = useState<string | null>(null);
   const [tagModalVisible, setTagModalVisible] = useState(false);
   const [existingTags, setExistingTags]       = useState<TagResponse[]>([]);
   const [assignedTagIds, setAssignedTagIds]   = useState<Set<number>>(new Set());
@@ -114,13 +115,17 @@ export default function CoachingScreen() {
       Alert.alert('Error', 'Unable to load your profile. Please try again.');
       return;
     }
+    const welcomeText = userProfile.primarySport === 'GENERAL_FITNESS'
+      ? `Hey! I'm your personal AI fitness coach. I can help with workout planning, training techniques, and reaching your fitness goals. What do you want to work on?`
+      : `Hey! I'm your personal AI coach. I know you're a ${userProfile.primaryPosition} in ${userProfile.primarySport}, so I can help with position-specific training, game IQ, and strategy. What do you want to work on?`;
     setMessages([{
       id: '1',
-      text: `Hey! I'm your personal AI coach. I know you're a ${userProfile.primaryPosition} in ${userProfile.primarySport}, so I can help with position-specific training, game IQ, and strategy. What do you want to work on?`,
+      text: welcomeText,
       isUser: false,
       timestamp: new Date(),
     }]);
     setConversationId(null);
+    setSessionId(null);
     setAssignedTagIds(new Set());
     setIsInChat(true);
   };
@@ -146,6 +151,7 @@ export default function CoachingScreen() {
           body: JSON.stringify({
             sport: userProfile.primarySport,
             situation: { question: userMsg.text, position: userProfile.primaryPosition },
+            sessionId: sessionId,
           }),
         }
       );
@@ -184,6 +190,9 @@ export default function CoachingScreen() {
       if (conversationId === null && data.conversationId) {
         setConversationId(data.conversationId);
       }
+      if (data.sessionId) {
+        setSessionId(data.sessionId);
+      }
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         text: data.recommendation,
@@ -214,6 +223,7 @@ export default function CoachingScreen() {
     setMessages([]);
     setInputText('');
     setConversationId(null);
+    setSessionId(null);
     setAssignedTagIds(new Set());
   };
 
@@ -408,7 +418,10 @@ export default function CoachingScreen() {
             <View style={styles.chatHeaderContent}>
               <Text style={styles.chatHeaderTitle}>AI Coach</Text>
               <Text style={styles.chatHeaderSubtitle}>
-                {userProfile?.primarySport} • {userProfile?.primaryPosition}
+                {userProfile?.primarySport === 'GENERAL_FITNESS'
+                  ? 'General Fitness'
+                  : `${userProfile?.primarySport} • ${userProfile?.primaryPosition}`
+                }
               </Text>
             </View>
             <View style={styles.statusIndicator}>

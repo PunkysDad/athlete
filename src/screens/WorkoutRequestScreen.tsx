@@ -52,6 +52,14 @@ const FOCUS_OPTIONS = {
 const ENUM_SPORT_MAP: Record<string, string> = {
   FOOTBALL: 'Football', BASKETBALL: 'Basketball', BASEBALL: 'Baseball',
   SOCCER: 'Soccer', HOCKEY: 'Hockey',
+  GENERAL_FITNESS: 'General Fitness',
+};
+
+const FITNESS_GOAL_LABELS: Record<string, string> = {
+  LOSE_WEIGHT: 'Lose Weight',
+  INCREASE_CARDIO_HEALTH: 'Cardio Health',
+  INCREASE_STRENGTH_AND_MUSCLE_MASS: 'Strength & Muscle',
+  INCREASE_STAMINA_AND_ENDURANCE: 'Stamina & Endurance',
 };
 const ENUM_POSITION_MAP: Record<string, string> = {
   QB: 'QB', RB: 'RB', WR: 'WR', OL: 'OL', TE: 'TE', LB: 'LB', DB: 'DB', DL: 'DL',
@@ -69,6 +77,10 @@ export default function WorkoutRequestScreen() {
   const [userPosition, setUserPosition] = useState('');
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [isGeneralFitness, setIsGeneralFitness] = useState(false);
+  const [userFitnessGoals, setUserFitnessGoals] = useState<string[]>([]);
+  const [additionalEquipment, setAdditionalEquipment] = useState('');
+  const [specialFocusAreas, setSpecialFocusAreas] = useState('');
 
   const [formData, setFormData] = useState<WorkoutRequest>({
     sport: '',
@@ -104,6 +116,14 @@ export default function WorkoutRequestScreen() {
             setUserPosition(displayPosition);
             setUserSubscriptionTier(userData.subscriptionTier);
             setFormData(prev => ({ ...prev, sport: displaySport, position: displayPosition }));
+            if (userData.primarySport === 'GENERAL_FITNESS') {
+              setIsGeneralFitness(true);
+              setUserPosition('');
+              setUserFitnessGoals(Array.isArray(userData.fitnessGoals) ? userData.fitnessGoals : []);
+            } else {
+              setIsGeneralFitness(false);
+              setUserFitnessGoals([]);
+            }
           }
         } catch (err) {
           console.error('Failed to load user profile:', err);
@@ -163,16 +183,24 @@ export default function WorkoutRequestScreen() {
     }
     setIsLoading(true);
     try {
-      const response = await workoutApiService.generateWorkout(formData, resolvedUserId!);
+      const requestWithExtras: WorkoutRequest = {
+        ...formData,
+        additionalEquipment: additionalEquipment || undefined,
+        specialFocusAreas: specialFocusAreas || undefined,
+      };
+      const response = await workoutApiService.generateWorkout(requestWithExtras, resolvedUserId!);
       if (response.success && response.data) {
         const workoutData: WorkoutData = {
           ...response.data,
           sport: formData.sport,
           position: formData.position,
         };
+        const readyMessage = isGeneralFitness
+          ? `Your General Fitness workout is ready. Duration: ${response.data.estimatedDuration} minutes`
+          : `Your ${formData.position} workout is ready. Duration: ${response.data.estimatedDuration} minutes`;
         Alert.alert(
           'Workout Generated!',
-          `Your ${formData.position} workout is ready. Duration: ${response.data.estimatedDuration} minutes`,
+          readyMessage,
           [
             { text: 'Cancel', style: 'cancel' },
             { text: 'View Workout', onPress: () => navigation.navigate('WorkoutDisplay', { workoutData }) },
@@ -316,10 +344,27 @@ export default function WorkoutRequestScreen() {
         <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
           <View style={cs.cardPadding}>
             <View style={cs.rowBetween}>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={cs.cardHeading}>Training For</Text>
                 {profileLoading ? (
                   <ActivityIndicator size="small" color={appTheme.purple} style={{ marginTop: 4 }} />
+                ) : isGeneralFitness ? (
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={styles.trainingForText}>General Fitness 💪</Text>
+                    {userFitnessGoals.length > 0 ? (
+                      <View style={styles.goalChipContainer}>
+                        {userFitnessGoals.map(goal => (
+                          <View key={goal} style={styles.goalChip}>
+                            <Text style={styles.goalChipText}>
+                              {FITNESS_GOAL_LABELS[goal] ?? goal}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={styles.goalEmptyText}>Set your focus areas in Profile</Text>
+                    )}
+                  </View>
                 ) : (
                   <View style={{ marginTop: 8 }}>
                     <Text style={styles.trainingForText}>
@@ -364,31 +409,35 @@ export default function WorkoutRequestScreen() {
               ))}
             </RadioButton.Group>
 
-            <Divider style={styles.divider} />
+            {!isGeneralFitness && (
+              <>
+                <Divider style={styles.divider} />
 
-            <Text style={cs.cardHeading}>Training Phase</Text>
-            <View style={{ height: 12 }} />
-            <RadioButton.Group
-              onValueChange={(v) => setFormData({ ...formData, trainingPhase: v as any })}
-              value={formData.trainingPhase}
-            >
-              {[
-                { value: 'off-season',  label: 'Off-season (Skill building)' },
-                { value: 'pre-season',  label: 'Pre-season (Peak preparation)' },
-                { value: 'in-season',   label: 'In-season (Maintenance)' },
-                { value: 'post-season', label: 'Post-season (Recovery)' },
-              ].map(opt => (
-                <TouchableOpacity
-                  key={opt.value}
-                  style={styles.radioRow}
-                  onPress={() => setFormData({ ...formData, trainingPhase: opt.value as any })}
-                  activeOpacity={0.7}
+                <Text style={cs.cardHeading}>Training Phase</Text>
+                <View style={{ height: 12 }} />
+                <RadioButton.Group
+                  onValueChange={(v) => setFormData({ ...formData, trainingPhase: v as any })}
+                  value={formData.trainingPhase}
                 >
-                  <RadioButton value={opt.value} color={appTheme.purple} />
-                  <Text style={styles.optionLabel}>{opt.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </RadioButton.Group>
+                  {[
+                    { value: 'off-season',  label: 'Off-season (Skill building)' },
+                    { value: 'pre-season',  label: 'Pre-season (Peak preparation)' },
+                    { value: 'in-season',   label: 'In-season (Maintenance)' },
+                    { value: 'post-season', label: 'Post-season (Recovery)' },
+                  ].map(opt => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={styles.radioRow}
+                      onPress={() => setFormData({ ...formData, trainingPhase: opt.value as any })}
+                      activeOpacity={0.7}
+                    >
+                      <RadioButton value={opt.value} color={appTheme.purple} />
+                      <Text style={styles.optionLabel}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </RadioButton.Group>
+              </>
+            )}
           </View>
         </BlurView>
 
@@ -431,7 +480,42 @@ export default function WorkoutRequestScreen() {
         </BlurView>
 
         {renderEquipmentSection()}
+
+        <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
+          <View style={cs.cardPadding}>
+            <Text style={cs.cardHeading}>Additional Equipment (Optional)</Text>
+            <TextInput
+              mode="outlined"
+              value={additionalEquipment}
+              onChangeText={setAdditionalEquipment}
+              placeholder="e.g., weighted vest, jump rope, resistance bands..."
+              style={styles.textInput}
+              outlineColor={appTheme.border}
+              activeOutlineColor={appTheme.purple}
+              textColor={appTheme.text}
+              placeholderTextColor={appTheme.textMuted}
+            />
+          </View>
+        </BlurView>
+
         {renderFocusSection()}
+
+        <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
+          <View style={cs.cardPadding}>
+            <Text style={cs.cardHeading}>Special Focus Areas (Optional)</Text>
+            <TextInput
+              mode="outlined"
+              value={specialFocusAreas}
+              onChangeText={setSpecialFocusAreas}
+              placeholder="e.g., improved forearm strength, increased vertical jump..."
+              style={styles.textInput}
+              outlineColor={appTheme.border}
+              activeOutlineColor={appTheme.purple}
+              textColor={appTheme.text}
+              placeholderTextColor={appTheme.textMuted}
+            />
+          </View>
+        </BlurView>
 
         {/* <Card style={styles.card}>
           <Card.Content>
@@ -563,6 +647,31 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     color: appTheme.white,
+  },
+  goalChipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  goalChip: {
+    backgroundColor: appTheme.purpleDim,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: appTheme.purple,
+  },
+  goalChipText: {
+    fontSize: 11,
+    color: appTheme.purple,
+    fontWeight: '600',
+  },
+  goalEmptyText: {
+    marginTop: 6,
+    fontSize: 12,
+    color: appTheme.textMuted,
+    fontStyle: 'italic',
   },
   categoryLabel: {
     fontSize: 13,
