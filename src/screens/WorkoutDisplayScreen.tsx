@@ -288,6 +288,10 @@ export default function WorkoutDisplayScreen() {
 
   const renderExercise = (exercise: Exercise, index: number) => {
     const isExpanded = expandedExercise === index;
+    const isGeneralFitness = workoutData.sport === 'GENERAL_FITNESS';
+    const positionBenefitLabel = isGeneralFitness ? '❤️‍🩺 Physical Benefit' : '🎯 Position Benefit';
+    const gameApplicationLabel = isGeneralFitness ? '👊 Functional Strength Benefit' : '🏈 Game Application';
+    const coachingCueLabel = isGeneralFitness ? '💡 Trainer Advice' : '💬 Coaching Cue';
     return (
       <BlurView key={index} intensity={15} tint="dark" style={styles.exerciseCard}>
         <TouchableOpacity onPress={() => toggleExerciseDetails(index)}>
@@ -308,19 +312,19 @@ export default function WorkoutDisplayScreen() {
                 <Divider style={[styles.sectionDivider, { backgroundColor: appTheme.border }]} />
                 {exercise.positionBenefit && (
                   <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>🎯 Position Benefit</Text>
+                    <Text style={styles.detailLabel}>{positionBenefitLabel}</Text>
                     <Text style={styles.detailText}>{exercise.positionBenefit}</Text>
                   </View>
                 )}
                 {exercise.gameApplication && (
                   <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>🏈 Game Application</Text>
+                    <Text style={styles.detailLabel}>{gameApplicationLabel}</Text>
                     <Text style={styles.detailText}>{exercise.gameApplication}</Text>
                   </View>
                 )}
                 {exercise.coachingCue && (
                   <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>💬 Coaching Cue</Text>
+                    <Text style={styles.detailLabel}>{coachingCueLabel}</Text>
                     <Text style={[styles.detailText, styles.coachingCue]}>"{exercise.coachingCue}"</Text>
                   </View>
                 )}
@@ -374,7 +378,12 @@ export default function WorkoutDisplayScreen() {
         <IconButton icon="arrow-left" size={24} iconColor={appTheme.white} onPress={() => navigation.goBack()} />
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle} numberOfLines={1}>{workoutTitle}</Text>
-          <Text style={styles.headerSubtitle}>{workoutData.sport} • {workoutData.position}</Text>
+          <Text style={styles.headerSubtitle}>
+            {workoutData.sport === 'GENERAL_FITNESS'
+              ? 'General Fitness 💪'
+              : `${workoutData.sport} • ${workoutData.position}`
+            }
+          </Text>
         </View>
       </View>
 
@@ -595,8 +604,8 @@ const styles = StyleSheet.create({
   sectionDivider: { marginBottom: 8 },
   detailSection: { marginBottom: 8 },
   detailLabel: { fontSize: 13, fontWeight: '600', color: appTheme.text, marginBottom: 4 },
-  detailText: { fontSize: 13, lineHeight: 18, color: appTheme.textMuted },
-  coachingCue: { fontStyle: 'italic', color: appTheme.purple },
+  detailText: { fontSize: 13, lineHeight: 18, color: appTheme.white },
+  coachingCue: { fontStyle: 'italic', color: appTheme.white },
   placeholderCard: {
     borderRadius: 20,
     borderWidth: 1,

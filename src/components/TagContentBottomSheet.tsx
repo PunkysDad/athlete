@@ -171,6 +171,10 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
   const renderWorkoutContent = () => {
     if (!content) return null;
     const { title, description, exercises, rawText } = parseWorkoutData(content);
+    const isGeneralFitness = content.sport === 'GENERAL_FITNESS';
+    const positionBenefitLabel = isGeneralFitness ? '❤️‍🩺 Physical Benefit' : '🎯 Position Benefit';
+    const gameApplicationLabel = isGeneralFitness ? '👊 Functional Strength Benefit' : '🏈 Game Application';
+    const coachingCueLabel = isGeneralFitness ? '💡 Trainer Advice' : '💬 Coaching Cue';
 
     return (
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -219,19 +223,19 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
                     <View style={styles.expandedDivider} />
                     {exercise.positionBenefit ? (
                       <View style={styles.detailSection}>
-                        <Text style={styles.detailLabel}>🎯 Position Benefit</Text>
+                        <Text style={styles.detailLabel}>{positionBenefitLabel}</Text>
                         <Text style={styles.detailText}>{exercise.positionBenefit}</Text>
                       </View>
                     ) : null}
                     {exercise.gameApplication ? (
                       <View style={styles.detailSection}>
-                        <Text style={styles.detailLabel}>🏈 Game Application</Text>
+                        <Text style={styles.detailLabel}>{gameApplicationLabel}</Text>
                         <Text style={styles.detailText}>{exercise.gameApplication}</Text>
                       </View>
                     ) : null}
                     {exercise.coachingCue ? (
                       <View style={styles.detailSection}>
-                        <Text style={styles.detailLabel}>💬 Coaching Cue</Text>
+                        <Text style={styles.detailLabel}>{coachingCueLabel}</Text>
                         <Text style={[styles.detailText, styles.coachingCue]}>"{exercise.coachingCue}"</Text>
                       </View>
                     ) : null}
@@ -535,11 +539,11 @@ const styles = StyleSheet.create({
   detailText: {
     fontSize: 13,
     lineHeight: 18,
-    color: appTheme.textMuted,
+    color: appTheme.white,
   },
   coachingCue: {
     fontStyle: 'italic',
-    color: appTheme.purple,
+    color: appTheme.white,
   },
   showExamplesButton: {
     marginTop: 10,
