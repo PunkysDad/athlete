@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from 'firebase/auth';
 import {
@@ -71,6 +71,9 @@ const ENUM_POSITION_MAP: Record<string, string> = {
 
 export default function WorkoutRequestScreen() {
   const navigation = useNavigation<WorkoutRequestNavigationProp>();
+  const route = useRoute();
+  const { chatFocusAreas, chatSessionId } = (route.params as { chatFocusAreas?: string; chatSessionId?: string }) ?? {};
+  const hasChatContext = !!chatFocusAreas;
   const userService = new UserService();
 
   const [userSport, setUserSport] = useState('');
@@ -99,6 +102,12 @@ export default function WorkoutRequestScreen() {
   const [modalType, setModalType] = useState<'trial' | 'budgetBasic' | 'budgetPremium'>('trial');
   const [userSubscriptionTier, setUserSubscriptionTier] = useState<string | undefined>();
   const { onUpgradePress } = useUpgrade();
+
+  useEffect(() => {
+    if (chatFocusAreas) {
+      setSpecialFocusAreas(chatFocusAreas);
+    }
+  }, [chatFocusAreas]);
 
   useFocusEffect(
     useCallback(() => {
@@ -334,7 +343,17 @@ export default function WorkoutRequestScreen() {
       />
 
       <View style={styles.header}>
-        <Icon name="fitness-center" size={22} color={appTheme.neonGreen} />
+        {hasChatContext ? (
+          <TouchableOpacity
+            style={styles.backToChatButton}
+            onPress={() => navigation.navigate('MainTabs', { screen: 'Coaching' })}
+          >
+            <Icon name="arrow-back" size={20} color={appTheme.purple} />
+            <Text style={styles.backToChatText}>Back to Chat</Text>
+          </TouchableOpacity>
+        ) : (
+          <Icon name="fitness-center" size={22} color={appTheme.neonGreen} />
+        )}
         <Text style={styles.headerTitle}>Generate Workout</Text>
       </View>
 
@@ -507,13 +526,20 @@ export default function WorkoutRequestScreen() {
               mode="outlined"
               value={specialFocusAreas}
               onChangeText={setSpecialFocusAreas}
+              editable={!hasChatContext}
               placeholder="e.g., improved forearm strength, increased vertical jump..."
-              style={styles.textInput}
+              style={[styles.textInput, hasChatContext && styles.lockedInput]}
               outlineColor={appTheme.border}
               activeOutlineColor={appTheme.purple}
               textColor={appTheme.text}
               placeholderTextColor={appTheme.textMuted}
             />
+            {hasChatContext && (
+              <View style={styles.lockedHintRow}>
+                <Icon name="lock" size={14} color={appTheme.textMuted} />
+                <Text style={styles.lockedHintText}>Pre-filled from your coaching session</Text>
+              </View>
+            )}
           </View>
         </BlurView>
 
@@ -632,6 +658,31 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: appTheme.white,
     letterSpacing: -0.5,
+  },
+  backToChatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  backToChatText: {
+    color: appTheme.purple,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  lockedInput: {
+    backgroundColor: appTheme.bgElevated,
+    opacity: 0.6,
+  },
+  lockedHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  lockedHintText: {
+    fontSize: 12,
+    color: appTheme.textMuted,
+    fontStyle: 'italic',
   },
   content: {
     flex: 1,

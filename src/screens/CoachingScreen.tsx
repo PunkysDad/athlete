@@ -17,6 +17,9 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
 import { getAuth } from 'firebase/auth';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../types/types';
 import FormattedMessage from '../components/FormattedMessage';
 import TrialLimitModal from '../components/TrialLimitModal';
 import { apiService, TrialLimitError } from '../services/apiService';
@@ -92,7 +95,9 @@ export default function CoachingScreen() {
 
   const [trialLimitVisible, setTrialLimitVisible] = useState(false);
   const [modalType, setModalType] = useState<'trial' | 'budgetBasic' | 'budgetPremium'>('trial');
+  const [suggestWorkout, setSuggestWorkout] = useState(false);
   const { onUpgradePress } = useUpgrade();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const backendUrl = ENV_CONFIG.BACKEND_URL;
 
@@ -127,6 +132,7 @@ export default function CoachingScreen() {
     setConversationId(null);
     setSessionId(null);
     setAssignedTagIds(new Set());
+    setSuggestWorkout(false);
     setIsInChat(true);
   };
 
@@ -193,6 +199,11 @@ export default function CoachingScreen() {
       if (data.sessionId) {
         setSessionId(data.sessionId);
       }
+      if (data.suggestWorkout) {
+        setSuggestWorkout(true);
+      } else {
+        setSuggestWorkout(false);
+      }
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         text: data.recommendation,
@@ -225,6 +236,7 @@ export default function CoachingScreen() {
     setConversationId(null);
     setSessionId(null);
     setAssignedTagIds(new Set());
+    setSuggestWorkout(false);
   };
 
   const openTagModal = async () => {
@@ -446,6 +458,20 @@ export default function CoachingScreen() {
                 </View>
               </View>
             ))}
+            {suggestWorkout && (
+              <TouchableOpacity
+                style={styles.workoutOfferButton}
+                onPress={() => {
+                  navigation.navigate('WorkoutRequest', {
+                    chatFocusAreas: messages.filter(m => !m.isUser).slice(-1)[0]?.text ?? '',
+                    chatSessionId: sessionId ?? undefined,
+                  });
+                }}
+              >
+                <Icon name="fitness-center" size={18} color={appTheme.white} />
+                <Text style={styles.workoutOfferButtonText}>Create Workout Plan</Text>
+              </TouchableOpacity>
+            )}
             {isLoading && (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color={appTheme.purple} />
@@ -689,6 +715,23 @@ const styles = StyleSheet.create({
   aiMessage: { backgroundColor: appTheme.bgCard, borderBottomLeftRadius: 6, borderWidth: 1, borderColor: appTheme.border },
   loadingContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 8 },
   loadingText: { fontSize: 14, color: appTheme.textMuted, fontStyle: 'italic' },
+  workoutOfferButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: appTheme.neonGreen,
+    borderRadius: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 8,
+    gap: 8,
+  },
+  workoutOfferButtonText: {
+    color: '#000000',
+    fontSize: 15,
+    fontWeight: '700',
+  },
 
   tagBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, backgroundColor: 'rgba(8,11,20,0.90)', borderTopWidth: 1, borderTopColor: appTheme.border, gap: 10 },
   tagBarButton: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: appTheme.purple, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
