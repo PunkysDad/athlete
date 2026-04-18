@@ -115,7 +115,7 @@ export default function WorkoutRequestScreen() {
             setUserSport(displaySport);
             setUserPosition(displayPosition);
             setUserSubscriptionTier(userData.subscriptionTier);
-            setFormData(prev => ({ ...prev, sport: displaySport, position: displayPosition }));
+            setFormData(prev => ({ ...prev, sport: userData.primarySport ?? displaySport, position: displayPosition }));
             if (userData.primarySport === 'GENERAL_FITNESS') {
               setIsGeneralFitness(true);
               setUserPosition('');
