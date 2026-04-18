@@ -294,6 +294,7 @@ function RootStack() {
       <Stack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile', ...headerTheme }} />
       <Stack.Screen name="WorkoutDisplay" component={WorkoutDisplayScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="WorkoutRequest" component={WorkoutRequestScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
