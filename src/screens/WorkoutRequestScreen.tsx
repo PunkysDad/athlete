@@ -504,7 +504,6 @@ export default function WorkoutRequestScreen() {
 
         {renderEquipmentSection()}
 
-        {!hasChatContext && (
         <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
           <View style={cs.cardPadding}>
             <Text style={cs.cardHeading}>Additional Equipment (Optional)</Text>
@@ -521,7 +520,6 @@ export default function WorkoutRequestScreen() {
             />
           </View>
         </BlurView>
-        )}
 
         {!hasChatContext && renderFocusSection()}
 
@@ -530,11 +528,13 @@ export default function WorkoutRequestScreen() {
             <Text style={cs.cardHeading}>Special Focus Areas (Optional)</Text>
             <TextInput
               mode="outlined"
+              multiline={true}
+              numberOfLines={3}
+              editable={!hasChatContext}
               value={specialFocusAreas}
               onChangeText={setSpecialFocusAreas}
-              editable={!hasChatContext}
               placeholder="e.g., improved forearm strength, increased vertical jump..."
-              style={[styles.textInput, hasChatContext && styles.lockedInput]}
+              style={[styles.textInput, hasChatContext && styles.lockedInput, hasChatContext && { minHeight: 80 }]}
               outlineColor={appTheme.border}
               activeOutlineColor={appTheme.purple}
               textColor={appTheme.text}

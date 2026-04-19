@@ -77,9 +77,6 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
   const [selectedExerciseVideoTitle, setSelectedExerciseVideoTitle] = useState<string | undefined>(undefined);
 
   // Title editing state
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editedTitle, setEditedTitle] = useState('');
-  const [savingTitle, setSavingTitle] = useState(false);
   const [displayTitle, setDisplayTitle] = useState('');
 
   // Tag state
@@ -112,8 +109,6 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
   useEffect(() => {
     if (!item || !visible) return;
     setDisplayTitle(item?.title ?? '');
-    setEditedTitle(item?.title ?? '');
-    setIsEditingTitle(false);
     fetchContent(item);
     loadUserTags();
   }, [item, visible]);
@@ -146,26 +141,6 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
       if (result.success) setExistingTags(result.data);
     } catch {
       // non-fatal; tag UI just won't populate
-    }
-  };
-
-  const handleSaveTitle = async () => {
-    if (!item || !editedTitle.trim()) return;
-    setSavingTitle(true);
-    try {
-      const result = item.type === 'chat'
-        ? await apiService.updateConversationTitle(item.id, editedTitle.trim())
-        : await apiService.updateWorkoutTitle(item.id, editedTitle.trim());
-      if (result.success) {
-        setDisplayTitle(editedTitle.trim());
-        setIsEditingTitle(false);
-      } else {
-        Alert.alert('Error', 'Failed to update title. Please try again.');
-      }
-    } catch {
-      Alert.alert('Error', 'Failed to update title. Please try again.');
-    } finally {
-      setSavingTitle(false);
     }
   };
 
@@ -224,10 +199,7 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
 
   const handleClose = () => {
     setContent(null);
-    setIsEditingTitle(false);
-    setEditedTitle('');
     setDisplayTitle('');
-    setSavingTitle(false);
     setTagModalVisible(false);
     setAssignedTagIds(new Set());
     setNewTagName('');
@@ -255,44 +227,42 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
           <Icon name="close" size={22} color={appTheme.textMuted} />
         </TouchableOpacity>
       </View>
-      {isEditingTitle ? (
-        <View>
-          <TextInput
-            style={styles.headerTitleInput}
-            value={editedTitle}
-            onChangeText={setEditedTitle}
-            autoFocus={true}
-            returnKeyType="done"
-            onSubmitEditing={handleSaveTitle}
-          />
-          <View style={styles.headerTitleActions}>
-            <TouchableOpacity
-              style={styles.headerEditCancelButton}
-              onPress={() => setIsEditingTitle(false)}
-            >
-              <Text style={styles.headerEditCancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerEditSaveButton}
-              onPress={handleSaveTitle}
-              disabled={savingTitle}
-            >
-              <Text style={styles.headerEditSaveText}>{savingTitle ? 'Saving...' : 'Save'}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : (
-        <View style={styles.headerTitleRow}>
-          <Text style={styles.headerTitle} numberOfLines={2}>{displayTitle || item?.title}</Text>
-          <TouchableOpacity
-            style={styles.headerEditButton}
-            onPress={() => setIsEditingTitle(true)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Icon name="edit" size={18} color={appTheme.neonGreen} />
-          </TouchableOpacity>
-        </View>
-      )}
+      <View style={styles.headerTitleRow}>
+        <Text style={styles.headerTitle} numberOfLines={2}>{displayTitle || item?.title}</Text>
+        <TouchableOpacity
+          style={styles.headerEditButton}
+          onPress={() => {
+            Alert.prompt(
+              'Rename',
+              'Enter a new title',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Save',
+                  onPress: async (newTitle) => {
+                    if (!newTitle?.trim() || !item) return;
+                    try {
+                      const result = item.type === 'chat'
+                        ? await apiService.updateConversationTitle(item.id, newTitle.trim())
+                        : await apiService.updateWorkoutTitle(item.id, newTitle.trim());
+                      if (result.success) {
+                        setDisplayTitle(newTitle.trim());
+                      }
+                    } catch {
+                      Alert.alert('Error', 'Failed to update title.');
+                    }
+                  },
+                },
+              ],
+              'plain-text',
+              displayTitle || item?.title || ''
+            );
+          }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Icon name="edit" size={18} color={appTheme.purple} />
+        </TouchableOpacity>
+      </View>
       <Text style={styles.headerDate}>{item?.date}</Text>
     </View>
   );
@@ -692,46 +662,8 @@ const styles = StyleSheet.create({
     gap: 8,
     flex: 1,
   },
-  headerTitleInput: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '800',
-    color: appTheme.white,
-    borderBottomWidth: 1,
-    borderBottomColor: appTheme.purple,
-    paddingVertical: 4,
-  },
   headerEditButton: {
     padding: 4,
-  },
-  headerTitleActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-  },
-  headerEditCancelButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: appTheme.border,
-    backgroundColor: appTheme.bgElevated,
-  },
-  headerEditCancelText: {
-    color: appTheme.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  headerEditSaveButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: appTheme.purple,
-  },
-  headerEditSaveText: {
-    color: appTheme.white,
-    fontSize: 13,
-    fontWeight: '700',
   },
   headerDate: {
     fontSize: 12,
