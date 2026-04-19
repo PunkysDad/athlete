@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Animated,
 } from 'react-native';
 import { Divider, ActivityIndicator as PaperIndicator, Portal } from 'react-native-paper';
 import { BlurView } from 'expo-blur';
@@ -108,6 +109,7 @@ export default function CoachingScreen() {
   const [yesNoAnswers, setYesNoAnswers] = useState<Record<number, boolean | null>>({});
   const [showYesNoPanel, setShowYesNoPanel] = useState(false);
   const [yesNoPanelExpanded, setYesNoPanelExpanded] = useState(false);
+  const yesNoPanelAnim = useRef(new Animated.Value(0)).current;
   const { onUpgradePress } = useUpgrade();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -150,6 +152,11 @@ export default function CoachingScreen() {
     setYesNoAnswers({});
     setShowYesNoPanel(false);
     setYesNoPanelExpanded(false);
+    Animated.timing(yesNoPanelAnim, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
     setIsInChat(true);
   };
 
@@ -230,12 +237,22 @@ export default function CoachingScreen() {
         setYesNoQuestions(questions);
         setYesNoAnswers(Object.fromEntries(questions.map((_, i) => [i, null])));
         setShowYesNoPanel(true);
-        setYesNoPanelExpanded(true);
+        Animated.spring(yesNoPanelAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 65,
+          friction: 11,
+        }).start();
       } else {
         setYesNoQuestions([]);
         setYesNoAnswers({});
         setShowYesNoPanel(false);
         setYesNoPanelExpanded(false);
+        Animated.timing(yesNoPanelAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }).start();
       }
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
@@ -275,6 +292,11 @@ export default function CoachingScreen() {
     setYesNoAnswers({});
     setShowYesNoPanel(false);
     setYesNoPanelExpanded(false);
+    Animated.timing(yesNoPanelAnim, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
   };
 
   const openTagModal = async () => {
@@ -456,6 +478,74 @@ export default function CoachingScreen() {
           </Modal>
         </Portal>
 
+        <Modal
+          visible={yesNoPanelExpanded}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setYesNoPanelExpanded(false)}
+        >
+          <TouchableOpacity
+            style={styles.yesNoBackdrop}
+            activeOpacity={1}
+            onPress={() => setYesNoPanelExpanded(false)}
+          />
+          <View style={styles.yesNoSheet}>
+            {/* Drag handle */}
+            <View style={styles.yesNoSheetHandle} />
+            <Text style={styles.yesNoSheetTitle}>Answer to continue</Text>
+            <Text style={styles.yesNoSheetSubtitle}>
+              Your coach needs a few answers before proceeding.
+            </Text>
+
+            <ScrollView
+              style={styles.yesNoSheetScroll}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {yesNoQuestions.map((question, index) => (
+                <View key={index} style={styles.yesNoRow}>
+                  <Text style={styles.yesNoQuestion}>{question}</Text>
+                  <View style={styles.yesNoButtons}>
+                    <TouchableOpacity
+                      style={[styles.yesNoButton, yesNoAnswers[index] === true && styles.yesNoButtonSelected]}
+                      onPress={() => setYesNoAnswers(prev => ({ ...prev, [index]: true }))}
+                    >
+                      <Text style={[styles.yesNoButtonText, yesNoAnswers[index] === true && styles.yesNoButtonTextSelected]}>Yes</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.yesNoButton, yesNoAnswers[index] === false && styles.yesNoButtonSelectedNo]}
+                      onPress={() => setYesNoAnswers(prev => ({ ...prev, [index]: false }))}
+                    >
+                      <Text style={[styles.yesNoButtonText, yesNoAnswers[index] === false && styles.yesNoButtonTextSelected]}>No</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+              <View style={{ height: 20 }} />
+            </ScrollView>
+
+            <TouchableOpacity
+              style={[
+                styles.yesNoSubmitButton,
+                Object.values(yesNoAnswers).some(v => v === null) && styles.yesNoSubmitButtonDisabled
+              ]}
+              disabled={Object.values(yesNoAnswers).some(v => v === null)}
+              onPress={() => {
+                const answersText = yesNoQuestions
+                  .map((q, i) => `${i + 1}. ${q}: ${yesNoAnswers[i] ? 'Yes' : 'No'}`)
+                  .join('\n');
+                setYesNoPanelExpanded(false);
+                setShowYesNoPanel(false);
+                setYesNoQuestions([]);
+                setYesNoAnswers({});
+                setTimeout(() => sendMessage(answersText), 300);
+              }}
+            >
+              <Text style={styles.yesNoSubmitButtonText}>Submit Answers</Text>
+            </TouchableOpacity>
+          </View>
+        </Modal>
+
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -554,66 +644,15 @@ export default function CoachingScreen() {
           )}
 
           {showYesNoPanel && (
-            <View style={styles.yesNoPanelWrapper}>
-              {/* Drag handle / collapse toggle */}
-              <TouchableOpacity
-                style={styles.yesNoPanelHandle}
-                onPress={() => setYesNoPanelExpanded(prev => !prev)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.yesNoPanelHandleBar} />
-                <Text style={styles.yesNoPanelHandleText}>
-                  {yesNoPanelExpanded
-                    ? `▼ ${yesNoQuestions.length} questions to answer`
-                    : `▲ ${yesNoQuestions.length} questions — tap to answer`}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Collapsible content */}
-              {yesNoPanelExpanded && (
-                <View style={styles.yesNoPanelContent}>
-                  <Text style={styles.yesNoPanelTitle}>Answer to continue:</Text>
-                  {yesNoQuestions.map((question, index) => (
-                    <View key={index} style={styles.yesNoRow}>
-                      <Text style={styles.yesNoQuestion} numberOfLines={3}>{question}</Text>
-                      <View style={styles.yesNoButtons}>
-                        <TouchableOpacity
-                          style={[styles.yesNoButton, yesNoAnswers[index] === true && styles.yesNoButtonSelected]}
-                          onPress={() => setYesNoAnswers(prev => ({ ...prev, [index]: true }))}
-                        >
-                          <Text style={[styles.yesNoButtonText, yesNoAnswers[index] === true && styles.yesNoButtonTextSelected]}>Yes</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.yesNoButton, yesNoAnswers[index] === false && styles.yesNoButtonSelectedNo]}
-                          onPress={() => setYesNoAnswers(prev => ({ ...prev, [index]: false }))}
-                        >
-                          <Text style={[styles.yesNoButtonText, yesNoAnswers[index] === false && styles.yesNoButtonTextSelected]}>No</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))}
-                  <TouchableOpacity
-                    style={[
-                      styles.yesNoSubmitButton,
-                      Object.values(yesNoAnswers).some(v => v === null) && styles.yesNoSubmitButtonDisabled
-                    ]}
-                    disabled={Object.values(yesNoAnswers).some(v => v === null)}
-                    onPress={() => {
-                      const answersText = yesNoQuestions
-                        .map((q, i) => `${i + 1}. ${q}: ${yesNoAnswers[i] ? 'Yes' : 'No'}`)
-                        .join('\n');
-                      setShowYesNoPanel(false);
-                      setYesNoPanelExpanded(false);
-                      setYesNoQuestions([]);
-                      setYesNoAnswers({});
-                      setTimeout(() => sendMessage(answersText), 100);
-                    }}
-                  >
-                    <Text style={styles.yesNoSubmitButtonText}>Submit Answers</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
+            <TouchableOpacity
+              style={styles.reviewAnswerButton}
+              onPress={() => setYesNoPanelExpanded(true)}
+            >
+              <Icon name="quiz" size={16} color={appTheme.white} />
+              <Text style={styles.reviewAnswerButtonText}>
+                Review & Answer ({yesNoQuestions.length} questions)
+              </Text>
+            </TouchableOpacity>
           )}
 
           <View style={styles.inputContainer}>
@@ -846,52 +885,78 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-  yesNoPanelWrapper: {
-    backgroundColor: 'rgba(8,11,20,0.97)',
+  reviewAnswerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: appTheme.purple,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    gap: 8,
     borderTopWidth: 1,
     borderTopColor: appTheme.borderAccent,
   },
-  yesNoPanelHandle: {
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    gap: 6,
-  },
-  yesNoPanelHandleBar: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: appTheme.borderAccent,
-  },
-  yesNoPanelHandleText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: appTheme.purple,
-  },
-  yesNoPanelContent: {
-    padding: 16,
-    paddingTop: 4,
-    gap: 12,
-  },
-  yesNoPanelTitle: {
-    fontSize: 13,
+  reviewAnswerButtonText: {
+    color: appTheme.white,
+    fontSize: 14,
     fontWeight: '700',
+  },
+  yesNoBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+  },
+  yesNoSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '75%',
+    backgroundColor: 'rgba(8,11,20,0.98)',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderTopWidth: 1,
+    borderColor: appTheme.borderAccent,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  yesNoSheetHandle: {
+    width: 48,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: appTheme.borderAccent,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  yesNoSheetTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: appTheme.white,
+    marginBottom: 6,
+  },
+  yesNoSheetSubtitle: {
+    fontSize: 13,
     color: appTheme.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 4,
+    marginBottom: 20,
+    lineHeight: 18,
+  },
+  yesNoSheetScroll: {
+    flex: 1,
   },
   yesNoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: appTheme.border,
   },
   yesNoQuestion: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     color: appTheme.white,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   yesNoButtons: {
     flexDirection: 'row',
@@ -924,9 +989,9 @@ const styles = StyleSheet.create({
   yesNoSubmitButton: {
     backgroundColor: appTheme.purple,
     borderRadius: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: 8,
   },
   yesNoSubmitButtonDisabled: {
     opacity: 0.4,
