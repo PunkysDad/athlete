@@ -107,6 +107,7 @@ export default function CoachingScreen() {
   const [yesNoQuestions, setYesNoQuestions] = useState<string[]>([]);
   const [yesNoAnswers, setYesNoAnswers] = useState<Record<number, boolean | null>>({});
   const [showYesNoPanel, setShowYesNoPanel] = useState(false);
+  const [yesNoPanelExpanded, setYesNoPanelExpanded] = useState(false);
   const { onUpgradePress } = useUpgrade();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -148,6 +149,7 @@ export default function CoachingScreen() {
     setYesNoQuestions([]);
     setYesNoAnswers({});
     setShowYesNoPanel(false);
+    setYesNoPanelExpanded(false);
     setIsInChat(true);
   };
 
@@ -228,10 +230,12 @@ export default function CoachingScreen() {
         setYesNoQuestions(questions);
         setYesNoAnswers(Object.fromEntries(questions.map((_, i) => [i, null])));
         setShowYesNoPanel(true);
+        setYesNoPanelExpanded(true);
       } else {
         setYesNoQuestions([]);
         setYesNoAnswers({});
         setShowYesNoPanel(false);
+        setYesNoPanelExpanded(false);
       }
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
@@ -270,6 +274,7 @@ export default function CoachingScreen() {
     setYesNoQuestions([]);
     setYesNoAnswers({});
     setShowYesNoPanel(false);
+    setYesNoPanelExpanded(false);
   };
 
   const openTagModal = async () => {
@@ -549,45 +554,65 @@ export default function CoachingScreen() {
           )}
 
           {showYesNoPanel && (
-            <View style={styles.yesNoPanel}>
-              <Text style={styles.yesNoPanelTitle}>Answer to continue:</Text>
-              {yesNoQuestions.map((question, index) => (
-                <View key={index} style={styles.yesNoRow}>
-                  <Text style={styles.yesNoQuestion} numberOfLines={3}>{question}</Text>
-                  <View style={styles.yesNoButtons}>
-                    <TouchableOpacity
-                      style={[styles.yesNoButton, yesNoAnswers[index] === true && styles.yesNoButtonSelected]}
-                      onPress={() => setYesNoAnswers(prev => ({ ...prev, [index]: true }))}
-                    >
-                      <Text style={[styles.yesNoButtonText, yesNoAnswers[index] === true && styles.yesNoButtonTextSelected]}>Yes</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.yesNoButton, yesNoAnswers[index] === false && styles.yesNoButtonSelectedNo]}
-                      onPress={() => setYesNoAnswers(prev => ({ ...prev, [index]: false }))}
-                    >
-                      <Text style={[styles.yesNoButtonText, yesNoAnswers[index] === false && styles.yesNoButtonTextSelected]}>No</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
+            <View style={styles.yesNoPanelWrapper}>
+              {/* Drag handle / collapse toggle */}
               <TouchableOpacity
-                style={[
-                  styles.yesNoSubmitButton,
-                  Object.values(yesNoAnswers).some(v => v === null) && styles.yesNoSubmitButtonDisabled
-                ]}
-                disabled={Object.values(yesNoAnswers).some(v => v === null)}
-                onPress={() => {
-                  const answersText = yesNoQuestions
-                    .map((q, i) => `${i + 1}. ${q}: ${yesNoAnswers[i] ? 'Yes' : 'No'}`)
-                    .join('\n');
-                  setShowYesNoPanel(false);
-                  setYesNoQuestions([]);
-                  setYesNoAnswers({});
-                  sendMessage(answersText);
-                }}
+                style={styles.yesNoPanelHandle}
+                onPress={() => setYesNoPanelExpanded(prev => !prev)}
+                activeOpacity={0.7}
               >
-                <Text style={styles.yesNoSubmitButtonText}>Submit Answers</Text>
+                <View style={styles.yesNoPanelHandleBar} />
+                <Text style={styles.yesNoPanelHandleText}>
+                  {yesNoPanelExpanded
+                    ? `▼ ${yesNoQuestions.length} questions to answer`
+                    : `▲ ${yesNoQuestions.length} questions — tap to answer`}
+                </Text>
               </TouchableOpacity>
+
+              {/* Collapsible content */}
+              {yesNoPanelExpanded && (
+                <View style={styles.yesNoPanelContent}>
+                  <Text style={styles.yesNoPanelTitle}>Answer to continue:</Text>
+                  {yesNoQuestions.map((question, index) => (
+                    <View key={index} style={styles.yesNoRow}>
+                      <Text style={styles.yesNoQuestion} numberOfLines={3}>{question}</Text>
+                      <View style={styles.yesNoButtons}>
+                        <TouchableOpacity
+                          style={[styles.yesNoButton, yesNoAnswers[index] === true && styles.yesNoButtonSelected]}
+                          onPress={() => setYesNoAnswers(prev => ({ ...prev, [index]: true }))}
+                        >
+                          <Text style={[styles.yesNoButtonText, yesNoAnswers[index] === true && styles.yesNoButtonTextSelected]}>Yes</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.yesNoButton, yesNoAnswers[index] === false && styles.yesNoButtonSelectedNo]}
+                          onPress={() => setYesNoAnswers(prev => ({ ...prev, [index]: false }))}
+                        >
+                          <Text style={[styles.yesNoButtonText, yesNoAnswers[index] === false && styles.yesNoButtonTextSelected]}>No</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                  <TouchableOpacity
+                    style={[
+                      styles.yesNoSubmitButton,
+                      Object.values(yesNoAnswers).some(v => v === null) && styles.yesNoSubmitButtonDisabled
+                    ]}
+                    disabled={Object.values(yesNoAnswers).some(v => v === null)}
+                    onPress={() => {
+                      const answersText = yesNoQuestions
+                        .map((q, i) => `${i + 1}. ${q}: ${yesNoAnswers[i] ? 'Yes' : 'No'}`)
+                        .join('\n');
+                      setShowYesNoPanel(false);
+                      setYesNoPanelExpanded(false);
+                      setYesNoQuestions([]);
+                      setYesNoAnswers({});
+                      setTimeout(() => sendMessage(answersText), 100);
+                    }}
+                  >
+                    <Text style={styles.yesNoSubmitButtonText}>Submit Answers</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           )}
 
@@ -821,11 +846,31 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-  yesNoPanel: {
+  yesNoPanelWrapper: {
     backgroundColor: 'rgba(8,11,20,0.97)',
     borderTopWidth: 1,
-    borderTopColor: appTheme.border,
+    borderTopColor: appTheme.borderAccent,
+  },
+  yesNoPanelHandle: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    gap: 6,
+  },
+  yesNoPanelHandleBar: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: appTheme.borderAccent,
+  },
+  yesNoPanelHandleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: appTheme.purple,
+  },
+  yesNoPanelContent: {
     padding: 16,
+    paddingTop: 4,
     gap: 12,
   },
   yesNoPanelTitle: {
