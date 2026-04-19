@@ -375,7 +375,12 @@ export default function WorkoutDisplayScreen() {
       />
 
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <IconButton icon="arrow-left" size={24} iconColor={appTheme.white} onPress={() => navigation.goBack()} />
+        <IconButton
+          icon="arrow-left"
+          size={24}
+          iconColor={appTheme.white}
+          onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'Home' }], index: 0 } }] })}
+        />
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle} numberOfLines={1}>{workoutTitle}</Text>
           <Text style={styles.headerSubtitle}>

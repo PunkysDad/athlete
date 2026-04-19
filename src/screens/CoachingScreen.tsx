@@ -45,6 +45,13 @@ interface UserProfile {
   subscriptionTier?: string;
 }
 
+const parseYesNoQuestions = (text: string): string[] => {
+  const lines = text.split('\n');
+  return lines
+    .filter(line => line.trim().startsWith('[YES/NO]'))
+    .map(line => line.trim().replace('[YES/NO]', '').trim());
+};
+
 const COACHING_TIPS = [
   {
     sport: 'Football',
@@ -96,6 +103,9 @@ export default function CoachingScreen() {
   const [trialLimitVisible, setTrialLimitVisible] = useState(false);
   const [modalType, setModalType] = useState<'trial' | 'budgetBasic' | 'budgetPremium'>('trial');
   const [suggestWorkout, setSuggestWorkout] = useState(false);
+  const [yesNoQuestions, setYesNoQuestions] = useState<string[]>([]);
+  const [yesNoAnswers, setYesNoAnswers] = useState<Record<number, boolean | null>>({});
+  const [showYesNoPanel, setShowYesNoPanel] = useState(false);
   const { onUpgradePress } = useUpgrade();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -133,19 +143,23 @@ export default function CoachingScreen() {
     setSessionId(null);
     setAssignedTagIds(new Set());
     setSuggestWorkout(false);
+    setYesNoQuestions([]);
+    setYesNoAnswers({});
+    setShowYesNoPanel(false);
     setIsInChat(true);
   };
 
-  const sendMessage = async () => {
-    if (!inputText.trim() || isLoading || !userProfile) return;
+  const sendMessage = async (overrideText?: string) => {
+    const text = (overrideText ?? inputText).trim();
+    if (!text || isLoading || !userProfile) return;
     const userMsg: Message = {
       id: Date.now().toString(),
-      text: inputText.trim(),
+      text,
       isUser: true,
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, userMsg]);
-    setInputText('');
+    if (!overrideText) setInputText('');
     setIsLoading(true);
     setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
     try {
@@ -204,6 +218,16 @@ export default function CoachingScreen() {
       } else {
         setSuggestWorkout(false);
       }
+      const questions = parseYesNoQuestions(data.recommendation);
+      if (questions.length > 0) {
+        setYesNoQuestions(questions);
+        setYesNoAnswers(Object.fromEntries(questions.map((_, i) => [i, null])));
+        setShowYesNoPanel(true);
+      } else {
+        setYesNoQuestions([]);
+        setYesNoAnswers({});
+        setShowYesNoPanel(false);
+      }
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         text: data.recommendation,
@@ -237,6 +261,9 @@ export default function CoachingScreen() {
     setSessionId(null);
     setAssignedTagIds(new Set());
     setSuggestWorkout(false);
+    setYesNoQuestions([]);
+    setYesNoAnswers({});
+    setShowYesNoPanel(false);
   };
 
   const openTagModal = async () => {
@@ -502,6 +529,49 @@ export default function CoachingScreen() {
             </View>
           )}
 
+          {showYesNoPanel && (
+            <View style={styles.yesNoPanel}>
+              <Text style={styles.yesNoPanelTitle}>Answer to continue:</Text>
+              {yesNoQuestions.map((question, index) => (
+                <View key={index} style={styles.yesNoRow}>
+                  <Text style={styles.yesNoQuestion} numberOfLines={3}>{question}</Text>
+                  <View style={styles.yesNoButtons}>
+                    <TouchableOpacity
+                      style={[styles.yesNoButton, yesNoAnswers[index] === true && styles.yesNoButtonSelected]}
+                      onPress={() => setYesNoAnswers(prev => ({ ...prev, [index]: true }))}
+                    >
+                      <Text style={[styles.yesNoButtonText, yesNoAnswers[index] === true && styles.yesNoButtonTextSelected]}>Yes</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.yesNoButton, yesNoAnswers[index] === false && styles.yesNoButtonSelectedNo]}
+                      onPress={() => setYesNoAnswers(prev => ({ ...prev, [index]: false }))}
+                    >
+                      <Text style={[styles.yesNoButtonText, yesNoAnswers[index] === false && styles.yesNoButtonTextSelected]}>No</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+              <TouchableOpacity
+                style={[
+                  styles.yesNoSubmitButton,
+                  Object.values(yesNoAnswers).some(v => v === null) && styles.yesNoSubmitButtonDisabled
+                ]}
+                disabled={Object.values(yesNoAnswers).some(v => v === null)}
+                onPress={() => {
+                  const answersText = yesNoQuestions
+                    .map((q, i) => `${i + 1}. ${q}: ${yesNoAnswers[i] ? 'Yes' : 'No'}`)
+                    .join('\n');
+                  setShowYesNoPanel(false);
+                  setYesNoQuestions([]);
+                  setYesNoAnswers({});
+                  sendMessage(answersText);
+                }}
+              >
+                <Text style={styles.yesNoSubmitButtonText}>Submit Answers</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.textInput}
@@ -513,11 +583,11 @@ export default function CoachingScreen() {
               maxLength={500}
               editable={!isLoading}
               blurOnSubmit={true}
-              onSubmitEditing={sendMessage}
+              onSubmitEditing={() => sendMessage()}
             />
             <TouchableOpacity
               style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
-              onPress={sendMessage}
+              onPress={() => sendMessage()}
               disabled={!inputText.trim() || isLoading}
             >
               <Icon name="send" size={20} color={(!inputText.trim() || isLoading) ? appTheme.textMuted : appTheme.white} />
@@ -729,6 +799,76 @@ const styles = StyleSheet.create({
   },
   workoutOfferButtonText: {
     color: '#000000',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  yesNoPanel: {
+    backgroundColor: 'rgba(8,11,20,0.97)',
+    borderTopWidth: 1,
+    borderTopColor: appTheme.border,
+    padding: 16,
+    gap: 12,
+  },
+  yesNoPanelTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: appTheme.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 4,
+  },
+  yesNoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  yesNoQuestion: {
+    flex: 1,
+    fontSize: 13,
+    color: appTheme.white,
+    lineHeight: 18,
+  },
+  yesNoButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  yesNoButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: appTheme.border,
+    backgroundColor: appTheme.bgElevated,
+  },
+  yesNoButtonSelected: {
+    backgroundColor: appTheme.neonGreen,
+    borderColor: appTheme.neonGreen,
+  },
+  yesNoButtonSelectedNo: {
+    backgroundColor: appTheme.purple,
+    borderColor: appTheme.purple,
+  },
+  yesNoButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: appTheme.textMuted,
+  },
+  yesNoButtonTextSelected: {
+    color: '#000000',
+  },
+  yesNoSubmitButton: {
+    backgroundColor: appTheme.purple,
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  yesNoSubmitButtonDisabled: {
+    opacity: 0.4,
+  },
+  yesNoSubmitButtonText: {
+    color: appTheme.white,
     fontSize: 15,
     fontWeight: '700',
   },

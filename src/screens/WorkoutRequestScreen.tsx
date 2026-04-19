@@ -147,7 +147,7 @@ export default function WorkoutRequestScreen() {
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (formData.equipment.length === 0) newErrors.equipment = 'Please select at least one equipment option';
-    if (formData.trainingFocus.length === 0) newErrors.trainingFocus = 'Please select at least one training focus';
+    if (!hasChatContext && formData.trainingFocus.length === 0) newErrors.trainingFocus = 'Please select at least one training focus';
     if (formData.timeAvailable < 15) newErrors.timeAvailable = 'Minimum workout time is 15 minutes';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -403,6 +403,7 @@ export default function WorkoutRequestScreen() {
         </BlurView>
 
         {/* Experience Level & Training Phase */}
+        {!hasChatContext && (
         <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
           <View style={cs.cardPadding}>
             <Text style={cs.cardHeading}>Experience Level</Text>
@@ -459,8 +460,10 @@ export default function WorkoutRequestScreen() {
             )}
           </View>
         </BlurView>
+        )}
 
         {/* Time Available */}
+        {!hasChatContext && (
         <BlurView intensity={15} tint="dark" style={[cs.glassCardOrb, errors.timeAvailable && styles.errorCard]}>
           <View style={cs.cardPadding}>
             <Text style={cs.cardHeading}>Time Available (minutes)</Text>
@@ -497,9 +500,11 @@ export default function WorkoutRequestScreen() {
             </View>
           </View>
         </BlurView>
+        )}
 
         {renderEquipmentSection()}
 
+        {!hasChatContext && (
         <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
           <View style={cs.cardPadding}>
             <Text style={cs.cardHeading}>Additional Equipment (Optional)</Text>
@@ -516,8 +521,9 @@ export default function WorkoutRequestScreen() {
             />
           </View>
         </BlurView>
+        )}
 
-        {renderFocusSection()}
+        {!hasChatContext && renderFocusSection()}
 
         <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
           <View style={cs.cardPadding}>
