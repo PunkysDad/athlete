@@ -78,6 +78,7 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
 
   // Title editing state
   const [displayTitle, setDisplayTitle] = useState('');
+  const [savingTitle, setSavingTitle] = useState(false);
 
   // Tag state
   const [existingTags, setExistingTags] = useState<TagResponse[]>([]);
@@ -223,46 +224,49 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
             {item?.type === 'chat' ? 'Coaching Chat' : 'Workout Plan'}
           </Text>
         </View>
-        <TouchableOpacity onPress={handleClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Icon name="close" size={22} color={appTheme.textMuted} />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.headerTitleRow}>
-        <Text style={styles.headerTitle} numberOfLines={2}>{displayTitle || item?.title}</Text>
-        <TouchableOpacity
-          style={styles.headerEditButton}
-          onPress={() => {
-            Alert.prompt(
-              'Rename',
-              'Enter a new title',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Save',
-                  onPress: async (newTitle) => {
-                    if (!newTitle?.trim() || !item) return;
-                    try {
-                      const result = item.type === 'chat'
-                        ? await apiService.updateConversationTitle(item.id, newTitle.trim())
-                        : await apiService.updateWorkoutTitle(item.id, newTitle.trim());
-                      if (result.success) {
-                        setDisplayTitle(newTitle.trim());
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.headerEditButton}
+            onPress={() => {
+              Alert.prompt(
+                'Rename',
+                'Enter a new title',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Save',
+                    onPress: async (newTitle) => {
+                      if (!newTitle?.trim() || !item) return;
+                      setSavingTitle(true);
+                      try {
+                        const result = item.type === 'chat'
+                          ? await apiService.updateConversationTitle(item.id, newTitle.trim())
+                          : await apiService.updateWorkoutTitle(item.id, newTitle.trim());
+                        if (result.success) {
+                          setDisplayTitle(newTitle.trim());
+                        }
+                      } catch {
+                        Alert.alert('Error', 'Failed to update title.');
+                      } finally {
+                        setSavingTitle(false);
                       }
-                    } catch {
-                      Alert.alert('Error', 'Failed to update title.');
-                    }
+                    },
                   },
-                },
-              ],
-              'plain-text',
-              displayTitle || item?.title || ''
-            );
-          }}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Icon name="edit" size={18} color={appTheme.purple} />
-        </TouchableOpacity>
+                ],
+                'plain-text',
+                displayTitle || item?.title || ''
+              );
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Icon name="edit" size={18} color={appTheme.purple} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <Icon name="close" size={22} color={appTheme.textMuted} />
+          </TouchableOpacity>
+        </View>
       </View>
+      <Text style={styles.headerTitle} numberOfLines={2}>{displayTitle || item?.title}</Text>
       <Text style={styles.headerDate}>{item?.date}</Text>
     </View>
   );
@@ -656,11 +660,10 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xs,
     flex: 1,
   },
-  headerTitleRow: {
+  headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flex: 1,
+    gap: 12,
   },
   headerEditButton: {
     padding: 4,
