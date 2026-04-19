@@ -3,7 +3,9 @@ import {
   Alert,
   Animated,
   Dimensions,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -109,8 +111,8 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
 
   useEffect(() => {
     if (!item || !visible) return;
-    setDisplayTitle(item.title);
-    setEditedTitle(item.title);
+    setDisplayTitle(item?.title ?? '');
+    setEditedTitle(item?.title ?? '');
     setIsEditingTitle(false);
     fetchContent(item);
     loadUserTags();
@@ -261,7 +263,7 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
             onChangeText={setEditedTitle}
             placeholder="Title"
             placeholderTextColor={appTheme.textMuted}
-            autoFocus
+            autoFocus={true}
             multiline
             maxLength={200}
           />
@@ -298,7 +300,7 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
             }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Icon name="edit" size={16} color={appTheme.purple} />
+            <Icon name="edit" size={18} color={appTheme.neonGreen} />
           </TouchableOpacity>
         </View>
       )}
@@ -327,6 +329,10 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
         activeOpacity={1}
         onPress={() => setTagModalVisible(false)}
       >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1, justifyContent: 'flex-end' }}
+        >
         <TouchableWithoutFeedback>
           <View style={styles.tagModalContainer}>
             <View style={styles.tagModalHeader}>
@@ -416,6 +422,7 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
             </TouchableOpacity>
           </View>
         </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </TouchableOpacity>
     </Modal>
   );

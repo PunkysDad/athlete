@@ -58,9 +58,22 @@ export default function HistoryListModal({ visible, type, userId, onClose, onSel
           const sorted = [...result.data].sort(
             (a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
           );
-          setItems(sorted.map((c: any) => ({
+          const sessionMap = new Map<string, any>();
+          sorted.forEach((c: any) => {
+            if (!sessionMap.has(c.sessionId)) {
+              sessionMap.set(c.sessionId, c);
+            } else {
+              const existing = sessionMap.get(c.sessionId);
+              if (new Date(c.timestamp) < new Date(existing.timestamp)) {
+                sessionMap.set(c.sessionId, c);
+              }
+            }
+          });
+          const sessions = Array.from(sessionMap.values())
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+          setItems(sessions.map((c: any) => ({
             id: c.id,
-            title: extractQuestion(c.userMessage),
+            title: c.displayTitle || extractQuestion(c.userMessage),
             type: 'chat' as const,
             date: formatDate(c.timestamp),
           })));
@@ -75,7 +88,7 @@ export default function HistoryListModal({ visible, type, userId, onClose, onSel
           );
           setItems(sorted.map((w: any) => ({
             id: w.id,
-            title: w.title || `${w.position} ${w.sport} Workout`,
+            title: w.displayTitle || w.title || `${w.position} ${w.sport} Workout`,
             type: 'workout' as const,
             date: formatDate(w.createdAt),
           })));
