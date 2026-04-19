@@ -159,6 +159,10 @@ export const apiService = {
     return apiCall(`/api/v1/conversations/${conversationId}`);
   },
 
+  async getConversationsBySession(sessionId: string): Promise<ApiResponse<any[]>> {
+    return apiCall(`/api/v1/conversations/session/${sessionId}`);
+  },
+
   async getWorkoutById(workoutId: number): Promise<ApiResponse<any>> {
     return apiCall(`/api/v1/workouts/${workoutId}`);
   },

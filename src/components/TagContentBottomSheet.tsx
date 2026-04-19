@@ -121,8 +121,20 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
     try {
       if (item.type === 'chat') {
         const result = await apiService.getConversationById(item.id);
-        if (result.success) setContent(result.data);
-        else setError('Failed to load conversation');
+        if (result.success) {
+          if (result.data?.sessionId) {
+            const sessionResult = await apiService.getConversationsBySession(result.data.sessionId);
+            if (sessionResult.success && Array.isArray(sessionResult.data) && sessionResult.data.length > 1) {
+              setContent({ ...result.data, sessionConversations: sessionResult.data });
+            } else {
+              setContent(result.data);
+            }
+          } else {
+            setContent(result.data);
+          }
+        } else {
+          setError('Failed to load conversation');
+        }
       } else {
         const result = await apiService.getWorkoutById(item.id);
         if (result.success) setContent(result.data);
@@ -403,19 +415,33 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
 
   const renderChatContent = () => {
     if (!content) return null;
-    const question = cleanQuestion(content.userMessage).replace(/\[YES\/NO\]/gi, '').trim();
+
+    const thread: any[] = Array.isArray(content.sessionConversations) && content.sessionConversations.length > 1
+      ? [...content.sessionConversations].sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        )
+      : [content];
 
     return (
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.questionBubble}>
-          <Text style={styles.questionLabel}>Your question</Text>
-          <Text style={styles.questionText}>{question}</Text>
-        </View>
+        {thread.map((entry, index) => {
+          const question = cleanQuestion(entry.userMessage).replace(/\[YES\/NO\]/gi, '').trim();
+          return (
+            <React.Fragment key={entry.id ?? index}>
+              <View style={styles.questionBubble}>
+                <Text style={styles.questionLabel}>Your question</Text>
+                <Text style={styles.questionText}>{question}</Text>
+              </View>
 
-        <View style={styles.responseContainer}>
-          <Text style={styles.responseLabel}>Coach response</Text>
-          <FormattedMessage text={content.claudeResponse} isUser={false} />
-        </View>
+              <View style={styles.responseContainer}>
+                <Text style={styles.responseLabel}>Coach response</Text>
+                <FormattedMessage text={entry.claudeResponse} isUser={false} />
+              </View>
+
+              {index < thread.length - 1 && <View style={styles.threadDivider} />}
+            </React.Fragment>
+          );
+        })}
 
         <Text style={styles.metadata}>
           {content.sport} • {content.position} • {content.conversationType?.replace(/_/g, ' ')}
@@ -809,6 +835,11 @@ const styles = StyleSheet.create({
 
   responseContainer: {
     marginBottom: theme.spacing.base,
+  },
+  threadDivider: {
+    height: 1,
+    backgroundColor: appTheme.border,
+    marginVertical: theme.spacing.base,
   },
   responseLabel: {
     fontSize: 11,
