@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   Modal,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
@@ -16,7 +18,7 @@ import { BlurView } from 'expo-blur';
 import { appTheme } from '../theme/appTheme';
 import { theme } from '../theme';
 import { componentStyles as cs } from '../theme/componentStyles';
-import { TaggedItem } from '../interfaces/interfaces';
+import { TagResponse, TaggedItem } from '../interfaces/interfaces';
 import { apiService } from '../services/apiService';
 import FormattedMessage from './FormattedMessage';
 import YoutubePlayerModal from './YoutubePlayerModal';
@@ -25,7 +27,10 @@ interface Props {
   item: TaggedItem | null;
   visible: boolean;
   onClose: () => void;
+  userId: number;
 }
+
+const TAG_COLORS = ['#007AFF', '#FF3B30', '#34C759', '#FF9500', '#AF52DE', '#FF2D55', '#5AC8FA'];
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_HEIGHT = SCREEN_HEIGHT * 0.75;
@@ -58,7 +63,7 @@ const parseWorkoutData = (content: any) => {
   return { title: '', description: '', exercises: [], rawText: null };
 };
 
-export default function TagContentBottomSheet({ item, visible, onClose }: Props) {
+export default function TagContentBottomSheet({ item, visible, onClose, userId }: Props) {
   const slideAnim = useRef(new Animated.Value(SHEET_HEIGHT)).current;
   const [content, setContent] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -68,6 +73,22 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
   const [selectedExercise, setSelectedExercise] = useState('');
   const [selectedExerciseVideoId, setSelectedExerciseVideoId] = useState<string | undefined>(undefined);
   const [selectedExerciseVideoTitle, setSelectedExerciseVideoTitle] = useState<string | undefined>(undefined);
+
+  // Title editing state
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [savingTitle, setSavingTitle] = useState(false);
+  const [displayTitle, setDisplayTitle] = useState('');
+
+  // Tag state
+  const [existingTags, setExistingTags] = useState<TagResponse[]>([]);
+  const [assignedTagIds, setAssignedTagIds] = useState<Set<number>>(new Set());
+  const [tagModalVisible, setTagModalVisible] = useState(false);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState('#007AFF');
+  const [showNewTagInput, setShowNewTagInput] = useState(false);
+  const [savingTag, setSavingTag] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -88,7 +109,11 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
 
   useEffect(() => {
     if (!item || !visible) return;
+    setDisplayTitle(item.title);
+    setEditedTitle(item.title);
+    setIsEditingTitle(false);
     fetchContent(item);
+    loadUserTags();
   }, [item, visible]);
 
   const fetchContent = async (item: TaggedItem) => {
@@ -112,8 +137,101 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
     }
   };
 
+  const loadUserTags = async () => {
+    if (!userId) return;
+    try {
+      const result = await apiService.getUserTags(userId);
+      if (result.success) setExistingTags(result.data);
+    } catch {
+      // non-fatal; tag UI just won't populate
+    }
+  };
+
+  const handleSaveTitle = async () => {
+    if (!item || !editedTitle.trim()) return;
+    setSavingTitle(true);
+    try {
+      const result = item.type === 'chat'
+        ? await apiService.updateConversationTitle(item.id, editedTitle.trim())
+        : await apiService.updateWorkoutTitle(item.id, editedTitle.trim());
+      if (result.success) {
+        setDisplayTitle(editedTitle.trim());
+        setIsEditingTitle(false);
+      } else {
+        Alert.alert('Error', 'Failed to update title. Please try again.');
+      }
+    } catch {
+      Alert.alert('Error', 'Failed to update title. Please try again.');
+    } finally {
+      setSavingTitle(false);
+    }
+  };
+
+  const openTagModal = () => {
+    setTagModalVisible(true);
+  };
+
+  const toggleTagAssignment = async (tagId: number) => {
+    if (!item || !userId) return;
+    const isAssigned = assignedTagIds.has(tagId);
+    try {
+      if (isAssigned) {
+        if (item.type === 'chat') {
+          await apiService.removeTagFromConversation(userId, item.id, tagId);
+        } else {
+          await apiService.removeTagFromWorkout(userId, item.id, tagId);
+        }
+        setAssignedTagIds(prev => { const next = new Set(prev); next.delete(tagId); return next; });
+      } else {
+        if (item.type === 'chat') {
+          await apiService.addTagToConversation(userId, item.id, tagId);
+        } else {
+          await apiService.addTagToWorkout(userId, item.id, tagId);
+        }
+        setAssignedTagIds(prev => new Set(prev).add(tagId));
+      }
+    } catch {
+      Alert.alert('Error', 'Failed to update tag. Please try again.');
+    }
+  };
+
+  const handleCreateAndAssignTag = async () => {
+    if (!newTagName.trim() || !userId || !item) return;
+    setSavingTag(true);
+    try {
+      const result = await apiService.createTag(userId, newTagName.trim(), newTagColor);
+      if (!result.success) {
+        Alert.alert('Error', result.error || 'Failed to create tag.');
+        return;
+      }
+      const newTag = result.data;
+      setExistingTags(prev => [...prev, newTag]);
+      if (item.type === 'chat') {
+        await apiService.addTagToConversation(userId, item.id, newTag.id);
+      } else {
+        await apiService.addTagToWorkout(userId, item.id, newTag.id);
+      }
+      setAssignedTagIds(prev => new Set(prev).add(newTag.id));
+      setNewTagName('');
+      setNewTagColor('#007AFF');
+      setShowNewTagInput(false);
+    } finally {
+      setSavingTag(false);
+    }
+  };
+
   const handleClose = () => {
     setContent(null);
+    setIsEditingTitle(false);
+    setEditedTitle('');
+    setDisplayTitle('');
+    setSavingTitle(false);
+    setTagModalVisible(false);
+    setAssignedTagIds(new Set());
+    setNewTagName('');
+    setNewTagColor('#007AFF');
+    setShowNewTagInput(false);
+    setSavingTag(false);
     onClose();
   };
 
@@ -135,9 +253,171 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
           <Icon name="close" size={22} color={appTheme.textMuted} />
         </TouchableOpacity>
       </View>
-      <Text style={styles.headerTitle} numberOfLines={2}>{item?.title}</Text>
+      {isEditingTitle ? (
+        <View>
+          <TextInput
+            style={styles.headerTitleInput}
+            value={editedTitle}
+            onChangeText={setEditedTitle}
+            placeholder="Title"
+            placeholderTextColor={appTheme.textMuted}
+            autoFocus
+            multiline
+            maxLength={200}
+          />
+          <View style={styles.headerTitleActions}>
+            <TouchableOpacity
+              onPress={() => {
+                setIsEditingTitle(false);
+                setEditedTitle(displayTitle);
+              }}
+              style={styles.headerEditCancelButton}
+              disabled={savingTitle}
+            >
+              <Text style={styles.headerEditCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleSaveTitle}
+              style={[styles.headerEditSaveButton, (!editedTitle.trim() || savingTitle) && { opacity: 0.5 }]}
+              disabled={!editedTitle.trim() || savingTitle}
+            >
+              {savingTitle
+                ? <ActivityIndicator size="small" color={appTheme.white} />
+                : <Text style={styles.headerEditSaveText}>Save</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.headerTitleRow}>
+          <Text style={styles.headerTitle} numberOfLines={2}>{displayTitle || item?.title}</Text>
+          <TouchableOpacity
+            style={styles.headerEditButton}
+            onPress={() => {
+              setEditedTitle(displayTitle || item?.title || '');
+              setIsEditingTitle(true);
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Icon name="edit" size={16} color={appTheme.purple} />
+          </TouchableOpacity>
+        </View>
+      )}
       <Text style={styles.headerDate}>{item?.date}</Text>
     </View>
+  );
+
+  const renderAddTagButton = () => (
+    <TouchableOpacity style={styles.addTagButton} onPress={openTagModal}>
+      <Icon name="label" size={16} color={appTheme.purple} />
+      <Text style={styles.addTagButtonText}>
+        {assignedTagIds.size > 0 ? `Tags (${assignedTagIds.size})` : 'Add Tag'}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const renderTagModal = () => (
+    <Modal
+      visible={tagModalVisible}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setTagModalVisible(false)}
+    >
+      <TouchableOpacity
+        style={styles.tagModalOverlay}
+        activeOpacity={1}
+        onPress={() => setTagModalVisible(false)}
+      >
+        <TouchableWithoutFeedback>
+          <View style={styles.tagModalContainer}>
+            <View style={styles.tagModalHeader}>
+              <Text style={styles.tagModalTitle}>Add Tags</Text>
+              <TouchableOpacity onPress={() => setTagModalVisible(false)} style={{ padding: 8 }}>
+                <Icon name="close" size={20} color={appTheme.white} />
+              </TouchableOpacity>
+            </View>
+
+            {tagsLoading ? (
+              <ActivityIndicator style={{ marginVertical: 20 }} color={appTheme.purple} />
+            ) : (
+              <>
+                {existingTags.length > 0 && (
+                  <View style={styles.tagList}>
+                    {existingTags.map(tag => {
+                      const assigned = assignedTagIds.has(tag.id);
+                      return (
+                        <TouchableOpacity
+                          key={tag.id}
+                          style={[styles.tagRow, assigned && { backgroundColor: tag.color + '20' }]}
+                          onPress={() => toggleTagAssignment(tag.id)}
+                        >
+                          <View style={[styles.tagDot, { backgroundColor: tag.color }]} />
+                          <Text style={styles.tagRowName}>{tag.name}</Text>
+                          {assigned && <Icon name="check" size={18} color={tag.color} />}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+
+                <View style={styles.tagModalDivider} />
+
+                {showNewTagInput ? (
+                  <View style={styles.newTagForm}>
+                    <TextInput
+                      style={styles.newTagInput}
+                      placeholder="Tag name"
+                      placeholderTextColor={appTheme.textMuted}
+                      value={newTagName}
+                      onChangeText={setNewTagName}
+                      maxLength={100}
+                      autoFocus
+                    />
+                    <View style={styles.colorRow}>
+                      {TAG_COLORS.map(c => (
+                        <TouchableOpacity
+                          key={c}
+                          style={[styles.colorSwatch, { backgroundColor: c }, newTagColor === c && styles.colorSwatchSelected]}
+                          onPress={() => setNewTagColor(c)}
+                        />
+                      ))}
+                    </View>
+                    <View style={styles.newTagActions}>
+                      <TouchableOpacity
+                        style={styles.newTagCancel}
+                        onPress={() => { setShowNewTagInput(false); setNewTagName(''); }}
+                      >
+                        <Text style={styles.newTagCancelText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.newTagCreate, (!newTagName.trim() || savingTag) && { opacity: 0.5 }]}
+                        onPress={handleCreateAndAssignTag}
+                        disabled={!newTagName.trim() || savingTag}
+                      >
+                        {savingTag
+                          ? <ActivityIndicator size="small" color={appTheme.white} />
+                          : <Text style={styles.newTagCreateText}>Create & Add</Text>}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.createTagButton} onPress={() => setShowNewTagInput(true)}>
+                    <Icon name="add" size={18} color={appTheme.purple} />
+                    <Text style={styles.createTagText}>Create new tag</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+
+            <TouchableOpacity
+              style={[styles.newTagCreate, { marginTop: 16, alignSelf: 'stretch', alignItems: 'center' }]}
+              onPress={() => setTagModalVisible(false)}
+            >
+              <Text style={styles.newTagCreateText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableWithoutFeedback>
+      </TouchableOpacity>
+    </Modal>
   );
 
   const renderChatContent = () => {
@@ -163,6 +443,7 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
         <Text style={styles.metadata}>
           {content.sport} • {content.position} • {content.conversationType?.replace(/_/g, ' ')}
         </Text>
+        {userId ? renderAddTagButton() : null}
         <View style={styles.bottomPadding} />
       </ScrollView>
     );
@@ -282,6 +563,7 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
           <Text style={{ color: appTheme.textMuted }}>No workout content available.</Text>
         )}
 
+        {userId ? renderAddTagButton() : null}
         <View style={styles.bottomPadding} />
       </ScrollView>
     );
@@ -332,6 +614,8 @@ export default function TagContentBottomSheet({ item, visible, onClose }: Props)
         savedVideoId={selectedExerciseVideoId}
         savedVideoTitle={selectedExerciseVideoTitle}
       />
+
+      {renderTagModal()}
     </Modal>
   );
 }
@@ -392,11 +676,162 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: appTheme.white,
     marginBottom: theme.spacing.xs,
+    flex: 1,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  headerTitleInput: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '800',
+    color: appTheme.white,
+    borderBottomWidth: 1,
+    borderBottomColor: appTheme.purple,
+    paddingVertical: 4,
+  },
+  headerEditButton: {
+    padding: 4,
+  },
+  headerTitleActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  headerEditCancelButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: appTheme.border,
+    backgroundColor: appTheme.bgElevated,
+  },
+  headerEditCancelText: {
+    color: appTheme.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  headerEditSaveButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: appTheme.purple,
+  },
+  headerEditSaveText: {
+    color: appTheme.white,
+    fontSize: 13,
+    fontWeight: '700',
   },
   headerDate: {
     fontSize: 12,
     color: appTheme.textMuted,
   },
+  addTagButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: appTheme.purple,
+    borderRadius: 12,
+    paddingVertical: 12,
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  addTagButtonText: {
+    color: appTheme.purple,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  tagModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  tagModalContainer: {
+    backgroundColor: '#000000',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderColor: appTheme.border,
+    padding: 24,
+    maxHeight: '70%',
+  },
+  tagModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  tagModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: appTheme.white,
+  },
+  tagModalDivider: {
+    height: 1,
+    backgroundColor: appTheme.border,
+    marginVertical: 12,
+  },
+  tagList: { gap: 4 },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 8,
+  },
+  tagDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 10,
+  },
+  tagRowName: {
+    flex: 1,
+    fontSize: 15,
+    color: appTheme.text,
+  },
+  createTagButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    gap: 6,
+  },
+  createTagText: {
+    color: appTheme.purple,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  newTagForm: { gap: 12 },
+  newTagInput: {
+    borderWidth: 1,
+    borderColor: appTheme.border,
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 15,
+    backgroundColor: appTheme.bgElevated,
+    color: appTheme.text,
+  },
+  colorRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  colorSwatch: { width: 28, height: 28, borderRadius: 14 },
+  colorSwatchSelected: { borderWidth: 3, borderColor: appTheme.white },
+  newTagActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
+  newTagCancel: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    justifyContent: 'center',
+  },
+  newTagCancelText: { color: appTheme.textMuted, fontSize: 15 },
+  newTagCreate: {
+    backgroundColor: appTheme.purple,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  newTagCreateText: { color: appTheme.white, fontSize: 15, fontWeight: '600' },
 
   scrollContent: {
     flex: 1,

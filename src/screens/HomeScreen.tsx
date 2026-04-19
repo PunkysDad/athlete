@@ -466,6 +466,7 @@ export default function HomeScreen() {
         item={selectedItem}
         visible={sheetVisible}
         onClose={() => setSheetVisible(false)}
+        userId={currentUserId ?? 0}
       />
       <HistoryListModal
         visible={historyModalVisible}

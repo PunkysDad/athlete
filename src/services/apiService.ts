@@ -163,6 +163,20 @@ export const apiService = {
     return apiCall(`/api/v1/workouts/${workoutId}`);
   },
 
+  async updateConversationTitle(conversationId: number, title: string): Promise<ApiResponse<any>> {
+    return apiCall(`/api/v1/conversations/${conversationId}/title`, {
+      method: 'PUT',
+      body: JSON.stringify({ title }),
+    });
+  },
+
+  async updateWorkoutTitle(workoutId: number, title: string): Promise<ApiResponse<any>> {
+    return apiCall(`/api/v1/workouts/${workoutId}/title`, {
+      method: 'PUT',
+      body: JSON.stringify({ title }),
+    });
+  },
+
   // -------------------------------------------------------------------------
   // Tag endpoints
   // -------------------------------------------------------------------------
