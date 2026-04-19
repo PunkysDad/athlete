@@ -543,7 +543,9 @@ export default function WorkoutRequestScreen() {
             {hasChatContext && (
               <View style={styles.lockedHintRow}>
                 <Icon name="lock" size={14} color={appTheme.textMuted} />
-                <Text style={styles.lockedHintText}>Pre-filled from your coaching session</Text>
+                <Text style={styles.lockedHintText}>
+                  Pre-filled from your AI coaching session — describes the workout focus recommended by your coach
+                </Text>
               </View>
             )}
           </View>
@@ -678,6 +680,8 @@ const styles = StyleSheet.create({
   lockedInput: {
     backgroundColor: appTheme.bgElevated,
     opacity: 0.6,
+    borderColor: appTheme.neonGreen,
+    borderWidth: 1,
   },
   lockedHintRow: {
     flexDirection: 'row',

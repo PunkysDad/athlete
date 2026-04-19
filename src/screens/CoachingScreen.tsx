@@ -103,6 +103,7 @@ export default function CoachingScreen() {
   const [trialLimitVisible, setTrialLimitVisible] = useState(false);
   const [modalType, setModalType] = useState<'trial' | 'budgetBasic' | 'budgetPremium'>('trial');
   const [suggestWorkout, setSuggestWorkout] = useState(false);
+  const [workoutFocusSummary, setWorkoutFocusSummary] = useState<string | null>(null);
   const [yesNoQuestions, setYesNoQuestions] = useState<string[]>([]);
   const [yesNoAnswers, setYesNoAnswers] = useState<Record<number, boolean | null>>({});
   const [showYesNoPanel, setShowYesNoPanel] = useState(false);
@@ -143,6 +144,7 @@ export default function CoachingScreen() {
     setSessionId(null);
     setAssignedTagIds(new Set());
     setSuggestWorkout(false);
+    setWorkoutFocusSummary(null);
     setYesNoQuestions([]);
     setYesNoAnswers({});
     setShowYesNoPanel(false);
@@ -218,6 +220,9 @@ export default function CoachingScreen() {
       } else {
         setSuggestWorkout(false);
       }
+      if (data.workoutFocusSummary) {
+        setWorkoutFocusSummary(data.workoutFocusSummary);
+      }
       const questions = parseYesNoQuestions(data.recommendation);
       if (questions.length > 0) {
         setYesNoQuestions(questions);
@@ -261,6 +266,7 @@ export default function CoachingScreen() {
     setSessionId(null);
     setAssignedTagIds(new Set());
     setSuggestWorkout(false);
+    setWorkoutFocusSummary(null);
     setYesNoQuestions([]);
     setYesNoAnswers({});
     setShowYesNoPanel(false);
@@ -489,10 +495,23 @@ export default function CoachingScreen() {
               <TouchableOpacity
                 style={styles.workoutOfferButton}
                 onPress={() => {
-                  navigation.navigate('WorkoutRequest', {
-                    chatFocusAreas: messages.filter(m => !m.isUser).slice(-1)[0]?.text ?? '',
-                    chatSessionId: sessionId ?? undefined,
-                  });
+                  Alert.alert(
+                    'Create Workout Plan',
+                    'This will end your current chat session and take you to the workout generator. Continue?',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Continue',
+                        onPress: () => {
+                          endChatSession();
+                          navigation.navigate('WorkoutRequest', {
+                            chatFocusAreas: workoutFocusSummary ?? '',
+                            chatSessionId: sessionId ?? undefined,
+                          });
+                        },
+                      },
+                    ]
+                  );
                 }}
               >
                 <Icon name="fitness-center" size={18} color={appTheme.white} />
