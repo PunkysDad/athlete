@@ -261,31 +261,23 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
             style={styles.headerTitleInput}
             value={editedTitle}
             onChangeText={setEditedTitle}
-            placeholder="Title"
-            placeholderTextColor={appTheme.textMuted}
             autoFocus={true}
-            multiline
-            maxLength={200}
+            returnKeyType="done"
+            onSubmitEditing={handleSaveTitle}
           />
           <View style={styles.headerTitleActions}>
             <TouchableOpacity
-              onPress={() => {
-                setIsEditingTitle(false);
-                setEditedTitle(displayTitle);
-              }}
               style={styles.headerEditCancelButton}
-              disabled={savingTitle}
+              onPress={() => setIsEditingTitle(false)}
             >
               <Text style={styles.headerEditCancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              style={styles.headerEditSaveButton}
               onPress={handleSaveTitle}
-              style={[styles.headerEditSaveButton, (!editedTitle.trim() || savingTitle) && { opacity: 0.5 }]}
-              disabled={!editedTitle.trim() || savingTitle}
+              disabled={savingTitle}
             >
-              {savingTitle
-                ? <ActivityIndicator size="small" color={appTheme.white} />
-                : <Text style={styles.headerEditSaveText}>Save</Text>}
+              <Text style={styles.headerEditSaveText}>{savingTitle ? 'Saving...' : 'Save'}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -294,10 +286,7 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
           <Text style={styles.headerTitle} numberOfLines={2}>{displayTitle || item?.title}</Text>
           <TouchableOpacity
             style={styles.headerEditButton}
-            onPress={() => {
-              setEditedTitle(displayTitle || item?.title || '');
-              setIsEditingTitle(true);
-            }}
+            onPress={() => setIsEditingTitle(true)}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Icon name="edit" size={18} color={appTheme.neonGreen} />
@@ -427,13 +416,20 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
     </Modal>
   );
 
+  const cleanQuestion = (msg: string): string => {
+    if (!msg) return '';
+    // If message looks like an answer submission (numbered list), show a friendly label
+    if (/^\d+\.\s/.test(msg.trim())) {
+      return 'Assessment answers';
+    }
+    const questionMarker = 'question:';
+    const idx = msg?.toLowerCase().indexOf(questionMarker) ?? -1;
+    return idx !== -1 ? msg.substring(idx + questionMarker.length).trim() : msg;
+  };
+
   const renderChatContent = () => {
     if (!content) return null;
-    const questionMarker = 'question:';
-    const idx = content.userMessage?.toLowerCase().indexOf(questionMarker) ?? -1;
-    const question = idx !== -1
-      ? content.userMessage.substring(idx + questionMarker.length).trim()
-      : content.userMessage;
+    const question = cleanQuestion(content.userMessage).replace(/\[YES\/NO\]/gi, '').trim();
 
     return (
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -588,25 +584,30 @@ export default function TagContentBottomSheet({ item, visible, onClose, userId }
       </TouchableWithoutFeedback>
 
       <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
-        {renderHeader()}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          {renderHeader()}
 
-        {loading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color={appTheme.purple} />
-            <Text style={[styles.metadata, { marginTop: theme.spacing.sm }]}>
-              Loading content...
-            </Text>
-          </View>
-        ) : error ? (
-          <View style={styles.centered}>
-            <Icon name="error-outline" size={36} color={appTheme.textMuted} />
-            <Text style={[styles.metadata, { marginTop: theme.spacing.sm, color: appTheme.purple }]}>
-              {error}
-            </Text>
-          </View>
-        ) : (
-          item?.type === 'chat' ? renderChatContent() : renderWorkoutContent()
-        )}
+          {loading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size="large" color={appTheme.purple} />
+              <Text style={[styles.metadata, { marginTop: theme.spacing.sm }]}>
+                Loading content...
+              </Text>
+            </View>
+          ) : error ? (
+            <View style={styles.centered}>
+              <Icon name="error-outline" size={36} color={appTheme.textMuted} />
+              <Text style={[styles.metadata, { marginTop: theme.spacing.sm, color: appTheme.purple }]}>
+                {error}
+              </Text>
+            </View>
+          ) : (
+            item?.type === 'chat' ? renderChatContent() : renderWorkoutContent()
+          )}
+        </KeyboardAvoidingView>
       </Animated.View>
 
       <YoutubePlayerModal
