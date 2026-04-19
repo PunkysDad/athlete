@@ -81,6 +81,29 @@ const COACHING_TIPS = [
   },
 ];
 
+const GENERAL_FITNESS_COACHING_TIPS = [
+  {
+    category: 'Strength',
+    bad: 'How do I get stronger?',
+    good: 'How do I increase my squat and deadlift strength while avoiding lower back strain, given I train 3 days per week with a full gym?',
+  },
+  {
+    category: 'Muscle Development',
+    bad: 'How do I get my triceps stronger?',
+    good: 'How do I build tricep strength and size while maintaining shoulder flexibility and avoiding elbow joint stress?',
+  },
+  {
+    category: 'Endurance',
+    bad: 'How can I run farther?',
+    good: 'How can I build my running endurance from 2 miles to 5 miles over 8 weeks without overtraining or injury?',
+  },
+  {
+    category: 'Cardio Fitness',
+    bad: 'How do I get in better cardio shape?',
+    good: 'How can I increase my VO2 Max and overall cardiovascular endurance using a stationary bike and 4 available training days per week?',
+  },
+];
+
 export default function CoachingScreen() {
   const [isInChat, setIsInChat]       = useState(false);
   const [messages, setMessages]       = useState<Message[]>([]);
@@ -721,30 +744,56 @@ export default function CoachingScreen() {
           <View style={cs.cardPadding}>
             <View style={styles.cardHeader}>
               <Icon name="lightbulb" size={22} color={appTheme.neonGreen} />
-              <Text style={cs.cardHeading}>Tips for Better Coaching Questions</Text>
+              <Text style={cs.cardHeading}>
+                {userProfile?.primarySport === 'GENERAL_FITNESS'
+                  ? 'Tips for Better Fitness Questions'
+                  : 'Tips for Better Coaching Questions'}
+              </Text>
             </View>
             <Text style={styles.tipsIntro}>
-              Specific questions get specific answers. Here's how to get the most out of your AI coach:
+              {userProfile?.primarySport === 'GENERAL_FITNESS'
+                ? "Specific questions get specific answers. Here's how to get the most out of your AI fitness coach:"
+                : "Specific questions get specific answers. Here's how to get the most out of your AI coach:"}
             </Text>
-            {COACHING_TIPS.map((tip, i) => (
-              <View key={i} style={styles.tipRow}>
-                <Text style={styles.tipSport}>{tip.sport}</Text>
-                <View style={styles.tipBad}>
-                  <View style={styles.tipBadge}>
-                    <Icon name="close" size={12} color={appTheme.white} />
+            {userProfile?.primarySport === 'GENERAL_FITNESS'
+              ? GENERAL_FITNESS_COACHING_TIPS.map((tip, i) => (
+                  <View key={i} style={styles.tipRow}>
+                    <Text style={styles.tipSport}>{tip.category}</Text>
+                    <View style={styles.tipBad}>
+                      <View style={styles.tipBadge}>
+                        <Icon name="close" size={12} color={appTheme.white} />
+                      </View>
+                      <Text style={styles.tipBadText}>{tip.bad}</Text>
+                    </View>
+                    <Icon name="arrow-downward" size={16} color={appTheme.textMuted} style={styles.tipArrow} />
+                    <View style={styles.tipGood}>
+                      <View style={[styles.tipBadge, styles.tipBadgeGood]}>
+                        <Icon name="check" size={12} color={appTheme.white} />
+                      </View>
+                      <Text style={styles.tipGoodText}>{tip.good}</Text>
+                    </View>
+                    {i < GENERAL_FITNESS_COACHING_TIPS.length - 1 && <View style={styles.tipDivider} />}
                   </View>
-                  <Text style={styles.tipBadText}>{tip.bad}</Text>
-                </View>
-                <Icon name="arrow-downward" size={16} color={appTheme.textMuted} style={styles.tipArrow} />
-                <View style={styles.tipGood}>
-                  <View style={[styles.tipBadge, styles.tipBadgeGood]}>
-                    <Icon name="check" size={12} color={appTheme.white} />
+                ))
+              : COACHING_TIPS.map((tip, i) => (
+                  <View key={i} style={styles.tipRow}>
+                    <Text style={styles.tipSport}>{tip.sport}</Text>
+                    <View style={styles.tipBad}>
+                      <View style={styles.tipBadge}>
+                        <Icon name="close" size={12} color={appTheme.white} />
+                      </View>
+                      <Text style={styles.tipBadText}>{tip.bad}</Text>
+                    </View>
+                    <Icon name="arrow-downward" size={16} color={appTheme.textMuted} style={styles.tipArrow} />
+                    <View style={styles.tipGood}>
+                      <View style={[styles.tipBadge, styles.tipBadgeGood]}>
+                        <Icon name="check" size={12} color={appTheme.white} />
+                      </View>
+                      <Text style={styles.tipGoodText}>{tip.good}</Text>
+                    </View>
+                    {i < COACHING_TIPS.length - 1 && <View style={styles.tipDivider} />}
                   </View>
-                  <Text style={styles.tipGoodText}>{tip.good}</Text>
-                </View>
-                {i < COACHING_TIPS.length - 1 && <View style={styles.tipDivider} />}
-              </View>
-            ))}
+                ))}
             <View style={styles.tipsHighlight}>
               <Icon name="info" size={14} color={appTheme.purple} style={{ marginTop: 1 }} />
               <Text style={styles.tipsHighlightText}>
