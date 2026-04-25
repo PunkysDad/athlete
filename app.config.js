@@ -4,7 +4,7 @@ export default {
   expo: {
     name: "SportsIQ",
     slug: "gameiq-app", 
-    version: "1.1.0",
+    version: "1.2.0",
     orientation: "portrait",
     jsEngine: 'hermes',
     newArchEnabled: false,
@@ -20,7 +20,7 @@ export default {
       supportsTablet: true,
       bundleIdentifier: "com.justinbooth.gameiq",
       googleServicesFile: "./GoogleService-Info.plist",
-      runtimeVersion: "1.1.0",
+      runtimeVersion: "1.2.0",
       usesAppleSignIn: true,
       icon: "./assets/icon.png",
       infoPlist: {

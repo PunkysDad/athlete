@@ -37,6 +37,21 @@ const baseRequest: WorkoutRequest = {
   equipment: ['Full gym'],
   timeAvailable: 45,
   trainingFocus: ['Arm strength', 'Pocket mobility'],
+  additionalEquipment: undefined,
+  specialFocusAreas: undefined,
+};
+
+// General Fitness users have no position and submit fitness goals as the
+// training focus. WorkoutRequest now allows position: null and
+// trainingPhase: 'GENERAL' directly, so no cast is required.
+const generalFitnessRequest: WorkoutRequest = {
+  sport: 'GENERAL_FITNESS',
+  position: null,
+  experienceLevel: 'intermediate',
+  trainingPhase: 'GENERAL',
+  equipment: ['Bodyweight'],
+  timeAvailable: 45,
+  trainingFocus: ['Lose Weight', 'Increase Cardio Health'],
 };
 
 const mockWorkoutPlan = {
@@ -241,6 +256,84 @@ describe('workoutApiService.generateWorkout', () => {
       const result = await workoutApiService.generateWorkout(baseRequest, 1);
 
       expect(result.error).toBe('Unknown error');
+    });
+  });
+
+  // ── General Fitness workout generation ─────────────────────────────────────
+
+  describe('General Fitness workout generation', () => {
+    test('GENERAL_FITNESS sport is sent as-is in request body', async () => {
+      mockOkResponse(mockWorkoutPlan);
+
+      await workoutApiService.generateWorkout(generalFitnessRequest, 1);
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.sport).toBe('GENERAL_FITNESS');
+    });
+
+    test('null position is sent as null in request body', async () => {
+      mockOkResponse(mockWorkoutPlan);
+
+      await workoutApiService.generateWorkout(generalFitnessRequest, 1);
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.position).toBeNull();
+    });
+
+    test('additionalEquipment is included in request body when provided', async () => {
+      mockOkResponse(mockWorkoutPlan);
+      const req: WorkoutRequest = { ...generalFitnessRequest, additionalEquipment: 'Pull-up bar' };
+
+      await workoutApiService.generateWorkout(req, 1);
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.additionalEquipment).toBe('Pull-up bar');
+    });
+
+    test('additionalEquipment is null or absent when not provided', async () => {
+      mockOkResponse(mockWorkoutPlan);
+
+      await workoutApiService.generateWorkout(generalFitnessRequest, 1);
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.additionalEquipment == null).toBe(true);
+    });
+
+    test('specialFocusAreas is included in request body when provided', async () => {
+      mockOkResponse(mockWorkoutPlan);
+      const req: WorkoutRequest = { ...generalFitnessRequest, specialFocusAreas: 'Strengthen posterior chain' };
+
+      await workoutApiService.generateWorkout(req, 1);
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.specialFocusAreas).toBe('Strengthen posterior chain');
+    });
+
+    test('specialFocusAreas is null or absent when not provided', async () => {
+      mockOkResponse(mockWorkoutPlan);
+
+      await workoutApiService.generateWorkout(generalFitnessRequest, 1);
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.specialFocusAreas == null).toBe(true);
+    });
+
+    test('GENERAL_FITNESS workout returns success=true on 200', async () => {
+      mockOkResponse(mockWorkoutPlan);
+
+      const result = await workoutApiService.generateWorkout(generalFitnessRequest, 1);
+
+      expect(result.success).toBe(true);
+    });
+
+    test('GENERAL_FITNESS trial limit error is handled the same as sport-specific trial limit', async () => {
+      const errMsg = 'Trial workout limit reached (1 workout). Subscribe to Basic ($12.99) or Premium ($19.99).';
+      mockErrorResponse(400, { description: errMsg });
+
+      const result = await workoutApiService.generateWorkout(generalFitnessRequest, 1);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Trial workout limit reached');
     });
   });
 });

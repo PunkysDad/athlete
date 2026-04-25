@@ -33,7 +33,21 @@ const SPORTS_DATA = {
     name: 'Hockey',
     emoji: '🏒',
     positions: ['Center', 'Winger', 'Defenseman', 'Goalie']
-  }
+  },
+  generalFitness: {
+    name: 'General Fitness',
+    emoji: '💪',
+    positions: [] as string[],
+  },
+};
+
+// Maps the internal sport key to the backend enum value used by onComplete.
+// App.tsx applies .toUpperCase() to the sport before sending to the backend, so
+// returning 'GENERAL_FITNESS' here survives the uppercase unchanged while other
+// sports stay on the existing path (e.g. 'football' → 'FOOTBALL').
+const resolveSportForCallback = (sport: string | null): string | null => {
+  if (sport === 'generalFitness') return 'GENERAL_FITNESS';
+  return sport;
 };
 
 // Subscription tiers (BASIC & PREMIUM only)
@@ -76,8 +90,13 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
   });
 
   const handleSportSelection = (sport: string) => {
-    setOnboardingData(prev => ({ ...prev, sport, position: null }));
-    setCurrentStep(2);
+    if (sport === 'generalFitness') {
+      setOnboardingData(prev => ({ ...prev, sport, position: null }));
+      setCurrentStep(3);
+    } else {
+      setOnboardingData(prev => ({ ...prev, sport, position: null }));
+      setCurrentStep(2);
+    }
   };
 
   const handlePositionSelection = (position: string) => {
@@ -146,6 +165,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
 
       onComplete({
         ...onboardingData,
+        sport: resolveSportForCallback(onboardingData.sport),
         subscriptionTier: subscriptionInfo.tier,
         billingCycle: tierData.billing,
       });
@@ -172,6 +192,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
             style: 'cancel',
             onPress: () => onComplete({
               ...onboardingData,
+              sport: resolveSportForCallback(onboardingData.sport),
               subscriptionTier: 'TRIAL',
               billingCycle: tierData.billing,
             }),
@@ -185,7 +206,12 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
 
   const handleBackButton = () => {
     if (currentStep > initialStep) {
-      setCurrentStep(currentStep - 1);
+      // General Fitness skips step 2 (positions), so back from step 3 goes to step 1
+      if (currentStep === 3 && onboardingData.sport === 'generalFitness') {
+        setCurrentStep(1);
+      } else {
+        setCurrentStep(currentStep - 1);
+      }
     } else {
       onComplete({
         sport: null,
@@ -293,7 +319,9 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
           <Text style={styles.subtitle}>
             Select the plan that works best for you
           </Text>
-          <Text style={styles.stepIndicator}>Step 3 of 3</Text>
+          <Text style={styles.stepIndicator}>
+            {onboardingData.sport === 'generalFitness' ? 'Step 2 of 2' : 'Step 3 of 3'}
+          </Text>
 
           <ScrollView style={styles.optionsContainer} showsVerticalScrollIndicator={false}>
             {/* Free Trial Option — only shown to brand new users with no tier */}
@@ -302,6 +330,7 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
                 style={styles.trialCard}
                 onPress={() => onComplete({
                   ...onboardingData,
+                  sport: resolveSportForCallback(onboardingData.sport),
                   subscriptionTier: 'TRIAL',
                   billingCycle: 'monthly',
                 })}

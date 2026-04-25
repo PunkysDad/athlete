@@ -46,13 +46,15 @@ export interface WorkoutData extends WorkoutPlan {
 
 export interface WorkoutRequest {
   sport: string;
-  position: string;
+  position: string | null;
   experienceLevel: 'beginner' | 'intermediate' | 'advanced';
-  trainingPhase: 'off-season' | 'pre-season' | 'in-season' | 'post-season';
+  trainingPhase: 'off-season' | 'pre-season' | 'in-season' | 'post-season' | 'GENERAL';
   equipment: string[];
   timeAvailable: number;
   trainingFocus: string[];
   specialRequests?: string;
+  additionalEquipment?: string | null;
+  specialFocusAreas?: string | null;
 }
 
 export interface WorkoutResponse {
@@ -154,6 +156,7 @@ export interface UserResponse {
   subscriptionTier: string;
   primarySport?: string;
   primaryPosition?: string;
+  fitnessGoals?: string[];
   createdAt: string;
   isActive: boolean;
 }

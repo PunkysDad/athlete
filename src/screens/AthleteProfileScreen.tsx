@@ -52,7 +52,15 @@ const SPORTS_CONFIG: Record<string, string[]> = {
 const ENUM_SPORT_MAP: Record<string, string> = {
   FOOTBALL: 'Football', BASKETBALL: 'Basketball', BASEBALL: 'Baseball',
   SOCCER: 'Soccer', HOCKEY: 'Hockey',
+  GENERAL_FITNESS: 'General Fitness',
 };
+
+const FITNESS_GOALS = [
+  { id: 'LOSE_WEIGHT', label: 'Lose Weight', emoji: '🔥' },
+  { id: 'INCREASE_CARDIO_HEALTH', label: 'Increase Cardio Health', emoji: '❤️' },
+  { id: 'INCREASE_STRENGTH_AND_MUSCLE_MASS', label: 'Increase Strength & Muscle Mass', emoji: '💪' },
+  { id: 'INCREASE_STAMINA_AND_ENDURANCE', label: 'Increase Stamina & Endurance', emoji: '⚡' },
+];
 
 const TIER_LABELS: Record<string, { label: string; price: string }> = {
   TRIAL:   { label: 'Free Trial',  price: 'Limited access' },
@@ -122,6 +130,8 @@ export default function ProfileEditScreen() {
     sport: 'Football',
     position: 'QB',
   });
+  const [fitnessGoals, setFitnessGoals] = useState<string[]>([]);
+  const [isGeneralFitness, setIsGeneralFitness] = useState(false);
 
   useEffect(() => {
     const resolveUser = async () => {
@@ -144,13 +154,20 @@ export default function ProfileEditScreen() {
         const result = await apiService.getUserProfile(currentUserId);
         if (result.success && result.data) {
           const u = result.data;
-          const displaySport = u.primarySport
-            ? (ENUM_SPORT_MAP[u.primarySport] ?? u.primarySport)
-            : 'Football';
-          const displayPosition = u.primaryPosition
-            ? (ENUM_POSITION_MAP[u.primaryPosition] ?? u.primaryPosition)
-            : SPORTS_CONFIG[displaySport][0];
-          setFormData({ sport: displaySport, position: displayPosition });
+          if (u.primarySport === 'GENERAL_FITNESS') {
+            setIsGeneralFitness(true);
+            setFormData({ sport: 'General Fitness', position: '' });
+            setFitnessGoals(Array.isArray(u.fitnessGoals) ? u.fitnessGoals : []);
+          } else {
+            setIsGeneralFitness(false);
+            const displaySport = u.primarySport
+              ? (ENUM_SPORT_MAP[u.primarySport] ?? u.primarySport)
+              : 'Football';
+            const displayPosition = u.primaryPosition
+              ? (ENUM_POSITION_MAP[u.primaryPosition] ?? u.primaryPosition)
+              : SPORTS_CONFIG[displaySport]?.[0] ?? '';
+            setFormData({ sport: displaySport, position: displayPosition });
+          }
           setSubscriptionTier(u.subscriptionTier ?? 'TRIAL');
         }
       } catch (err) {
@@ -169,10 +186,12 @@ export default function ProfileEditScreen() {
     }
     setIsLoading(true);
     try {
-      const result = await apiService.updateUserProfile(currentUserId, {
-        primarySport: formData.sport.toUpperCase(),
-        primaryPosition: POSITION_ENUM_MAP[formData.position] ?? null,
-      });
+      const result = isGeneralFitness
+        ? await apiService.updateFitnessGoals(currentUserId, fitnessGoals)
+        : await apiService.updateUserProfile(currentUserId, {
+            primarySport: formData.sport.toUpperCase(),
+            primaryPosition: POSITION_ENUM_MAP[formData.position] ?? null,
+          });
       if (result.success) {
         Alert.alert('Profile Updated', 'Your profile has been successfully updated.', [
           { text: 'OK', onPress: () => navigation.goBack() },
@@ -185,6 +204,12 @@ export default function ProfileEditScreen() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const toggleFitnessGoal = (goalId: string) => {
+    setFitnessGoals(prev =>
+      prev.includes(goalId) ? prev.filter(g => g !== goalId) : [...prev, goalId]
+    );
   };
 
   const handleCancelSubscription = () => {
@@ -289,23 +314,62 @@ export default function ProfileEditScreen() {
             <View style={cs.cardPadding}>
               <Text style={cs.cardHeading}>Athletic Information</Text>
               <View style={{ height: 16 }} />
-              <DropdownRow
-                label="Sport"
-                value={formData.sport}
-                items={Object.keys(SPORTS_CONFIG)}
-                onSelect={(sport) => setFormData({
-                  sport,
-                  position: SPORTS_CONFIG[sport][0],
-                })}
-              />
-              <DropdownRow
-                label="Position"
-                value={formData.position}
-                items={SPORTS_CONFIG[formData.sport] ?? []}
-                onSelect={(position) => setFormData({ ...formData, position })}
-              />
+              {isGeneralFitness ? (
+                <View style={styles.readOnlyRow}>
+                  <Text style={styles.menuLabel}>Sport</Text>
+                  <Text style={styles.menuValue}>General Fitness 💪</Text>
+                </View>
+              ) : (
+                <>
+                  <DropdownRow
+                    label="Sport"
+                    value={formData.sport}
+                    items={Object.keys(SPORTS_CONFIG)}
+                    onSelect={(sport) => setFormData({
+                      sport,
+                      position: SPORTS_CONFIG[sport][0],
+                    })}
+                  />
+                  <DropdownRow
+                    label="Position"
+                    value={formData.position}
+                    items={SPORTS_CONFIG[formData.sport] ?? []}
+                    onSelect={(position) => setFormData({ ...formData, position })}
+                  />
+                </>
+              )}
             </View>
           </BlurView>
+
+          {/* Fitness Goals — only for General Fitness users */}
+          {isGeneralFitness && (
+            <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
+              <View style={cs.cardPadding}>
+                <Text style={cs.cardHeading}>Fitness Goals</Text>
+                <Text style={styles.goalsSubtitle}>Select all that apply</Text>
+                <View style={{ height: 12 }} />
+                {FITNESS_GOALS.map(goal => {
+                  const selected = fitnessGoals.includes(goal.id);
+                  return (
+                    <TouchableOpacity
+                      key={goal.id}
+                      style={[styles.goalRow, selected && styles.goalRowSelected]}
+                      onPress={() => toggleFitnessGoal(goal.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.goalEmoji}>{goal.emoji}</Text>
+                      <Text style={[styles.goalLabel, selected && styles.goalLabelSelected]}>
+                        {goal.label}
+                      </Text>
+                      {selected && (
+                        <Icon name="check" size={20} color={appTheme.purple} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </BlurView>
+          )}
 
           {/* Subscription */}
           <BlurView intensity={15} tint="dark" style={cs.glassCardOrb}>
@@ -551,6 +615,51 @@ const styles = StyleSheet.create({
     color: appTheme.white,
     fontWeight: '600',
     marginRight: 2,
+  },
+  readOnlyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.base,
+    paddingHorizontal: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: appTheme.border,
+    borderRadius: 16,
+    marginBottom: theme.spacing.base,
+    backgroundColor: appTheme.bgElevated,
+  },
+  goalsSubtitle: {
+    fontSize: 13,
+    color: appTheme.textMuted,
+    marginTop: 4,
+  },
+  goalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.base,
+    paddingHorizontal: theme.spacing.base,
+    borderWidth: 1,
+    borderColor: appTheme.border,
+    borderRadius: 16,
+    marginBottom: theme.spacing.sm,
+    backgroundColor: appTheme.bgElevated,
+  },
+  goalRowSelected: {
+    borderColor: appTheme.purple,
+    backgroundColor: appTheme.purpleDim,
+  },
+  goalEmoji: {
+    fontSize: 22,
+    marginRight: theme.spacing.base,
+  },
+  goalLabel: {
+    flex: 1,
+    fontSize: 15,
+    color: appTheme.text,
+    fontWeight: '600',
+  },
+  goalLabelSelected: {
+    color: appTheme.purple,
   },
 
   // Modal sheet

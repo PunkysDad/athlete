@@ -288,6 +288,10 @@ export default function WorkoutDisplayScreen() {
 
   const renderExercise = (exercise: Exercise, index: number) => {
     const isExpanded = expandedExercise === index;
+    const isGeneralFitness = workoutData.sport === 'GENERAL_FITNESS';
+    const positionBenefitLabel = isGeneralFitness ? '❤️‍🩺 Physical Benefit' : '🎯 Position Benefit';
+    const gameApplicationLabel = isGeneralFitness ? '👊 Functional Strength Benefit' : '🏈 Game Application';
+    const coachingCueLabel = isGeneralFitness ? '💡 Trainer Advice' : '💬 Coaching Cue';
     return (
       <BlurView key={index} intensity={15} tint="dark" style={styles.exerciseCard}>
         <TouchableOpacity onPress={() => toggleExerciseDetails(index)}>
@@ -308,19 +312,19 @@ export default function WorkoutDisplayScreen() {
                 <Divider style={[styles.sectionDivider, { backgroundColor: appTheme.border }]} />
                 {exercise.positionBenefit && (
                   <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>🎯 Position Benefit</Text>
+                    <Text style={styles.detailLabel}>{positionBenefitLabel}</Text>
                     <Text style={styles.detailText}>{exercise.positionBenefit}</Text>
                   </View>
                 )}
                 {exercise.gameApplication && (
                   <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>🏈 Game Application</Text>
+                    <Text style={styles.detailLabel}>{gameApplicationLabel}</Text>
                     <Text style={styles.detailText}>{exercise.gameApplication}</Text>
                   </View>
                 )}
                 {exercise.coachingCue && (
                   <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>💬 Coaching Cue</Text>
+                    <Text style={styles.detailLabel}>{coachingCueLabel}</Text>
                     <Text style={[styles.detailText, styles.coachingCue]}>"{exercise.coachingCue}"</Text>
                   </View>
                 )}
@@ -371,10 +375,20 @@ export default function WorkoutDisplayScreen() {
       />
 
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <IconButton icon="arrow-left" size={24} iconColor={appTheme.white} onPress={() => navigation.goBack()} />
+        <IconButton
+          icon="arrow-left"
+          size={24}
+          iconColor={appTheme.white}
+          onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'Home' }], index: 0 } }] })}
+        />
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle} numberOfLines={1}>{workoutTitle}</Text>
-          <Text style={styles.headerSubtitle}>{workoutData.sport} • {workoutData.position}</Text>
+          <Text style={styles.headerSubtitle}>
+            {workoutData.sport === 'GENERAL_FITNESS'
+              ? 'General Fitness 💪'
+              : `${workoutData.sport} • ${workoutData.position}`
+            }
+          </Text>
         </View>
       </View>
 
@@ -553,7 +567,7 @@ const styles = StyleSheet.create({
   },
   overviewHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   overviewTitle: { marginLeft: 8, fontWeight: '700', fontSize: 15, color: appTheme.white },
-  overviewDescription: { fontSize: 14, lineHeight: 20, color: appTheme.textMuted, marginBottom: 16 },
+  overviewDescription: { fontSize: 14, lineHeight: 20, color: appTheme.white, marginBottom: 16 },
 
   statsRow: {
     flexDirection: 'row',
@@ -590,13 +604,13 @@ const styles = StyleSheet.create({
   exerciseInfo: { flex: 1 },
   exerciseName: { fontSize: 15, fontWeight: '600', color: appTheme.white },
   exerciseStats: { fontSize: 13, color: appTheme.neonGreen, marginTop: 2, fontWeight: '500' },
-  exerciseDescription: { fontSize: 13, lineHeight: 18, color: appTheme.textMuted },
+  exerciseDescription: { fontSize: 13, lineHeight: 18, color: appTheme.white },
   expandedContent: { marginTop: 8 },
   sectionDivider: { marginBottom: 8 },
   detailSection: { marginBottom: 8 },
   detailLabel: { fontSize: 13, fontWeight: '600', color: appTheme.text, marginBottom: 4 },
-  detailText: { fontSize: 13, lineHeight: 18, color: appTheme.textMuted },
-  coachingCue: { fontStyle: 'italic', color: appTheme.purple },
+  detailText: { fontSize: 13, lineHeight: 18, color: appTheme.white },
+  coachingCue: { fontStyle: 'italic', color: appTheme.white },
   placeholderCard: {
     borderRadius: 20,
     borderWidth: 1,
@@ -630,7 +644,7 @@ const styles = StyleSheet.create({
   activeTabLabel: { color: appTheme.neonGreen, fontWeight: '600' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalContainer: { backgroundColor: appTheme.bgCard, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1, borderColor: appTheme.border, padding: 24, maxHeight: '70%' },
+  modalContainer: { backgroundColor: '#000000', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderTopWidth: 1, borderColor: appTheme.border, padding: 24, maxHeight: '70%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: appTheme.white },
   tagList: { gap: 4 },

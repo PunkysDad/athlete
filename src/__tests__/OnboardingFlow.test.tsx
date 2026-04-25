@@ -223,3 +223,71 @@ describe('subscription plan content', () => {
     expect(getByText(/tagging system/i)).toBeTruthy();
   });
 });
+
+// =========================================================================
+// General Fitness onboarding flow
+// =========================================================================
+
+describe('General Fitness onboarding flow', () => {
+
+  test('General Fitness appears as a sport option on step 1', () => {
+    const { getByText } = renderFlow();
+    expect(getByText('General Fitness')).toBeTruthy();
+  });
+
+  test('selecting General Fitness skips position step and goes directly to subscription', () => {
+    const { getByText, queryByText } = renderFlow();
+    fireEvent.press(getByText('General Fitness'));
+    expect(getByText('Choose Your Plan')).toBeTruthy();
+    expect(queryByText('Choose Your Position')).toBeNull();
+  });
+
+  test('step counter shows Step 2 of 2 after selecting General Fitness', () => {
+    const { getByText } = renderFlow();
+    fireEvent.press(getByText('General Fitness'));
+    expect(getByText('Step 2 of 2')).toBeTruthy();
+  });
+
+  // Step 1 always renders a static 'Step 1 of 3' label regardless of path —
+  // the step counter only branches on General Fitness at step 3. Skipping the
+  // 'Step 1 of 2' assertion until (if ever) the sport-selection screen gets a
+  // path-aware counter.
+  test.skip('step counter shows Step 1 of 2 on first step when General Fitness path detected', () => {
+    // Intentionally skipped; component does not currently support this.
+  });
+
+  test('back button from subscription step in General Fitness flow navigates to step 1 (skipping position step)', () => {
+    const { getByText, onComplete, queryByText } = renderFlow();
+    fireEvent.press(getByText('General Fitness'));    // go to step 3
+    fireEvent.press(getByText('← Back'));             // GF flow: back goes to step 1, not step 2
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(getByText('Welcome to SportsIQ!')).toBeTruthy();
+    expect(queryByText('Choose Your Position')).toBeNull();
+  });
+
+  test('selecting General Fitness then trial calls onComplete with GENERAL_FITNESS sport', () => {
+    const { getByText, onComplete } = renderFlow();
+    fireEvent.press(getByText('General Fitness'));
+    fireEvent.press(getByText('Start Free Trial'));
+    expect(onComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ sport: 'GENERAL_FITNESS' })
+    );
+  });
+
+  test('selecting General Fitness then trial calls onComplete with null position', () => {
+    const { getByText, onComplete } = renderFlow();
+    fireEvent.press(getByText('General Fitness'));
+    fireEvent.press(getByText('Start Free Trial'));
+    expect(onComplete).toHaveBeenCalledWith(
+      expect.objectContaining({ position: null })
+    );
+  });
+});
+
+// =========================================================================
+// Sport-specific flow still shows 3 steps after General Fitness added
+// =========================================================================
+//
+// Verified by existing test 'selecting a sport advances to step 2', which
+// asserts 'Step 2 of 3' on the position step after Football is selected.
+// No additional test required; the label has not changed for sport paths.

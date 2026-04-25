@@ -126,6 +126,31 @@ export const apiService = {
     });
   },
 
+  // Update user profile including fitnessGoals
+  async updateUserProfileFull(
+    userId: number,
+    data: {
+      displayName?: string | null;
+      primarySport?: string | null;
+      primaryPosition?: string | null;
+      age?: number | null;
+      fitnessGoals?: string[] | null;
+    }
+  ): Promise<ApiResponse<any>> {
+    return apiCall(`/api/v1/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Update just the user's fitness goals (General Fitness users)
+  async updateFitnessGoals(userId: number, fitnessGoals: string[]): Promise<ApiResponse<any>> {
+    return apiCall(`/api/v1/users/${userId}/fitness-goals`, {
+      method: 'PUT',
+      body: JSON.stringify({ fitnessGoals }),
+    });
+  },
+
   // -------------------------------------------------------------------------
   // Single item fetches — used by TagContentBottomSheet
   // -------------------------------------------------------------------------
@@ -134,8 +159,26 @@ export const apiService = {
     return apiCall(`/api/v1/conversations/${conversationId}`);
   },
 
+  async getConversationsBySession(sessionId: string): Promise<ApiResponse<any[]>> {
+    return apiCall(`/api/v1/conversations/session/${sessionId}`);
+  },
+
   async getWorkoutById(workoutId: number): Promise<ApiResponse<any>> {
     return apiCall(`/api/v1/workouts/${workoutId}`);
+  },
+
+  async updateConversationTitle(conversationId: number, title: string): Promise<ApiResponse<any>> {
+    return apiCall(`/api/v1/conversations/${conversationId}/title`, {
+      method: 'PUT',
+      body: JSON.stringify({ title }),
+    });
+  },
+
+  async updateWorkoutTitle(workoutId: number, title: string): Promise<ApiResponse<any>> {
+    return apiCall(`/api/v1/workouts/${workoutId}/title`, {
+      method: 'PUT',
+      body: JSON.stringify({ title }),
+    });
   },
 
   // -------------------------------------------------------------------------

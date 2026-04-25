@@ -26,6 +26,15 @@ import {
 import TagContentBottomSheet from '../components/TagContentBottomSheet';
 import HistoryListModal from '../components/HistoryListModal';
 
+const SPORT_DISPLAY_MAP: Record<string, string> = {
+  FOOTBALL: 'Football',
+  BASKETBALL: 'Basketball',
+  BASEBALL: 'Baseball',
+  SOCCER: 'Soccer',
+  HOCKEY: 'Hockey',
+  GENERAL_FITNESS: 'General Fitness',
+};
+
 export default function HomeScreen() {
   const auth = getAuth();
   const userService = new UserService();
@@ -233,7 +242,10 @@ export default function HomeScreen() {
                 </Text>
               </View>
               <Text style={cs.cardBody}>
-                {currentUser?.primarySport || 'Sport'} · {currentUser?.primaryPosition || 'Position'}
+                {currentUser?.primarySport === 'GENERAL_FITNESS'
+                  ? 'General Fitness 💪'
+                  : `${SPORT_DISPLAY_MAP[currentUser?.primarySport] ?? currentUser?.primarySport ?? 'Sport'} · ${currentUser?.primaryPosition || 'Position'}`
+                }
               </Text>
               <View style={[cs.badge, cs.purpleBadge]}>
                 <Text style={[cs.badgeText, cs.purpleBadgeText]}>
@@ -413,9 +425,11 @@ export default function HomeScreen() {
       <View style={cs.screenHeader}>
         <Text style={cs.screenHeaderTitle}>Dashboard</Text>
         <Text style={cs.screenHeaderSubtitle}>
-          {currentUser?.primarySport
-            ? `${currentUser.primarySport} · ${currentUser.primaryPosition}`
-            : 'Your training overview'}
+          {currentUser?.primarySport === 'GENERAL_FITNESS'
+            ? 'General Fitness 💪'
+            : currentUser?.primarySport
+              ? `${SPORT_DISPLAY_MAP[currentUser.primarySport] ?? currentUser.primarySport} · ${currentUser.primaryPosition}`
+              : 'Your training overview'}
         </Text>
       </View>
 
@@ -452,6 +466,7 @@ export default function HomeScreen() {
         item={selectedItem}
         visible={sheetVisible}
         onClose={() => setSheetVisible(false)}
+        userId={currentUserId ?? 0}
       />
       <HistoryListModal
         visible={historyModalVisible}

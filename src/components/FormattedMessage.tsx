@@ -43,7 +43,7 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
       if (trimmedLine.match(/^###\s+/)) {
         elements.push(
           <Text key={lineIndex} style={[styles.header3, isUser && styles.userText]}>
-            {trimmedLine.replace(/^###\s+/, '')}
+            {renderInlineText(trimmedLine.replace(/^###\s+/, ''))}
           </Text>
         );
         return;
@@ -52,7 +52,7 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
       if (trimmedLine.match(/^##\s+/)) {
         elements.push(
           <Text key={lineIndex} style={[styles.header2, isUser && styles.userText]}>
-            {trimmedLine.replace(/^##\s+/, '')}
+            {renderInlineText(trimmedLine.replace(/^##\s+/, ''))}
           </Text>
         );
         return;
@@ -61,13 +61,13 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
       if (trimmedLine.match(/^#\s+/)) {
         elements.push(
           <Text key={lineIndex} style={[styles.header1, isUser && styles.userText]}>
-            {trimmedLine.replace(/^#\s+/, '')}
+            {renderInlineText(trimmedLine.replace(/^#\s+/, ''))}
           </Text>
         );
         return;
       }
 
-      if (trimmedLine.match(/^\*[^*]+\*$/)) {
+      if (trimmedLine.match(/^\*(?!\*)[^*]+\*$/)) {
         const content = trimmedLine.replace(/^\*([^*]+)\*$/, '$1');
         elements.push(
           <Text key={lineIndex} style={[styles.italic, isUser && styles.userText]}>
@@ -125,23 +125,28 @@ const FormattedMessage: React.FC<FormattedMessageProps> = ({ text, isUser }) => 
   const renderInlineText = (text: string): React.ReactNode => {
     if (!text || typeof text !== 'string') return text;
 
-    const parts = text.split('**');
-    const elements: React.ReactNode[] = [];
+    // Tokenize into bold (**...**) and italic (*...*) segments, preserving surrounding text.
+    const tokenRegex = /(\*\*[^*\n]+?\*\*|\*[^*\n]+?\*)/g;
+    const segments = text.split(tokenRegex).filter(s => s !== '');
+    if (segments.length <= 1) return text;
 
-    parts.forEach((part, index) => {
-      if (part === '') return;
-      if (index % 2 === 0) {
-        elements.push(<Text key={index}>{part}</Text>);
-      } else {
-        elements.push(
-          <Text key={index} style={[styles.bold, isUser && styles.userText]}>
-            {part}
+    return segments.map((seg, i) => {
+      if (seg.startsWith('**') && seg.endsWith('**') && seg.length >= 4) {
+        return (
+          <Text key={i} style={[styles.bold, isUser && styles.userText]}>
+            {seg.slice(2, -2)}
           </Text>
         );
       }
+      if (seg.startsWith('*') && seg.endsWith('*') && seg.length >= 2) {
+        return (
+          <Text key={i} style={[styles.italic, isUser && styles.userText]}>
+            {seg.slice(1, -1)}
+          </Text>
+        );
+      }
+      return <Text key={i}>{seg}</Text>;
     });
-
-    return elements.length > 0 ? elements : text;
   };
 
   return (
