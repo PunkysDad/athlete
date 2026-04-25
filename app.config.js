@@ -9,7 +9,8 @@ export default {
     jsEngine: 'hermes',
     newArchEnabled: false,
     updates: {
-      url: "https://u.expo.dev/ecaaa5e4-f225-44ee-a214-bdf423f43020"
+      url: "https://u.expo.dev/ecaaa5e4-f225-44ee-a214-bdf423f43020",
+      channel: "production"
     },
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
