@@ -1,6 +1,6 @@
 // src/components/onboarding/OnboardingFlow.tsx
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert, Linking, Modal, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Purchases from 'react-native-purchases';
 import { revenueCatService, SUBSCRIPTION_PRODUCTS } from '../../services/revenueCatService';
@@ -88,15 +88,25 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
     subscriptionTier: null,
     billingCycle: 'monthly'
   });
+  const [showGeneralFitnessModal, setShowGeneralFitnessModal] = useState(false);
 
   const handleSportSelection = (sport: string) => {
     if (sport === 'generalFitness') {
-      setOnboardingData(prev => ({ ...prev, sport, position: null }));
-      setCurrentStep(3);
+      setShowGeneralFitnessModal(true);
     } else {
       setOnboardingData(prev => ({ ...prev, sport, position: null }));
       setCurrentStep(2);
     }
+  };
+
+  const handleGeneralFitnessConfirm = () => {
+    setShowGeneralFitnessModal(false);
+    setOnboardingData(prev => ({ ...prev, sport: 'generalFitness', position: null }));
+    setCurrentStep(3);
+  };
+
+  const handleGeneralFitnessDismiss = () => {
+    setShowGeneralFitnessModal(false);
   };
 
   const handlePositionSelection = (position: string) => {
@@ -252,6 +262,35 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ user, onComplete
           </ScrollView>
         </View>
       </SafeAreaView>
+
+      <Modal
+        visible={showGeneralFitnessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleGeneralFitnessDismiss}
+      >
+        <Pressable style={styles.modalOverlay} onPress={handleGeneralFitnessDismiss}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalEmoji}>💪</Text>
+            <Text style={styles.modalTitle}>General Fitness</Text>
+            <Text style={styles.modalBody}>
+              General Fitness coaching is tailored to your personal fitness goals rather than a specific sport. Note that once selected, you won't be able to switch to a sport-specific program — this keeps your coaching experience focused and consistent.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalPrimaryButton}
+              onPress={handleGeneralFitnessConfirm}
+            >
+              <Text style={styles.modalPrimaryButtonText}>Got it, Continue</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalSecondaryButton}
+              onPress={handleGeneralFitnessDismiss}
+            >
+              <Text style={styles.modalSecondaryButtonText}>Go Back</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 
@@ -630,5 +669,73 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: appTheme.textMuted,
     marginHorizontal: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: appTheme.bgOverlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#0D0B1E',
+    borderRadius: 24,
+    padding: 28,
+    borderWidth: 1,
+    borderColor: appTheme.borderAccent,
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 10,
+    alignItems: 'center',
+  },
+  modalEmoji: {
+    fontSize: 44,
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: appTheme.white,
+    textAlign: 'center',
+    marginBottom: 12,
+    letterSpacing: -0.3,
+  },
+  modalBody: {
+    fontSize: 15,
+    color: appTheme.text,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  modalPrimaryButton: {
+    width: '100%',
+    backgroundColor: appTheme.purple,
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  modalPrimaryButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: appTheme.white,
+  },
+  modalSecondaryButton: {
+    width: '100%',
+    paddingVertical: 12,
+    borderRadius: 16,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: appTheme.border,
+  },
+  modalSecondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: appTheme.textMuted,
   },
 });
