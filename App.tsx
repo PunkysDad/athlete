@@ -357,7 +357,11 @@ export default function App() {
             const existingUser = await userService.checkUserExists(firebaseUser.uid);
             setUser(firebaseUser);
             setUserProfile(existingUser ?? null);
-            setShowOnboarding(!existingUser || !existingUser.primarySport || !existingUser.primaryPosition);
+            setShowOnboarding(
+              !existingUser ||
+              !existingUser.primarySport ||
+              (!existingUser.primaryPosition && existingUser.primarySport !== 'GENERAL_FITNESS')
+            );
             if (existingUser) {
               try {
                 await revenueCatService.syncTierIfChanged(
